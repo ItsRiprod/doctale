@@ -1,0 +1,310 @@
+<!-- [VERIFIED: 2026-01-19] -->
+
+# Development Environment Setup
+
+This guide covers setting up your development environment for creating Hytale server plugins.
+
+## Requirements
+
+### Java Development Kit (JDK)
+
+Hytale server plugins require **Java 21** or later.
+
+**Recommended distributions:**
+- [Eclipse Temurin](https://adoptium.net/) (Adoptium)
+- [Amazon Corretto](https://aws.amazon.com/corretto/)
+- [Oracle JDK](https://www.oracle.com/java/technologies/downloads/)
+
+Verify your installation:
+```bash
+java -version
+# Expected output: openjdk version "21.x.x" or similar
+```
+
+### Build Tool
+
+Choose one of the following build tools:
+
+- **Gradle** (recommended) - Version 8.0+
+- **Maven** - Version 3.9+
+
+### IDE (Recommended)
+
+- **IntelliJ IDEA** - Community or Ultimate edition
+- **Eclipse** - With Java 21 support
+- **VS Code** - With Java Extension Pack
+
+## Project Structure
+
+A typical Hytale plugin project follows this structure:
+
+```
+my-plugin/
+├── build.gradle                # Gradle build configuration
+├── settings.gradle             # Gradle settings
+├── src/
+│   └── main/
+│       ├── java/
+│       │   └── com/
+│       │       └── example/
+│       │           └── myplugin/
+│       │               └── MyPlugin.java
+│       └── resources/
+│           └── plugin.json     # Plugin manifest
+└── libs/
+    └── HytaleServer.jar        # Server JAR (provided dependency)
+```
+
+## Gradle Setup
+
+### build.gradle
+
+```groovy
+plugins {
+    id 'java'
+}
+
+group = 'com.example'
+version = '1.0.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Server JAR as compile-only (provided at runtime by server)
+    compileOnly files('libs/HytaleServer.jar')
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+jar {
+    // Include plugin.json in JAR root
+    from('src/main/resources') {
+        include 'plugin.json'
+    }
+
+    // Manifest for JAR
+    manifest {
+        attributes(
+            'Implementation-Title': project.name,
+            'Implementation-Version': project.version
+        )
+    }
+}
+```
+
+### settings.gradle
+
+```groovy
+rootProject.name = 'my-plugin'
+```
+
+## Maven Setup
+
+### pom.xml
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.example</groupId>
+    <artifactId>my-plugin</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <properties>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.hypixel.hytale</groupId>
+            <artifactId>hytale-server</artifactId>
+            <version>1.0.0</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/libs/HytaleServer.jar</systemPath>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>21</source>
+                    <target>21</target>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.3.0</version>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+```
+
+## Obtaining the Server JAR
+
+The Hytale server JAR (`HytaleServer.jar`) provides all the APIs you'll compile against.
+
+1. Download the dedicated server from the official Hytale source
+2. Place it in your project's `libs/` directory
+3. The server JAR is used as a **compile-only/provided** dependency
+
+**Important:** Do not bundle the server JAR with your plugin. It's provided at runtime by the server.
+
+## Creating Your First Plugin
+
+### 1. Create the Plugin Class
+
+`src/main/java/com/example/myplugin/MyPlugin.java`:
+
+```java
+package com.example.myplugin;
+
+import com.hypixel.hytale.server.core.plugin.JavaPlugin;
+import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
+import java.util.logging.Level;
+
+public class MyPlugin extends JavaPlugin {
+
+    public MyPlugin(JavaPluginInit init) {
+        super(init);
+    }
+
+    @Override
+    protected void setup() {
+        getLogger().at(Level.INFO).log("Setting up MyPlugin...");
+    }
+
+    @Override
+    protected void start() {
+        getLogger().at(Level.INFO).log("MyPlugin started!");
+    }
+
+    @Override
+    protected void shutdown() {
+        getLogger().at(Level.INFO).log("MyPlugin shutdown.");
+    }
+}
+```
+
+### 2. Create the Plugin Manifest
+
+`src/main/resources/plugin.json`:
+
+```json
+{
+  "Group": "com.example",
+  "Name": "MyPlugin",
+  "Version": "1.0.0",
+  "Description": "My first Hytale plugin",
+  "Main": "com.example.myplugin.MyPlugin",
+  "Authors": [
+    {
+      "Name": "Your Name"
+    }
+  ]
+}
+```
+
+### 3. Build Your Plugin
+
+**Gradle:**
+```bash
+./gradlew build
+# Output: build/libs/my-plugin-1.0.0.jar
+```
+
+**Maven:**
+```bash
+mvn package
+# Output: target/my-plugin-1.0.0.jar
+```
+
+### 4. Install and Test
+
+1. Copy the built JAR to your server's `plugins/` directory
+2. Start or restart the server
+3. Check the server logs for your plugin's messages
+
+## IDE Configuration
+
+### IntelliJ IDEA
+
+1. **Import Project:**
+   - File → Open → Select your project directory
+   - Choose Gradle or Maven as the build system
+
+2. **Configure JDK:**
+   - File → Project Structure → Project
+   - Set SDK to Java 21
+   - Set Language Level to 21
+
+3. **Enable Annotation Processing:**
+   - Settings → Build → Compiler → Annotation Processors
+   - Enable annotation processing
+
+### Eclipse
+
+1. **Import Project:**
+   - File → Import → Gradle/Maven → Existing Project
+
+2. **Configure Build Path:**
+   - Right-click project → Properties → Java Build Path
+   - Ensure HytaleServer.jar is in the Libraries tab
+
+3. **Set Compiler Level:**
+   - Right-click project → Properties → Java Compiler
+   - Set Compiler compliance level to 21
+
+## Troubleshooting
+
+### "Class not found" errors
+
+- Ensure `HytaleServer.jar` is properly added to your classpath
+- Verify the `Main` field in `plugin.json` matches your class's fully qualified name
+
+### Plugin doesn't load
+
+- Check for JSON syntax errors in `plugin.json`
+- Verify `plugin.json` is at the root of your JAR (not in a subdirectory)
+- Check server logs for error messages
+
+### Compilation errors
+
+- Ensure you're using Java 21 or later
+- Verify the server JAR is the correct version
+
+## Next Steps
+
+- [First Plugin Tutorial](./first-plugin.md) - Complete walkthrough
+- [Plugin Manifest](./plugin-manifest.md) - Manifest configuration
+- [Plugin Lifecycle](./plugin-lifecycle.md) - Understanding lifecycle

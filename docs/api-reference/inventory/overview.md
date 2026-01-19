@@ -1,0 +1,366 @@
+<!-- [VERIFIED: 2026-01-19] -->
+
+# Inventory System Overview
+
+The Inventory System manages items, item stacks, and containers for players and other entities. It provides a flexible, transaction-based approach to item manipulation.
+
+## Package Location
+
+- ItemStack: `com.hypixel.hytale.server.core.inventory.ItemStack`
+- Containers: `com.hypixel.hytale.server.core.inventory.container`
+- Transactions: `com.hypixel.hytale.server.core.inventory.transaction`
+- Filters: `com.hypixel.hytale.server.core.inventory.container.filter`
+
+## Core Classes
+
+| Class | Description |
+|-------|-------------|
+| `ItemStack` | Represents a stack of items |
+| `ItemContainer` | Base class for item storage |
+| `SimpleItemContainer` | Basic container implementation |
+| `Transaction` | Base for inventory operations |
+| `Inventory` | Player inventory component |
+
+## ItemStack
+
+`ItemStack` represents one or more items of the same type.
+
+### Creating Item Stacks
+
+```java
+// Single item
+ItemStack sword = new ItemStack("Sword_Iron");
+
+// Stack of items
+ItemStack arrows = new ItemStack("Arrow_Standard", 64);
+
+// With metadata
+BsonDocument metadata = new BsonDocument();
+metadata.put("enchantment", new BsonString("fire"));
+ItemStack enchantedSword = new ItemStack("Sword_Iron", 1, metadata);
+
+// With durability
+ItemStack damagedSword = new ItemStack(
+    "Sword_Iron",    // item ID
+    1,               // quantity
+    50.0,            // current durability
+    100.0,           // max durability
+    null             // metadata
+);
+```
+
+### ItemStack Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `itemId` | `String` | Item type identifier |
+| `quantity` | `int` | Number of items in stack |
+| `durability` | `double` | Current durability |
+| `maxDurability` | `double` | Maximum durability |
+| `metadata` | `BsonDocument` | Custom item data |
+
+### ItemStack Methods
+
+```java
+// Get properties
+String itemId = stack.getItemId();
+int quantity = stack.getQuantity();
+double durability = stack.getDurability();
+
+// Get item definition
+Item item = stack.getItem();
+
+// Check state
+boolean empty = stack.isEmpty();
+boolean broken = stack.isBroken();
+boolean unbreakable = stack.isUnbreakable();
+
+// Check if can stack with another
+boolean stackable = stack.isStackableWith(otherStack);
+
+// Get block key (for placeable items)
+String blockKey = stack.getBlockKey();
+
+// Clone
+ItemStack copy = stack.clone();
+```
+
+### Empty ItemStack
+
+```java
+// The empty item stack singleton
+ItemStack empty = ItemStack.EMPTY;
+
+// Check if empty
+if (stack.isEmpty()) {
+    // No items
+}
+
+// Static utility
+boolean isEmpty = ItemStack.isEmpty(stack);  // null-safe
+```
+
+## ItemContainer
+
+`ItemContainer` is the base class for all item storage.
+
+### Container Types
+
+| Type | Description |
+|------|-------------|
+| `SimpleItemContainer` | Basic fixed-size container |
+| `ItemStackItemContainer` | Single-slot container |
+| `CombinedItemContainer` | Multiple containers as one |
+| `DelegateItemContainer` | Wraps another container |
+| `EmptyItemContainer` | No storage (always empty) |
+
+### Container Properties
+
+```java
+// Get capacity
+short capacity = container.getCapacity();
+
+// Get slot contents
+ItemStack item = container.getSlot(slot);
+
+// Set slot contents
+ItemStack previous = container.setSlot(slot, itemStack);
+
+// Remove from slot
+ItemStack removed = container.removeSlot(slot);
+
+// Clear all slots
+ClearTransaction cleared = container.clear();
+```
+
+### Adding Items
+
+```java
+// Add item stack (returns what couldn't be added)
+ItemStackTransaction tx = container.addItemStack(itemStack);
+ItemStack remainder = tx.getRemainingStack();
+
+// Add to specific slot
+ItemStackSlotTransaction slotTx = container.addItemStackToSlot(slot, itemStack);
+
+// Add with options
+container.addItemStack(
+    itemStack,
+    false,  // allOrNothing - if true, fails if can't add all
+    true    // filter - respect slot filters
+);
+```
+
+### Removing Items
+
+```java
+// Remove specific item
+ItemStackTransaction tx = container.removeItemStack(itemStack);
+
+// Remove from slot
+ItemStackSlotTransaction slotTx = container.removeItemStackFromSlot(slot, quantity);
+
+// Remove by material
+MaterialTransaction materialTx = container.removeMaterial(materialId, quantity);
+
+// Remove by tag
+TagTransaction tagTx = container.removeTag(tagId, quantity);
+```
+
+### Checking Contents
+
+```java
+// Check if has item
+boolean hasItem = container.hasItemStack(itemStack);
+
+// Count items of type
+int count = container.countMaterial(materialId);
+
+// Check for space
+boolean canAdd = container.canAddItemStackToSlot(slot, itemStack, false, true);
+
+// Find first empty slot
+short emptySlot = container.getFirstEmptySlot();
+
+// Iterate contents
+container.forEach((slot, itemStack) -> {
+    // Process each non-empty slot
+});
+```
+
+### Container Filters
+
+Filters control what items can go in which slots:
+
+```java
+// Set global filter
+container.setGlobalFilter(filterType);
+
+// Set slot-specific filter
+container.setSlotFilter(FilterActionType.ADD, slot, slotFilter);
+container.setSlotFilter(FilterActionType.REMOVE, slot, slotFilter);
+container.setSlotFilter(FilterActionType.DROP, slot, slotFilter);
+```
+
+### Built-in Filters
+
+| Filter | Description |
+|--------|-------------|
+| `TagFilter` | Filter by item tag |
+| `ResourceFilter` | Filter by resource type |
+| `ArmorSlotAddFilter` | Armor slot restrictions |
+| `NoDuplicateFilter` | Prevent duplicate items |
+
+### Container Events
+
+```java
+// Register for change events
+container.registerChangeEvent(event -> {
+    Transaction transaction = event.getTransaction();
+    // Handle changes
+});
+
+// With priority
+container.registerChangeEvent(EventPriority.NORMAL, event -> {
+    // Handle changes
+});
+```
+
+## Transactions
+
+All inventory operations return a transaction object describing what happened.
+
+### Transaction Types
+
+| Transaction | Description |
+|-------------|-------------|
+| `ItemStackTransaction` | Add/remove item stack |
+| `ItemStackSlotTransaction` | Slot-specific item operation |
+| `MaterialTransaction` | Material-based operations |
+| `TagTransaction` | Tag-based operations |
+| `ResourceTransaction` | Resource-based operations |
+| `MoveTransaction` | Move between containers |
+| `ClearTransaction` | Clear container |
+
+### Transaction Results
+
+```java
+// Item stack transaction
+ItemStackTransaction tx = container.addItemStack(itemStack);
+int added = tx.getQuantityChange();
+ItemStack remainder = tx.getRemainingStack();
+List<SlotTransaction> slots = tx.getSlots();
+
+// Check if complete
+if (tx.getRemainingStack().isEmpty()) {
+    // All items were added
+}
+```
+
+## Moving Items
+
+### Between Containers
+
+```java
+// Move item between containers
+MoveTransaction move = sourceContainer.moveToContainer(
+    slot,           // source slot
+    targetContainer,
+    MoveType.ALL    // move type
+);
+
+// Move types
+MoveType.ALL      // Move entire stack
+MoveType.HALF     // Move half the stack
+MoveType.ONE      // Move single item
+```
+
+### Swap Containers
+
+```java
+// Swap container contents
+ListTransaction swap = ItemContainerUtil.swap(
+    containerA,
+    containerB
+);
+```
+
+## Sorting
+
+```java
+// Sort container
+container.sort(SortType.ALPHABETICAL);
+
+// Sort types
+SortType.ALPHABETICAL  // By item name
+SortType.STACK_SIZE    // By quantity
+SortType.MATERIAL      // By material type
+```
+
+## Player Inventory
+
+Player inventory has special sections:
+
+```java
+// Access from player
+Inventory inventory = player.getInventory();
+
+// Inventory sections
+ItemContainer hotbar = inventory.getHotbar();
+ItemContainer main = inventory.getMain();
+ItemContainer armor = inventory.getArmor();
+ItemContainer offhand = inventory.getOffhand();
+
+// Held item
+ItemStack heldItem = inventory.getHeldItem();
+short activeSlot = inventory.getActiveSlot();
+```
+
+## Item Context
+
+`ItemContext` provides context for item operations:
+
+```java
+// Create context
+ItemContext context = new ItemContext(
+    playerRef,
+    inventory,
+    activeSlot
+);
+
+// Get context info
+PlayerRef player = context.getPlayerRef();
+ItemContainer container = context.getContainer();
+short slot = context.getSlot();
+ItemStack item = context.getItemStack();
+```
+
+## Serialization
+
+ItemStack supports serialization:
+
+```java
+// Codec for persistence
+BuilderCodec<ItemStack> codec = ItemStack.CODEC;
+
+// Convert to packet for network
+ItemWithAllMetadata packet = itemStack.toPacket();
+
+// Container to protocol
+Map<Integer, ItemWithAllMetadata> protocolMap = container.toProtocolMap();
+InventorySection section = container.toPacket();
+```
+
+## Best Practices
+
+1. **Use transactions**: Check transaction results to handle partial operations
+2. **Respect filters**: Pass `filter=true` unless you need to bypass restrictions
+3. **Validate slots**: Check slot bounds before operations
+4. **Handle empty stacks**: Always check for `isEmpty()` or use `ItemStack.isEmpty()`
+5. **Clone when needed**: Clone stacks when storing references outside transactions
+
+## Related
+
+- [Item Assets](../assets/items.md) - Item type definitions
+- [Entity System](../entities/overview.md) - Player inventory access
+- [Events](../../core-concepts/event-system.md) - Container events

@@ -1,0 +1,366 @@
+<!-- [VERIFIED: 2026-01-19] -->
+
+# Entity Movement
+
+The movement system manages entity velocity, forces, and physics simulation. It uses components for velocity storage and configuration.
+
+## Package Location
+
+- Velocity: `com.hypixel.hytale.server.core.modules.physics.component`
+- Split Velocity: `com.hypixel.hytale.server.core.modules.splitvelocity`
+- Physics: `com.hypixel.hytale.server.core.modules.physics`
+
+## Velocity Component
+
+Stores and manages entity velocity:
+
+```java
+package com.hypixel.hytale.server.core.modules.physics.component;
+
+public class Velocity {
+    // Set velocity directly
+    public void set(double x, double y, double z);
+    public void set(Vector3d velocity);
+
+    // Get velocity
+    public Vector3d getVelocity();
+    public Vector3d getClientVelocity();
+    public double getSpeed();
+
+    // Add force (accumulated)
+    public void addForce(Vector3d force);
+
+    // Set client-side velocity (for prediction)
+    public void setClient(Vector3d velocity);
+
+    // Velocity instructions
+    public void addInstruction(Vector3d velocity, VelocityConfig config,
+                               ChangeVelocityType type);
+    public List<Instruction> getInstructions();
+    public void clearInstructions();
+
+    // Component type
+    public static ComponentType<EntityStore, Velocity> getComponentType();
+}
+```
+
+## ChangeVelocityType
+
+Types of velocity modifications:
+
+| Type | Description |
+|------|-------------|
+| `SET` | Replace velocity entirely |
+| `ADD` | Add to current velocity |
+| `IMPULSE` | Apply instant impulse |
+
+## VelocityConfig
+
+Configures velocity resistance:
+
+```java
+package com.hypixel.hytale.server.core.modules.splitvelocity;
+
+public class VelocityConfig {
+    // Ground resistance (friction)
+    float groundResistance = 0.82f;
+    float groundResistanceMax;
+
+    // Air resistance (drag)
+    float airResistance = 0.96f;
+    float airResistanceMax;
+
+    // Threshold for resistance application
+    float threshold = 1.0f;
+
+    // Transition style
+    ThresholdStyle style;  // Linear or non-linear
+}
+```
+
+### ThresholdStyle
+
+| Style | Description |
+|-------|-------------|
+| `LINEAR` | Linear resistance transition |
+| `SMOOTH` | Smooth non-linear transition |
+
+## PhysicsValues Component
+
+Physical properties of an entity:
+
+```java
+package com.hypixel.hytale.server.core.modules.physics.component;
+
+public class PhysicsValues {
+    // Defaults
+    public static final double DEFAULT_MASS = 1.0;
+    public static final double DEFAULT_DRAG_COEFFICIENT = 0.5;
+    public static final boolean DEFAULT_INVERTED_GRAVITY = false;
+
+    // Mass (affects force application)
+    public double getMass();
+    public void setMass(double mass);
+
+    // Drag coefficient (air resistance)
+    public double getDragCoefficient();
+    public void setDragCoefficient(double coefficient);
+
+    // Inverted gravity (for special entities)
+    public boolean isInvertedGravity();
+    public void setInvertedGravity(boolean inverted);
+
+    // Component type
+    public static ComponentType<EntityStore, PhysicsValues> getComponentType();
+}
+```
+
+## Force Accumulation
+
+Forces are accumulated during a tick and applied at integration:
+
+```java
+package com.hypixel.hytale.server.core.modules.physics.util;
+
+public class ForceProviderStandardState {
+    Vector3d externalForce;        // Accumulated forces
+    Vector3d externalImpulse;      // Instant impulses
+    Vector3d externalAcceleration; // Accelerations
+    Vector3d externalVelocity;     // Direct velocity changes
+    Vector3d nextTickVelocity;     // Velocity for next tick
+
+    // Add force to accumulator
+    public void addForce(Vector3d force);
+
+    // Add impulse (instant velocity change)
+    public void addImpulse(Vector3d impulse);
+
+    // Add acceleration
+    public void addAcceleration(Vector3d acceleration);
+
+    // Convert to net force
+    public Vector3d computeNetForce(double mass);
+}
+```
+
+## Velocity Instructions
+
+Instructions queue velocity changes:
+
+```java
+public class Velocity.Instruction {
+    Vector3d velocity;           // Velocity value
+    VelocityConfig config;       // Resistance config
+    ChangeVelocityType type;     // SET, ADD, or IMPULSE
+}
+```
+
+### Using Instructions
+
+```java
+import com.hypixel.hytale.server.core.modules.physics.component.Velocity;
+import com.hypixel.hytale.server.core.modules.splitvelocity.VelocityConfig;
+import com.hypixel.hytale.server.core.modules.splitvelocity.ChangeVelocityType;
+import com.hypixel.hytale.math.Vector3d;
+
+public void applyKnockback(Ref<EntityStore> entityRef,
+                           IComponentAccessor accessor,
+                           Vector3d knockback) {
+    Velocity velocity = accessor.getComponent(entityRef, Velocity.getComponentType());
+
+    // Create knockback config with high air resistance
+    VelocityConfig config = new VelocityConfig();
+    config.airResistance = 0.9f;
+
+    // Queue knockback instruction
+    velocity.addInstruction(knockback, config, ChangeVelocityType.ADD);
+}
+```
+
+## Movement Flow
+
+1. **Force Application**
+   - External forces accumulated (gravity, knockback, etc.)
+   - Impulses added for instant effects
+   - Accelerations converted to forces
+
+2. **Velocity Update**
+   - Instructions processed (SET, ADD, IMPULSE)
+   - Resistance applied (ground/air)
+   - Velocity clamped to limits
+
+3. **Position Update**
+   - Delta position = velocity × dt
+   - Collision detection performed
+   - Position adjusted for collisions
+
+4. **State Update**
+   - Final position set
+   - Velocity adjusted for collision response
+   - Physics state updated (Active/Resting)
+
+## Gravity and Buoyancy
+
+### Gravity
+
+Applied based on PhysicsValues:
+
+```java
+// Standard gravity
+Vector3d gravity = new Vector3d(0, -9.81, 0);
+
+// With inverted gravity
+if (physicsValues.isInvertedGravity()) {
+    gravity = gravity.negate();
+}
+```
+
+### Buoyancy
+
+Water applies upward force:
+
+```java
+// Buoyancy = displaced water volume × water density × gravity
+double displacedVolume = calculateSubmersedVolume(entity, waterLevel);
+double buoyancyForce = displacedVolume * DENSITY_WATER * 9.81;
+```
+
+### Fluid Constants
+
+```java
+public static final double DENSITY_AIR = 1.2;
+public static final double DENSITY_WATER = 998.0;
+```
+
+## Terminal Velocity
+
+Maximum falling speed:
+
+```java
+// Terminal velocity = sqrt(2mg / (ρAC_d))
+// m = mass, g = gravity, ρ = air density, A = cross-section, C_d = drag
+public static double computeTerminalVelocity(double mass, double dragCoefficient,
+                                              double crossSectionArea) {
+    double gravity = 9.81;
+    return Math.sqrt((2 * mass * gravity) /
+                     (DENSITY_AIR * crossSectionArea * dragCoefficient));
+}
+```
+
+## Usage Examples
+
+### Setting Entity Velocity
+
+```java
+import com.hypixel.hytale.server.core.modules.physics.component.Velocity;
+import com.hypixel.hytale.math.Vector3d;
+
+public void setVelocity(Ref<EntityStore> entityRef,
+                        IComponentAccessor accessor,
+                        Vector3d newVelocity) {
+    Velocity velocity = accessor.getComponent(entityRef, Velocity.getComponentType());
+    velocity.set(newVelocity);
+}
+```
+
+### Applying Force
+
+```java
+public void applyForce(Ref<EntityStore> entityRef,
+                       IComponentAccessor accessor,
+                       Vector3d force) {
+    Velocity velocity = accessor.getComponent(entityRef, Velocity.getComponentType());
+    velocity.addForce(force);
+}
+```
+
+### Custom Physics Properties
+
+```java
+import com.hypixel.hytale.server.core.modules.physics.component.PhysicsValues;
+
+public void setHeavyEntity(Ref<EntityStore> entityRef,
+                           IComponentAccessor accessor) {
+    PhysicsValues physics = accessor.getComponent(entityRef,
+        PhysicsValues.getComponentType());
+
+    physics.setMass(10.0);           // Heavy
+    physics.setDragCoefficient(0.3); // Low drag (faster falling)
+}
+
+public void setFloatyEntity(Ref<EntityStore> entityRef,
+                            IComponentAccessor accessor) {
+    PhysicsValues physics = accessor.getComponent(entityRef,
+        PhysicsValues.getComponentType());
+
+    physics.setMass(0.1);            // Light
+    physics.setDragCoefficient(2.0); // High drag (slow falling)
+}
+```
+
+### Jump Implementation
+
+```java
+public void jump(Ref<EntityStore> entityRef,
+                 IComponentAccessor accessor,
+                 double jumpStrength) {
+    Velocity velocity = accessor.getComponent(entityRef, Velocity.getComponentType());
+
+    // Get current velocity
+    Vector3d current = velocity.getVelocity();
+
+    // Set vertical velocity (preserving horizontal)
+    velocity.set(current.x, jumpStrength, current.z);
+}
+```
+
+### Dash Implementation
+
+```java
+public void dash(Ref<EntityStore> entityRef,
+                 IComponentAccessor accessor,
+                 Vector3d direction,
+                 double dashSpeed) {
+    Velocity velocity = accessor.getComponent(entityRef, Velocity.getComponentType());
+
+    // Create dash velocity config
+    VelocityConfig config = new VelocityConfig();
+    config.groundResistance = 0.7f;  // Quick slowdown
+    config.airResistance = 0.85f;
+
+    // Normalize direction and scale
+    Vector3d dashVelocity = direction.normalize().multiply(dashSpeed);
+
+    // Queue dash instruction
+    velocity.addInstruction(dashVelocity, config, ChangeVelocityType.SET);
+}
+```
+
+## Client Prediction
+
+The system supports client-side prediction:
+
+```java
+// Server sets authoritative velocity
+velocity.set(serverVelocity);
+
+// Client velocity used for smooth rendering
+velocity.setClient(predictedVelocity);
+
+// Get client velocity for rendering
+Vector3d renderVelocity = velocity.getClientVelocity();
+```
+
+## Best Practices
+
+1. **Use instructions for controlled changes**: Better resistance control
+2. **Apply forces consistently**: Add forces each tick for continuous effects
+3. **Consider mass**: Heavier entities need more force
+4. **Set appropriate resistance**: Match gameplay feel
+5. **Handle water separately**: Buoyancy and drag change in water
+
+## Related
+
+- [Physics Overview](overview.md) - Physics system architecture
+- [Collision System](collision.md) - Collision detection
+- [Entity System](../entities/overview.md) - Entity components

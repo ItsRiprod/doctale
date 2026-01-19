@@ -1,0 +1,370 @@
+<!-- [VERIFIED: 2026-01-19] -->
+
+# Entity Effects System
+
+The entity effects system manages status effects (buffs and debuffs) on entities, including duration, stacking behavior, stat modifiers, and visual effects.
+
+## Package Location
+
+`com.hypixel.hytale.server.core.entity.effect`
+
+## Overview
+
+Entity effects are applied via the `EffectControllerComponent` attached to entities. Effects can modify stats, apply damage over time, change entity appearance, and grant invulnerability.
+
+## Core Classes
+
+### EffectControllerComponent
+
+Component that manages active effects on an entity:
+
+```java
+package com.hypixel.hytale.server.core.entity.effect;
+
+public class EffectControllerComponent implements Component<EntityStore> {
+    // Add effect with default duration
+    public boolean addEffect(
+        Ref<EntityStore> ownerRef,
+        EntityEffect entityEffect,
+        ComponentAccessor<EntityStore> componentAccessor
+    );
+
+    // Add effect with custom duration and overlap behavior
+    public boolean addEffect(
+        Ref<EntityStore> ownerRef,
+        int entityEffectIndex,
+        EntityEffect entityEffect,
+        float duration,
+        OverlapBehavior overlapBehavior,
+        ComponentAccessor<EntityStore> componentAccessor
+    );
+
+    // Add infinite-duration effect
+    public boolean addInfiniteEffect(
+        Ref<EntityStore> ownerRef,
+        int entityEffectIndex,
+        EntityEffect entityEffect,
+        ComponentAccessor<EntityStore> componentAccessor
+    );
+
+    // Remove effect with default removal behavior
+    public void removeEffect(
+        Ref<EntityStore> ownerRef,
+        int entityEffectIndex,
+        ComponentAccessor<EntityStore> componentAccessor
+    );
+
+    // Remove effect with custom removal behavior
+    public void removeEffect(
+        Ref<EntityStore> ownerRef,
+        int entityEffectIndex,
+        RemovalBehavior removalBehavior,
+        ComponentAccessor<EntityStore> componentAccessor
+    );
+
+    // Clear all active effects
+    public void clearEffects(
+        Ref<EntityStore> ownerRef,
+        ComponentAccessor<EntityStore> componentAccessor
+    );
+
+    // Get all active effects
+    public Int2ObjectMap<ActiveEntityEffect> getActiveEffects();
+
+    // Get cached array of active effect indices
+    public int[] getActiveEffectIndexes();
+
+    // Invulnerability from effects
+    public boolean isInvulnerable();
+    public void setInvulnerable(boolean invulnerable);
+
+    // Get component type
+    public static ComponentType<EntityStore, EffectControllerComponent> getComponentType();
+}
+```
+
+### ActiveEntityEffect
+
+Represents an effect currently applied to an entity:
+
+```java
+package com.hypixel.hytale.server.core.entity.effect;
+
+public class ActiveEntityEffect {
+    // Effect identification
+    public String getEntityEffectId();
+    public int getEntityEffectIndex();
+
+    // Duration
+    public float getInitialDuration();
+    public float getRemainingDuration();
+    public boolean isInfinite();
+
+    // Properties
+    public boolean isDebuff();
+    public String getStatusEffectIcon();
+    public boolean isInvulnerable();
+}
+```
+
+### EntityEffect
+
+Asset configuration defining an effect's properties:
+
+```java
+package com.hypixel.hytale.server.core.asset.type.entityeffect.config;
+
+public class EntityEffect {
+    // Identity
+    String id;
+    String name;  // Localization key
+
+    // Duration
+    float duration;
+    boolean infinite;
+
+    // Classification
+    boolean debuff;
+    String statusEffectIcon;
+
+    // Behavior
+    OverlapBehavior overlapBehavior;
+    RemovalBehavior removalBehavior;
+
+    // Effects
+    boolean invulnerable;
+    DamageCalculator damageCalculator;
+    float damageCalculatorCooldown;
+
+    // Stat modifications
+    Int2FloatMap entityStats;
+    ValueType valueType;
+    Int2ObjectMap<StaticModifier[]> statModifiers;
+    Map<DamageCause, StaticModifier[]> damageResistance;
+
+    // Visual
+    String modelChange;
+    ApplicationEffects applicationEffects;
+
+    // Asset access
+    public static AssetMap<EntityEffect> getAssetMap();
+}
+```
+
+## Behavior Enums
+
+### OverlapBehavior
+
+Controls what happens when an effect is applied while already active:
+
+| Value | Description |
+|-------|-------------|
+| `EXTEND` | Add new duration to existing effect |
+| `OVERWRITE` | Replace existing effect with new one |
+| `IGNORE` | Don't apply if already active |
+
+### RemovalBehavior
+
+Controls what happens when an effect is removed:
+
+| Value | Description |
+|-------|-------------|
+| `COMPLETE` | Completely remove the effect |
+| `INFINITE` | Convert to finite duration |
+| `DURATION` | Reset duration to 0 |
+
+### ValueType
+
+How stat modifiers are applied:
+
+| Value | Description |
+|-------|-------------|
+| `ABSOLUTE` | Add/subtract flat value |
+| `PERCENT` | Multiply by percentage |
+
+## Usage Examples
+
+### Adding an Effect
+
+```java
+import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
+import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
+import com.hypixel.hytale.server.core.asset.type.entityeffect.config.OverlapBehavior;
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+
+// Get effect controller from entity
+Ref<EntityStore> entityRef = /* entity reference */;
+EffectControllerComponent controller = componentAccessor.getComponent(
+    entityRef,
+    EffectControllerComponent.getComponentType()
+);
+
+// Get effect asset
+EntityEffect burnEffect = EntityEffect.getAssetMap().getAsset("Burn");
+int effectIndex = EntityEffect.getAssetMap().getIndex("Burn");
+
+// Add effect with 5 second duration
+if (controller != null && burnEffect != null) {
+    controller.addEffect(
+        entityRef,
+        effectIndex,
+        burnEffect,
+        5.0f,  // Duration in seconds
+        OverlapBehavior.EXTEND,  // Extend if already active
+        componentAccessor
+    );
+}
+```
+
+### Adding an Infinite Effect
+
+```java
+// Add permanent effect (until manually removed)
+EntityEffect shieldEffect = EntityEffect.getAssetMap().getAsset("Shield");
+int shieldIndex = EntityEffect.getAssetMap().getIndex("Shield");
+
+controller.addInfiniteEffect(
+    entityRef,
+    shieldIndex,
+    shieldEffect,
+    componentAccessor
+);
+```
+
+### Removing Effects
+
+```java
+import com.hypixel.hytale.server.core.entity.effect.RemovalBehavior;
+
+// Remove specific effect
+int effectIndex = EntityEffect.getAssetMap().getIndex("Burn");
+controller.removeEffect(entityRef, effectIndex, componentAccessor);
+
+// Remove with custom behavior
+controller.removeEffect(
+    entityRef,
+    effectIndex,
+    RemovalBehavior.COMPLETE,
+    componentAccessor
+);
+
+// Clear all effects
+controller.clearEffects(entityRef, componentAccessor);
+```
+
+### Checking Active Effects
+
+```java
+// Get all active effects
+Int2ObjectMap<ActiveEntityEffect> activeEffects = controller.getActiveEffects();
+
+// Get effect indices for quick iteration
+int[] indices = controller.getActiveEffectIndexes();
+
+for (int index : indices) {
+    ActiveEntityEffect active = activeEffects.get(index);
+
+    String effectId = active.getEntityEffectId();
+    float remaining = active.getRemainingDuration();
+    boolean isDebuff = active.isDebuff();
+
+    if (active.isInfinite()) {
+        // Effect lasts forever
+    } else {
+        // Effect has duration
+        System.out.println(effectId + ": " + remaining + "s remaining");
+    }
+}
+```
+
+### Checking Invulnerability
+
+```java
+// Check if entity is invulnerable due to effects
+if (controller.isInvulnerable()) {
+    // Entity cannot take damage
+}
+
+// Manually set invulnerability (bypasses effect system)
+controller.setInvulnerable(true);
+```
+
+## Effect Properties
+
+### Stat Modifiers
+
+Effects can modify entity stats while active:
+
+```java
+// Effect asset defines stat modifiers
+// entityStats: map of stat ID to value
+// valueType: ABSOLUTE or PERCENT
+// statModifiers: resolved modifiers per stat
+
+// Example effect that increases speed by 50%:
+// - entityStats: {SPEED: 0.5}
+// - valueType: PERCENT
+```
+
+### Damage Over Time
+
+Effects can apply periodic damage:
+
+```java
+// Effect asset defines:
+// - damageCalculator: DamageCalculator instance
+// - damageCalculatorCooldown: seconds between damage ticks
+
+// Example burn effect:
+// - damageCalculator: 2 fire damage
+// - damageCalculatorCooldown: 1.0 (damage every second)
+```
+
+### Visual Changes
+
+Effects can change entity appearance:
+
+```java
+// Effect asset defines:
+// - modelChange: alternate model asset ID
+// - applicationEffects: particles/sounds on apply
+
+// Example transform effect:
+// - modelChange: "wolf_transformed"
+// - applicationEffects: sparkle particles, transform sound
+```
+
+### Damage Resistance
+
+Effects can modify incoming damage:
+
+```java
+// damageResistance: map of DamageCause to StaticModifier[]
+
+// Example fire resistance:
+// - FIRE: -0.5 (50% reduction)
+// - LAVA: -0.75 (75% reduction)
+```
+
+## Built-in Effects
+
+Common built-in effects (defined in game assets):
+
+| Effect | Type | Description |
+|--------|------|-------------|
+| Burn | Debuff | Fire damage over time |
+| Poison | Debuff | Poison damage over time |
+| Freeze | Debuff | Slows movement |
+| Speed | Buff | Increases movement speed |
+| Strength | Buff | Increases damage |
+| Regeneration | Buff | Heals over time |
+| Invulnerability | Buff | Prevents all damage |
+| Invisibility | Buff | Hides entity from view |
+
+## Related
+
+- [Entity System](overview.md) - Entity management
+- [Component Catalog](../ecs/component-catalog.md) - ECS components
+- [Knockback System](knockback.md) - Knockback mechanics
+

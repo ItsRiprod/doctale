@@ -1,0 +1,459 @@
+<!-- [VERIFIED: 2026-01-19] -->
+
+# Built-in Plugins Reference
+
+Hytale includes 31 built-in plugins that demonstrate modding patterns and provide core gameplay features. This reference documents each plugin, its components, and how to learn from them.
+
+## Package Location
+
+`com.hypixel.hytale.builtin`
+
+## Complete Plugin List
+
+All 31 built-in plugins organized by category:
+
+### Core Gameplay
+| Plugin | Directory | Description |
+|--------|-----------|-------------|
+| WeatherPlugin | `weather/` | Dynamic weather systems |
+| CraftingPlugin | `crafting/` | Crafting benches and recipes |
+| TeleportPlugin | `teleport/` | Teleportation and warps |
+| PortalsPlugin | `portals/` | Inter-world portals |
+| BedsPlugin | `beds/` | Spawn points and sleeping |
+| InstancesPlugin | `instances/` | Instanced dungeons/areas |
+
+### Movement & Combat
+| Plugin | Directory | Description |
+|--------|-----------|-------------|
+| MountPlugin | `mounts/` | Mounts and riding |
+| MantlingPlugin | `mantling/` | Ledge climbing |
+| SprintForcePlugin | `sprintforce/` | Sprint mechanics |
+| CrouchSlidePlugin | `crouchslide/` | Crouch sliding |
+| SafetyRollPlugin | `safetyroll/` | Fall damage reduction |
+| ParkourPlugin | `parkour/` | Parkour mechanics |
+| DeployablesPlugin | `deployables/` | Deployable items |
+
+### World Systems
+| Plugin | Directory | Description |
+|--------|-----------|-------------|
+| FluidPlugin | `fluid/` | Fluid simulation |
+| BlockPhysicsPlugin | `blockphysics/` | Block physics |
+| BlockTickPlugin | `blocktick/` | Block updates/growth |
+| WorldGenPlugin | `worldgen/` | World generation hooks |
+| HytaleGeneratorPlugin | `hytalegenerator/` | Default world generator |
+| BlockSpawnerPlugin | `blockspawner/` | Block-based spawners |
+| AmbiencePlugin | `ambience/` | Ambient sounds/effects |
+| LanDiscoveryPlugin | `landiscovery/` | LAN game discovery |
+
+### Adventure Mode
+| Plugin | Directory | Description |
+|--------|-----------|-------------|
+| AdventurePlugin | `adventure/` | Adventure mode (shops, reputation, objectives, memories, farming) |
+
+### Tools & Editors
+| Plugin | Directory | Description |
+|--------|-----------|-------------|
+| NPCEditorPlugin | `npceditor/` | NPC editing commands |
+| BuilderToolsPlugin | `buildertools/` | World building tools |
+| AssetEditorPlugin | `asseteditor/` | Asset editing utilities |
+| CommandMacroPlugin | `commandmacro/` | Command macros |
+| CreativeHubPlugin | `creativehub/` | Creative mode hub |
+
+### AI & NPCs
+| Plugin | Directory | Description |
+|--------|-----------|-------------|
+| NPCCombatActionEvaluatorPlugin | `npccombatactionevaluator/` | NPC combat AI |
+| PathPlugin | `path/` | Pathfinding utilities |
+
+### Misc
+| Plugin | Directory | Description |
+|--------|-----------|-------------|
+| ModelPlugin | `model/` | Model utilities |
+| TagSetPlugin | `tagset/` | Tag set management |
+
+---
+
+## WeatherPlugin
+
+**Location**: `builtin/weather/`
+
+Manages dynamic weather systems per world.
+
+### Components
+
+| Component | Store | Description |
+|-----------|-------|-------------|
+| `WeatherTracker` | EntityStore | Tracks weather per player |
+| `WeatherResource` | EntityStore | World weather state |
+
+### Systems
+
+```java
+WeatherSystem.WorldAddedSystem    // Initialize weather for new worlds
+WeatherSystem.PlayerAddedSystem   // Send weather to joining players
+WeatherSystem.TickingSystem       // Update weather over time
+WeatherSystem.InvalidateWeatherAfterTeleport  // Sync after teleport
+```
+
+### Commands
+
+- `/weather <type>` - Change weather
+
+### Key Patterns
+
+```java
+// Register resource
+weatherResourceType = EntityStore.REGISTRY.registerResource(
+    WeatherResource.class, WeatherResource::new);
+
+// Register component
+weatherTrackerComponentType = EntityStore.REGISTRY.registerComponent(
+    WeatherTracker.class, WeatherTracker::new);
+
+// Register systems
+entityStoreRegistry.registerSystem(new WeatherSystem.TickingSystem());
+```
+
+---
+
+## CraftingPlugin
+
+**Location**: `builtin/crafting/`
+
+Complete crafting system with benches, recipes, and UI.
+
+### Components
+
+| Component | Store | Description |
+|-----------|-------|-------------|
+| `CraftingManager` | EntityStore | Player crafting state |
+| `BenchState` | BlockState | Crafting bench state |
+| `ProcessingBenchState` | BlockState | Processing bench state |
+
+### Block States
+
+```java
+// Register block state for crafting benches
+blockStateRegistry.registerBlockState(
+    BenchState.class, "crafting", BenchState.CODEC);
+```
+
+### Interactions
+
+```java
+OpenBenchPageInteraction        // Open crafting UI
+OpenProcessingBenchInteraction  // Open processing UI
+LearnRecipeInteraction          // Learn new recipe
+```
+
+### Recipe System
+
+```java
+// Get recipes for a bench
+List<CraftingRecipe> recipes = CraftingPlugin.getBenchRecipes(bench);
+
+// Learn a recipe
+CraftingPlugin.learnRecipe(ref, recipeId, componentAccessor);
+
+// Check if item is valid material
+CraftingPlugin.isValidCraftingMaterialForBench(benchState, itemStack);
+```
+
+### Commands
+
+- `/recipe learn <id>` - Learn recipe
+- `/recipe forget <id>` - Forget recipe
+
+---
+
+## TeleportPlugin
+
+**Location**: `builtin/teleport/`
+
+Teleportation commands and warp points.
+
+### Components
+
+| Component | Store | Description |
+|-----------|-------|-------------|
+| `TeleportHistory` | EntityStore | Player teleport history |
+| `WarpComponent` | EntityStore | Warp point marker |
+
+### Warps
+
+```java
+// Get all warps
+Map<String, Warp> warps = TeleportPlugin.get().getWarps();
+
+// Warps persist in warps.json in universe folder
+```
+
+### Map Markers
+
+```java
+// Warps show on world map
+WarpMarkerProvider.INSTANCE  // Provides warp markers
+```
+
+### Commands
+
+- `/tp <player>` - Teleport to player
+- `/tp <x> <y> <z>` - Teleport to coordinates
+- `/warp <name>` - Go to warp
+- `/warp set <name>` - Create warp
+- `/spawn` - Go to spawn
+
+---
+
+## PortalsPlugin
+
+**Location**: `builtin/portals/`
+
+Inter-world portal system with void events.
+
+### Components
+
+| Component | Store | Description |
+|-----------|-------|-------------|
+| `PortalWorld` | EntityStore (Resource) | Portal world data |
+| `PortalDevice` | ChunkStore | Portal device block |
+| `VoidEvent` | EntityStore | Void event state |
+| `VoidSpawner` | EntityStore | Void portal spawner |
+
+### Interactions
+
+```java
+EnterPortalInteraction   // Enter a portal
+ReturnPortalInteraction  // Return from portal
+```
+
+### Gameplay Config
+
+```java
+// Register plugin config
+getCodecRegistry(GameplayConfig.PLUGIN_CODEC)
+    .register(PortalGameplayConfig.class, "Portal", PortalGameplayConfig.CODEC);
+```
+
+### Systems
+
+```java
+PortalTrackerSystems.TrackerSystem
+PortalInvalidDestinationSystem
+CloseWorldWhenBreakingDeviceSystems
+VoidEventStagesSystem
+```
+
+---
+
+## MountPlugin
+
+**Location**: `builtin/mounts/`
+
+Mounting and riding entities.
+
+### Key Features
+
+- Mount/dismount mechanics
+- Riding controls
+- Mount AI integration
+
+### Components
+
+| Component | Store | Description |
+|-----------|-------|-------------|
+| `MountComponent` | EntityStore | Mount state |
+| `RiderComponent` | EntityStore | Rider state |
+
+---
+
+## FluidPlugin
+
+**Location**: `builtin/fluid/`
+
+Fluid simulation and water physics.
+
+### Key Features
+
+- Water flow simulation
+- Fluid level tracking
+- Swimming mechanics
+
+### Components
+
+| Component | Store | Description |
+|-----------|-------|-------------|
+| `FluidState` | ChunkStore | Fluid block state |
+
+---
+
+## BlockTickPlugin
+
+**Location**: `builtin/blocktick/`
+
+Block update and tick system.
+
+### Systems
+
+```java
+ChunkBlockTickSystem       // Process block ticks
+MergeWaitingBlocksSystem   // Merge pending updates
+```
+
+### Tick Procedures
+
+```java
+BasicChanceBlockGrowthProcedure      // Simple growth
+SplitChanceBlockGrowthProcedure      // Variable growth rates
+```
+
+---
+
+## BedsPlugin
+
+**Location**: `builtin/beds/`
+
+Bed interactions and spawn points.
+
+### Key Features
+
+- Sleep mechanics
+- Individual spawn points
+- Respawn handling
+
+---
+
+## Adventure Mode Plugins
+
+### ShopPlugin
+
+**Location**: `builtin/adventure/shop/`
+
+NPC shop system with items and currencies.
+
+### ReputationPlugin
+
+**Location**: `builtin/adventure/reputation/`
+
+Faction/NPC reputation tracking.
+
+### ObjectivePlugin
+
+**Location**: `builtin/adventure/objectives/`
+
+Quest and objective tracking.
+
+### MemoriesPlugin
+
+**Location**: `builtin/adventure/memories/`
+
+NPC memory of player interactions.
+
+---
+
+## Common Patterns
+
+### Plugin Singleton Pattern
+
+```java
+public class MyPlugin extends JavaPlugin {
+    private static MyPlugin instance;
+
+    public static MyPlugin get() {
+        return instance;
+    }
+
+    public MyPlugin(JavaPluginInit init) {
+        super(init);
+        instance = this;
+    }
+}
+```
+
+### Component Registration Pattern
+
+```java
+@Override
+protected void setup() {
+    // Register component
+    myComponentType = EntityStore.REGISTRY.registerComponent(
+        MyComponent.class, MyComponent::new);
+
+    // Register system
+    getEntityStoreRegistry().registerSystem(new MySystem());
+}
+```
+
+### Event Registration Pattern
+
+```java
+@Override
+protected void setup() {
+    // Register event listener
+    getEventRegistry().register(LoadedAssetsEvent.class, Item.class,
+        this::onItemLoad);
+
+    // Register global listener
+    getEventRegistry().registerGlobal(AddWorldEvent.class,
+        event -> initializeWorld(event.getWorld()));
+}
+```
+
+### Command Registration Pattern
+
+```java
+@Override
+protected void setup() {
+    // Via CommandRegistry
+    getCommandRegistry().registerCommand(new MyCommand());
+
+    // Via CommandManager (system commands)
+    CommandManager.get().registerSystemCommand(new MySystemCommand());
+}
+```
+
+### Codec Registration Pattern
+
+```java
+@Override
+protected void setup() {
+    // Register interaction type
+    getCodecRegistry(Interaction.CODEC)
+        .register("MyInteraction", MyInteraction.class, MyInteraction.CODEC);
+
+    // Register block state
+    getBlockStateRegistry().registerBlockState(
+        MyBlockState.class, "myBlockState", MyBlockState.CODEC);
+}
+```
+
+### World Event Pattern
+
+```java
+@Override
+protected void setup() {
+    getEventRegistry().registerGlobal(AddWorldEvent.class, event -> {
+        World world = event.getWorld();
+        // Initialize per-world state
+        world.getWorldMapManager().addMarkerProvider("markers", myProvider);
+    });
+}
+```
+
+---
+
+## Learning From Built-in Plugins
+
+1. **Study structure**: Each plugin demonstrates proper organization
+2. **Examine codecs**: See how serialization is handled
+3. **Follow ECS patterns**: Learn component/system design
+4. **Understand lifecycle**: See how setup/start/shutdown work
+5. **Review commands**: Study command implementation
+6. **Analyze interactions**: Learn block/entity interaction patterns
+
+## Related
+
+- [Plugin Lifecycle](../getting-started/plugin-lifecycle.md) - Plugin basics
+- [Event System](../core-concepts/event-system.md) - Events
+- [Commands](../core-concepts/commands.md) - Command system
+- [ECS Overview](../core-concepts/ecs-overview.md) - Components and systems

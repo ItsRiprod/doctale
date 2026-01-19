@@ -1,0 +1,409 @@
+<!-- [VERIFIED: 2026-01-19] -->
+
+# Event System
+
+Hytale's event system allows plugins to react to game events, from player connections to block breaks. The system supports both synchronous and asynchronous events, with features like priority ordering, keyed events, and cancellation.
+
+## Package Location
+
+- Event interfaces: `com.hypixel.hytale.event`
+- Event registry: `com.hypixel.hytale.event.EventRegistry`
+- Built-in events: `com.hypixel.hytale.server.core.event.events`
+
+## Core Concepts
+
+### Event Types
+
+The event system has two primary event interfaces:
+
+| Interface | Description | Handler Type |
+|-----------|-------------|--------------|
+| `IEvent<KeyType>` | Synchronous events processed immediately | `Consumer<EventType>` |
+| `IAsyncEvent<KeyType>` | Asynchronous events processed with futures | `Function<CompletableFuture<EventType>, CompletableFuture<EventType>>` |
+
+Both interfaces are generic over a `KeyType`:
+- `Void` for non-keyed events (most common)
+- A specific type for keyed events (e.g., `String` for chat channels)
+
+### Event Interfaces
+
+```java
+// Synchronous event - most common
+public interface IEvent<KeyType> extends IBaseEvent<KeyType> {}
+
+// Asynchronous event - for operations that may need async processing
+public interface IAsyncEvent<KeyType> extends IBaseEvent<KeyType> {}
+
+// Cancellable mixin - allows handlers to prevent default behavior
+public interface ICancellable {
+    boolean isCancelled();
+    void setCancelled(boolean cancelled);
+}
+```
+
+## Registering Event Handlers
+
+### Basic Registration
+
+```java
+@Override
+protected void setup() {
+    // Simple event registration (default priority: NORMAL)
+    getEventRegistry().register(
+        PlayerConnectEvent.class,
+        this::onPlayerConnect
+    );
+}
+
+private void onPlayerConnect(PlayerConnectEvent event) {
+    // Handle the event
+    World world = event.getWorld();
+    PlayerRef player = event.getPlayerRef();
+}
+```
+
+### Registration with Priority
+
+```java
+@Override
+protected void setup() {
+    // Register with specific priority
+    getEventRegistry().register(
+        EventPriority.FIRST,      // Process early
+        PlayerChatEvent.class,
+        this::onChatFirst
+    );
+
+    getEventRegistry().register(
+        EventPriority.LAST,       // Process late (monitoring)
+        PlayerChatEvent.class,
+        this::onChatLast
+    );
+}
+```
+
+### Event Priorities
+
+Events are processed in priority order from lowest to highest:
+
+| Priority | Value | Typical Use |
+|----------|-------|-------------|
+| `FIRST` | -21844 | Modify event data before others see it |
+| `EARLY` | -10922 | Early processing, setup |
+| `NORMAL` | 0 | Default, general handling |
+| `LATE` | 10922 | React after modifications |
+| `LAST` | 21844 | Final processing, logging, monitoring |
+
+You can also use raw `short` values for fine-grained control:
+
+```java
+getEventRegistry().register(
+    (short) 5000,  // Custom priority between NORMAL and LATE
+    SomeEvent.class,
+    this::onEvent
+);
+```
+
+## Keyed Events
+
+Some events are "keyed" - they have an associated key that handlers can filter on.
+
+### Registering for a Specific Key
+
+```java
+// Only receive events for a specific key
+getEventRegistry().register(
+    SomeKeyedEvent.class,
+    "my-channel",           // The key to filter on
+    this::onMyChannelEvent
+);
+```
+
+### Registering Globally (All Keys)
+
+```java
+// Receive all keyed events regardless of key
+getEventRegistry().registerGlobal(
+    SomeKeyedEvent.class,
+    this::onAnyKeyedEvent
+);
+```
+
+### Unhandled Events
+
+Register a handler that only fires if no keyed handler processed the event:
+
+```java
+getEventRegistry().registerUnhandled(
+    SomeKeyedEvent.class,
+    this::onUnhandledEvent  // Only called if no key-specific handler matched
+);
+```
+
+## Async Events
+
+Async events support asynchronous processing chains:
+
+```java
+@Override
+protected void setup() {
+    getEventRegistry().registerAsync(
+        PlayerChatEvent.class,
+        future -> future.thenApply(event -> {
+            // Process asynchronously
+            if (containsBannedWord(event.getContent())) {
+                event.setCancelled(true);
+            }
+            return event;
+        })
+    );
+}
+```
+
+### Async with Priority
+
+```java
+getEventRegistry().registerAsync(
+    EventPriority.EARLY,
+    PlayerChatEvent.class,
+    future -> future.thenApply(this::processChat)
+);
+```
+
+### Async Global and Unhandled
+
+```java
+// Async global listener
+getEventRegistry().registerAsyncGlobal(
+    SomeAsyncKeyedEvent.class,
+    future -> future.thenApply(this::handleGlobally)
+);
+
+// Async unhandled listener
+getEventRegistry().registerAsyncUnhandled(
+    SomeAsyncKeyedEvent.class,
+    future -> future.thenApply(this::handleUnhandled)
+);
+```
+
+## Cancellable Events
+
+Events implementing `ICancellable` can be cancelled to prevent their default behavior:
+
+```java
+private void onPlayerChat(PlayerChatEvent event) {
+    if (event.getContent().contains("badword")) {
+        event.setCancelled(true);  // Message won't be sent
+    }
+}
+```
+
+### Checking Cancellation
+
+```java
+private void onPlayerChat(PlayerChatEvent event) {
+    if (event.isCancelled()) {
+        return;  // Skip if already cancelled by another handler
+    }
+
+    // Process the event
+}
+```
+
+**Note:** `LAST` priority handlers can still observe cancelled events for logging purposes.
+
+## Built-in Events
+
+### Player Events
+
+Located in `com.hypixel.hytale.server.core.event.events.player`:
+
+| Event | Async | Cancellable | Description |
+|-------|-------|-------------|-------------|
+| `PlayerConnectEvent` | No | No | Player connected to server |
+| `PlayerDisconnectEvent` | No | No | Player disconnected |
+| `PlayerReadyEvent` | No | No | Player fully loaded |
+| `PlayerChatEvent` | Yes | Yes | Player sent chat message |
+| `PlayerInteractEvent` | No | No | Player interaction |
+| `PlayerCraftEvent` | No | No | Player crafted item |
+| `PlayerMouseMotionEvent` | No | No | Player mouse movement |
+| `PlayerMouseButtonEvent` | No | No | Player mouse click |
+| `PlayerSetupConnectEvent` | No | No | Pre-connection setup |
+| `PlayerSetupDisconnectEvent` | No | No | Pre-disconnect setup |
+| `DrainPlayerFromWorldEvent` | No | No | Player leaving world |
+| `AddPlayerToWorldEvent` | No | No | Player entering world |
+
+### Entity Events
+
+Located in `com.hypixel.hytale.server.core.event.events.entity`:
+
+| Event | Description |
+|-------|-------------|
+| `EntityEvent` | Base entity event |
+| `EntityRemoveEvent` | Entity removed from world |
+| `LivingEntityInventoryChangeEvent` | Entity inventory changed |
+| `LivingEntityUseBlockEvent` | Entity used a block |
+
+### ECS Events
+
+Located in `com.hypixel.hytale.server.core.event.events.ecs`:
+
+| Event | Description |
+|-------|-------------|
+| `BreakBlockEvent` | Block broken |
+| `PlaceBlockEvent` | Block placed |
+| `DamageBlockEvent` | Block damaged |
+| `UseBlockEvent` | Block used/interacted |
+| `DropItemEvent` | Item dropped |
+| `InteractivelyPickupItemEvent` | Item picked up |
+| `CraftRecipeEvent` | Recipe crafted |
+| `ChangeGameModeEvent` | Game mode changed |
+| `SwitchActiveSlotEvent` | Active inventory slot changed |
+| `DiscoverZoneEvent` | Zone discovered |
+
+### Permission Events
+
+Located in `com.hypixel.hytale.server.core.event.events.permissions`:
+
+| Event | Description |
+|-------|-------------|
+| `PlayerPermissionChangeEvent` | Player permissions changed |
+| `GroupPermissionChangeEvent` | Permission group changed |
+| `PlayerGroupEvent` | Player added/removed from group |
+
+### Server Events
+
+| Event | Description |
+|-------|-------------|
+| `ShutdownEvent` | Server shutting down |
+| `PrepareUniverseEvent` | Universe being prepared |
+| `BootEvent` | Server booting up |
+
+## Working with Events
+
+### Modifying Event Data
+
+Many events allow modification:
+
+```java
+private void onPlayerChat(PlayerChatEvent event) {
+    // Modify the message
+    String filtered = filterProfanity(event.getContent());
+    event.setContent(filtered);
+
+    // Change message targets
+    List<PlayerRef> newTargets = event.getTargets().stream()
+        .filter(this::canReceive)
+        .toList();
+    event.setTargets(newTargets);
+
+    // Custom formatting
+    event.setFormatter((player, msg) ->
+        Message.translation("custom.chat.format")
+            .param("name", player.getUsername())
+            .param("msg", msg)
+    );
+}
+```
+
+### Accessing Event Context
+
+Events provide context about what happened:
+
+```java
+private void onPlayerConnect(PlayerConnectEvent event) {
+    // Get the player reference
+    PlayerRef playerRef = event.getPlayerRef();
+
+    // Get the ECS holder for components
+    Holder<EntityStore> holder = event.getHolder();
+
+    // Get/set the target world
+    World world = event.getWorld();
+    event.setWorld(differentWorld);  // Change spawn world
+
+    // Access player component (deprecated, prefer holder)
+    Player player = event.getPlayer();
+}
+```
+
+### Creating Custom Events
+
+```java
+// Synchronous event
+public class MyCustomEvent implements IEvent<Void> {
+    private final String data;
+
+    public MyCustomEvent(String data) {
+        this.data = data;
+    }
+
+    public String getData() {
+        return data;
+    }
+}
+
+// Cancellable async event
+public class MyAsyncEvent implements IAsyncEvent<Void>, ICancellable {
+    private boolean cancelled = false;
+
+    @Override
+    public boolean isCancelled() {
+        return cancelled;
+    }
+
+    @Override
+    public void setCancelled(boolean cancelled) {
+        this.cancelled = cancelled;
+    }
+}
+```
+
+### Dispatching Custom Events
+
+```java
+// Get the event bus from the server
+IEventBus eventBus = HytaleServer.get().getEventBus();
+
+// Dispatch a sync event
+IEventDispatcher<MyEvent, MyEvent> dispatcher =
+    eventBus.dispatchFor(MyEvent.class, null);
+MyEvent result = dispatcher.dispatch(new MyEvent("data"));
+
+// Dispatch an async event
+IEventDispatcher<MyAsyncEvent, CompletableFuture<MyAsyncEvent>> asyncDispatcher =
+    eventBus.dispatchForAsync(MyAsyncEvent.class, null);
+CompletableFuture<MyAsyncEvent> future = asyncDispatcher.dispatch(new MyAsyncEvent());
+```
+
+## Best Practices
+
+1. **Choose the right priority**: Use `FIRST` for modifications, `LAST` for monitoring
+2. **Check cancellation**: Early-exit if the event is already cancelled (unless monitoring)
+3. **Don't block**: Keep handlers fast; use async events for slow operations
+4. **Handle exceptions**: Wrap risky code in try-catch to avoid breaking other handlers
+5. **Use appropriate granularity**: Register for specific keys when possible
+
+```java
+private void onEvent(SomeEvent event) {
+    if (event instanceof ICancellable c && c.isCancelled()) {
+        return;  // Skip cancelled events
+    }
+
+    try {
+        // Handler logic
+    } catch (Exception e) {
+        getLogger().at(Level.WARNING).withCause(e).log("Error handling event");
+    }
+}
+```
+
+## Automatic Cleanup
+
+All event registrations made through `getEventRegistry()` are automatically unregistered when your plugin shuts down. You don't need to manually unregister handlers.
+
+## Related
+
+- [Plugin Registries](./registries.md) - All available registries
+- [Plugin Lifecycle](../getting-started/plugin-lifecycle.md) - Registration timing
+- [Built-in Events Catalog](../appendix/builtin-events.md) - Complete event reference

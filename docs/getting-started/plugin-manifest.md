@@ -1,0 +1,330 @@
+<!-- [VERIFIED: 2026-01-19] -->
+
+# Plugin Manifest (plugin.json)
+
+Every Hytale plugin requires a `plugin.json` manifest file in its root directory. This file defines essential metadata about your plugin, including its identity, version, dependencies, and entry point.
+
+## Package Location
+
+`com.hypixel.hytale.common.plugin.PluginManifest`
+
+## Location
+
+The manifest file must be placed at the root of your plugin JAR:
+```
+my-plugin.jar
+├── plugin.json           <- Required manifest file
+├── com/
+│   └── example/
+│       └── myplugin/
+│           └── MyPlugin.class
+└── assets/               <- Optional asset pack
+```
+
+## Full Schema Reference
+
+```json
+{
+  "Group": "com.example",
+  "Name": "MyPlugin",
+  "Version": "1.0.0",
+  "Description": "A description of what this plugin does",
+  "Authors": [
+    {
+      "Name": "Your Name",
+      "Email": "you@example.com",
+      "Url": "https://yourwebsite.com"
+    }
+  ],
+  "Website": "https://github.com/example/my-plugin",
+  "Main": "com.example.myplugin.MyPlugin",
+  "ServerVersion": ">=1.0.0",
+  "Dependencies": {
+    "Hytale/OtherPlugin": ">=1.0.0"
+  },
+  "OptionalDependencies": {
+    "Hytale/SomeOptional": "*"
+  },
+  "LoadBefore": {
+    "Hytale/LoadAfterMe": "*"
+  },
+  "DisabledByDefault": false,
+  "IncludesAssetPack": false,
+  "SubPlugins": []
+}
+```
+
+## Field Reference
+
+### Required Fields
+
+#### `Name`
+**Type:** `string` (required)
+
+The unique name of your plugin. This is used as the plugin's identifier in combination with the Group.
+
+```json
+{
+  "Name": "MyAwesomePlugin"
+}
+```
+
+### Optional Fields
+
+#### `Group`
+**Type:** `string`
+
+The organization or group namespace for your plugin. Similar to Maven group IDs. If not specified, defaults may be inherited from a parent plugin.
+
+```json
+{
+  "Group": "com.mycompany"
+}
+```
+
+The full plugin identifier becomes `Group/Name` (e.g., `com.mycompany/MyAwesomePlugin`).
+
+#### `Version`
+**Type:** `string` (Semantic Versioning)
+
+The version of your plugin following [Semantic Versioning 2.0.0](https://semver.org/) format.
+
+```json
+{
+  "Version": "1.2.3"
+}
+```
+
+**Supported formats:**
+- Basic: `1.0.0`
+- With pre-release: `1.0.0-alpha.1`
+- With build metadata: `1.0.0+build.123`
+- Combined: `1.0.0-beta.2+build.456`
+
+#### `Description`
+**Type:** `string`
+
+A human-readable description of what your plugin does.
+
+```json
+{
+  "Description": "Adds custom weather effects and seasonal changes to your server"
+}
+```
+
+#### `Authors`
+**Type:** `AuthorInfo[]`
+
+An array of author information objects.
+
+```json
+{
+  "Authors": [
+    {
+      "Name": "John Doe",
+      "Email": "john@example.com",
+      "Url": "https://johndoe.dev"
+    },
+    {
+      "Name": "Jane Smith"
+    }
+  ]
+}
+```
+
+Each `AuthorInfo` object supports:
+- `Name` (string, optional): Author's display name
+- `Email` (string, optional): Author's contact email
+- `Url` (string, optional): Author's website or profile URL
+
+#### `Website`
+**Type:** `string`
+
+The official website or repository URL for your plugin.
+
+```json
+{
+  "Website": "https://github.com/mycompany/my-plugin"
+}
+```
+
+#### `Main`
+**Type:** `string`
+
+The fully qualified class name of your plugin's main class. This class must extend `JavaPlugin`.
+
+```json
+{
+  "Main": "com.example.myplugin.MyPlugin"
+}
+```
+
+#### `ServerVersion`
+**Type:** `string` (SemVer Range)
+
+Specifies which server versions your plugin is compatible with. Uses npm-style semver range syntax.
+
+```json
+{
+  "ServerVersion": ">=1.0.0 <2.0.0"
+}
+```
+
+**Supported range operators:**
+| Operator | Example | Description |
+|----------|---------|-------------|
+| `>=` | `>=1.0.0` | Greater than or equal to |
+| `<=` | `<=2.0.0` | Less than or equal to |
+| `>` | `>1.0.0` | Greater than |
+| `<` | `<2.0.0` | Less than |
+| `=` | `=1.0.0` | Exact version |
+| `*` | `*` | Any version (wildcard) |
+| `~` | `~1.2.0` | Patch-level changes (>=1.2.0 <1.3.0) |
+| `^` | `^1.2.0` | Minor-level changes (>=1.2.0 <2.0.0) |
+| `||` | `>=1.0.0 <2.0.0 \|\| >=3.0.0` | OR condition |
+| `-` | `1.0.0 - 2.0.0` | Inclusive range |
+
+#### `Dependencies`
+**Type:** `Map<PluginIdentifier, SemverRange>`
+
+Plugins that must be loaded before this plugin. Keys are plugin identifiers in `Group/Name` format.
+
+```json
+{
+  "Dependencies": {
+    "Hytale/WeatherPlugin": ">=1.0.0",
+    "com.example/CoreLib": "^2.0.0"
+  }
+}
+```
+
+If a dependency is missing or doesn't satisfy the version range, your plugin will fail to load.
+
+#### `OptionalDependencies`
+**Type:** `Map<PluginIdentifier, SemverRange>`
+
+Plugins that enhance functionality if present but aren't required.
+
+```json
+{
+  "OptionalDependencies": {
+    "Hytale/CraftingPlugin": "*"
+  }
+}
+```
+
+Your plugin loads regardless of whether optional dependencies are present. Use runtime checks to detect their availability.
+
+#### `LoadBefore`
+**Type:** `Map<PluginIdentifier, SemverRange>`
+
+Specifies plugins that should load after this plugin. Useful for ensuring your plugin initializes first.
+
+```json
+{
+  "LoadBefore": {
+    "Hytale/SomeOtherPlugin": "*"
+  }
+}
+```
+
+#### `DisabledByDefault`
+**Type:** `boolean`
+
+If `true`, the plugin won't be enabled automatically on server start. Administrators must manually enable it.
+
+```json
+{
+  "DisabledByDefault": true
+}
+```
+
+Default: `false`
+
+#### `IncludesAssetPack`
+**Type:** `boolean`
+
+Set to `true` if your plugin JAR includes an embedded asset pack. The asset pack will be automatically registered when the plugin starts.
+
+```json
+{
+  "IncludesAssetPack": true
+}
+```
+
+Default: `false`
+
+When enabled, the server will look for assets in your JAR and register them with the identifier `Group/Name`.
+
+#### `SubPlugins`
+**Type:** `PluginManifest[]`
+
+An array of nested plugin manifests. Sub-plugins inherit values from their parent manifest if not explicitly specified.
+
+```json
+{
+  "SubPlugins": [
+    {
+      "Name": "MySubFeature",
+      "Main": "com.example.myplugin.subfeature.SubFeaturePlugin",
+      "Description": "Optional sub-feature of MyPlugin"
+    }
+  ]
+}
+```
+
+Sub-plugins automatically:
+- Inherit `Group` if not specified
+- Inherit `Version` if not specified
+- Inherit `Description` if not specified
+- Inherit `Authors` if empty
+- Inherit `Website` if not specified
+- Add a dependency on the parent plugin
+
+## Minimal Example
+
+The simplest valid manifest requires only a `Name` and `Main`:
+
+```json
+{
+  "Name": "MinimalPlugin",
+  "Main": "com.example.MinimalPlugin"
+}
+```
+
+## Complete Example
+
+A fully-featured manifest for a production plugin:
+
+```json
+{
+  "Group": "com.hytalemodding",
+  "Name": "EnhancedWeather",
+  "Version": "2.1.0",
+  "Description": "Adds realistic weather systems including storms, fog, and seasonal effects",
+  "Authors": [
+    {
+      "Name": "WeatherDev",
+      "Email": "weather@hytalemodding.com",
+      "Url": "https://hytalemodding.com/team/weatherdev"
+    }
+  ],
+  "Website": "https://github.com/hytalemodding/enhanced-weather",
+  "Main": "com.hytalemodding.weather.EnhancedWeatherPlugin",
+  "ServerVersion": ">=1.0.0",
+  "Dependencies": {
+    "Hytale/WeatherPlugin": ">=1.0.0"
+  },
+  "OptionalDependencies": {
+    "Hytale/AmbiencePlugin": "*"
+  },
+  "DisabledByDefault": false,
+  "IncludesAssetPack": true
+}
+```
+
+## Related
+
+- [Plugin Lifecycle](./plugin-lifecycle.md) - Understanding plugin states and lifecycle methods
+- [JavaPlugin Class](../api-reference/plugin/java-plugin.md) - The main plugin base class
+- [First Plugin Tutorial](./first-plugin.md) - Create your first plugin step by step

@@ -1,0 +1,278 @@
+<!-- [VERIFIED: 2026-01-19] -->
+
+# Plugin Lifecycle
+
+Hytale plugins follow a well-defined lifecycle with distinct states and phases. Understanding this lifecycle is essential for properly initializing resources, registering handlers, and cleaning up when your plugin shuts down.
+
+## Plugin States
+
+A plugin transitions through the following states during its lifecycle:
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                                                              │
+│   NONE ──► SETUP ──► START ──► ENABLED ──► SHUTDOWN ──► DISABLED
+│     ▲                                                    │
+│     └────────────────────────────────────────────────────┘
+│                     (can be re-enabled)
+└──────────────────────────────────────────────────────────────┘
+```
+
+### State Definitions
+
+| State | Description |
+|-------|-------------|
+| `NONE` | Initial state before any lifecycle methods are called |
+| `SETUP` | Plugin is executing its `setup()` method |
+| `START` | Plugin is executing its `start()` method |
+| `ENABLED` | Plugin is fully active and operational |
+| `SHUTDOWN` | Plugin is executing its `shutdown()` method |
+| `DISABLED` | Plugin has been shut down or failed to initialize |
+
+## Lifecycle Methods
+
+Your plugin class should override these methods to participate in the lifecycle:
+
+### Constructor
+
+```java
+public class MyPlugin extends JavaPlugin {
+    public MyPlugin(JavaPluginInit init) {
+        super(init);
+        // DO NOT register anything here!
+        // Only store references if needed
+    }
+}
+```
+
+**Important:** The constructor receives a `JavaPluginInit` object that must be passed to the superclass. Do not perform any registrations or access server resources in the constructor.
+
+### `preLoad()` - Configuration Loading
+
+```java
+@Override
+@Nullable
+public CompletableFuture<Void> preLoad() {
+    // Called before setup() to load configurations asynchronously
+    return super.preLoad();
+}
+```
+
+This method is called before `setup()` and is primarily used for loading configuration files. If you use `withConfig()` to register configuration codecs, their loading happens here automatically.
+
+**Timing:** Called asynchronously before the plugin enters SETUP state.
+
+### `setup()` - Registration Phase
+
+```java
+@Override
+protected void setup() {
+    // Register components, systems, commands, events, etc.
+    getEventRegistry().register(PlayerConnectEvent.class, this::onPlayerConnect);
+    getCommandRegistry().register(new MyCommand());
+    getEntityStoreRegistry().registerSystem(new MySystem());
+}
+```
+
+This is the primary initialization method where you should:
+- Register event listeners
+- Register commands
+- Register ECS components and systems
+- Register block states
+- Register asset types
+- Set up any plugin infrastructure
+
+**State:** Plugin transitions from NONE to SETUP during this method.
+
+**Important:** Only use registration methods during `setup()`. Registrations made after this phase may not work correctly.
+
+### `start()` - Activation Phase
+
+```java
+@Override
+protected void start() {
+    // Plugin is about to become fully active
+    // Perform any post-setup initialization
+    getLogger().info("MyPlugin has started successfully!");
+}
+```
+
+Called after `setup()` completes successfully. Use this for:
+- Logging startup messages
+- Starting background tasks
+- Connecting to external services
+- Any initialization that depends on all registrations being complete
+
+**State:** Plugin transitions from SETUP to START, then to ENABLED after this method returns.
+
+### `shutdown()` - Cleanup Phase
+
+```java
+@Override
+protected void shutdown() {
+    // Clean up resources before the plugin is disabled
+    // Note: Registered handlers are automatically unregistered
+}
+```
+
+Called when the plugin is being disabled. Use this for:
+- Saving data
+- Closing connections
+- Releasing external resources
+
+**State:** Plugin transitions to SHUTDOWN during this method, then to DISABLED.
+
+**Note:** You don't need to manually unregister events, commands, or ECS components. The plugin system automatically cleans up all registrations made through the registry methods.
+
+## Configuration System
+
+Plugins can declare configuration files that are automatically loaded during `preLoad()`:
+
+```java
+public class MyPlugin extends JavaPlugin {
+    private final Config<MyConfig> config;
+
+    public MyPlugin(JavaPluginInit init) {
+        super(init);
+        // Register config BEFORE setup (in constructor or field initializer)
+        this.config = withConfig(MyConfig.CODEC);
+    }
+
+    @Override
+    protected void setup() {
+        // Config is loaded and ready to use
+        MyConfig cfg = config.get();
+        if (cfg.isFeatureEnabled()) {
+            // ...
+        }
+    }
+}
+```
+
+### Configuration Methods
+
+| Method | Description |
+|--------|-------------|
+| `withConfig(codec)` | Register a config using default name "config" |
+| `withConfig(name, codec)` | Register a config with a custom name |
+
+Configuration files are stored in `<data-directory>/<name>.json` and are automatically loaded before `setup()` is called.
+
+## Available Registries
+
+The following registries are available through your plugin base class:
+
+| Method | Description |
+|--------|-------------|
+| `getCommandRegistry()` | Register commands |
+| `getEventRegistry()` | Register event listeners |
+| `getEntityStoreRegistry()` | Register entity ECS components and systems |
+| `getChunkStoreRegistry()` | Register chunk ECS components and systems |
+| `getBlockStateRegistry()` | Register custom block states |
+| `getEntityRegistry()` | Register entity types |
+| `getTaskRegistry()` | Register scheduled tasks |
+| `getAssetRegistry()` | Register asset types |
+| `getClientFeatureRegistry()` | Register client feature flags |
+| `getCodecRegistry(codec)` | Register to codec maps |
+
+## Utility Methods
+
+| Method | Return Type | Description |
+|--------|-------------|-------------|
+| `getLogger()` | `HytaleLogger` | Plugin-specific logger |
+| `getDataDirectory()` | `Path` | Plugin's data folder |
+| `getIdentifier()` | `PluginIdentifier` | Plugin's unique identifier |
+| `getManifest()` | `PluginManifest` | Plugin's manifest data |
+| `getBasePermission()` | `String` | Root permission node (group.name) |
+| `getFile()` | `Path` | Path to plugin JAR (JavaPlugin only) |
+| `isEnabled()` | `boolean` | Check if plugin is active |
+| `isDisabled()` | `boolean` | Check if plugin is inactive |
+| `getState()` | `PluginState` | Current lifecycle state |
+
+## Complete Example
+
+```java
+package com.example.myplugin;
+
+import com.hypixel.hytale.server.core.plugin.JavaPlugin;
+import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
+import com.hypixel.hytale.server.core.event.events.player.PlayerConnectEvent;
+import java.util.logging.Level;
+
+public class MyPlugin extends JavaPlugin {
+
+    private static MyPlugin instance;
+
+    public static MyPlugin getInstance() {
+        return instance;
+    }
+
+    public MyPlugin(JavaPluginInit init) {
+        super(init);
+    }
+
+    @Override
+    protected void setup() {
+        instance = this;
+
+        // Register event listeners
+        getEventRegistry().register(PlayerConnectEvent.class, this::onPlayerConnect);
+
+        // Register commands
+        getCommandRegistry().register(new MyCommand());
+
+        getLogger().at(Level.INFO).log("MyPlugin setup complete!");
+    }
+
+    @Override
+    protected void start() {
+        getLogger().at(Level.INFO).log("MyPlugin v%s started!", getManifest().getVersion());
+    }
+
+    @Override
+    protected void shutdown() {
+        getLogger().at(Level.INFO).log("MyPlugin shutting down...");
+        instance = null;
+    }
+
+    private void onPlayerConnect(PlayerConnectEvent event) {
+        // Use getPlayerRef() instead of deprecated getPlayer()
+        getLogger().at(Level.INFO).log("Player connected: %s", event.getPlayerRef().getUsername());
+    }
+}
+```
+
+## Error Handling
+
+If an exception occurs during `setup()` or `start()`:
+1. The exception is logged with the plugin's logger
+2. The plugin transitions to `DISABLED` state
+3. Any registrations made before the error are cleaned up
+
+```java
+@Override
+protected void setup() {
+    try {
+        // Risky initialization
+    } catch (Exception e) {
+        getLogger().at(Level.SEVERE).withCause(e).log("Failed to initialize");
+        throw e; // Re-throw to trigger plugin disable
+    }
+}
+```
+
+## Best Practices
+
+1. **Register in `setup()`**: Always perform registrations during the setup phase
+2. **Validate in `start()`**: Use the start phase to verify all dependencies are available
+3. **Clean up in `shutdown()`**: Release any external resources (files, connections, etc.)
+4. **Don't block**: Avoid long-running operations in lifecycle methods
+5. **Use the logger**: Log important events for debugging
+6. **Check state**: Use `isEnabled()` before accessing plugin resources from external code
+
+## Related
+
+- [Plugin Manifest](./plugin-manifest.md) - Configure your plugin's metadata
+- [First Plugin Tutorial](./first-plugin.md) - Build your first plugin
+- [Event System](../core-concepts/event-system.md) - Register event listeners
+- [Command System](../core-concepts/commands.md) - Register commands

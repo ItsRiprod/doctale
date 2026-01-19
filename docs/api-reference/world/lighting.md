@@ -1,0 +1,363 @@
+<!-- [VERIFIED: 2026-01-19] -->
+
+# Lighting System
+
+The lighting system calculates and propagates light through the world using a flood-fill algorithm with support for colored block light and skylight.
+
+## Package Location
+
+`com.hypixel.hytale.server.core.universe.world.lighting`
+
+## Overview
+
+Hytale uses a 4-channel lighting system:
+- **Red block light** (0-15)
+- **Green block light** (0-15)
+- **Blue block light** (0-15)
+- **Skylight** (0-15)
+
+Light is calculated per chunk section (32x32x32 blocks) using flood-fill propagation.
+
+## Light Channels
+
+| Channel | Bits | Range | Source |
+|---------|------|-------|--------|
+| Red | 0-3 | 0-15 | Block light sources |
+| Green | 4-7 | 0-15 | Block light sources |
+| Blue | 8-11 | 0-15 | Block light sources |
+| Skylight | 12-15 | 0-15 | Sky exposure |
+
+**Combined format:** 16-bit short value
+
+## Core Classes
+
+### ChunkLightingManager
+
+Main manager running on a dedicated daemon thread per world:
+
+```java
+package com.hypixel.hytale.server.core.universe.world.lighting;
+
+public class ChunkLightingManager {
+    // Queue chunk for light recalculation
+    public void addToQueue(Vector3i chunkPosition);
+
+    // Initialize lighting for newly loaded chunk
+    public void init(WorldChunk chunk);
+
+    // Swap calculation algorithm
+    public void setLightCalculation(LightCalculation calculation);
+
+    // Mark block area for recalculation
+    public void invalidateLightAtBlock(
+        Vector3i blockPosition,
+        WorldChunk chunk
+    );
+
+    // Mark entire chunk for recalculation
+    public void invalidateLightInChunk(WorldChunk chunk);
+
+    // Mark specific section (32x32x32)
+    public void invalidateLightInChunkSection(
+        WorldChunk chunk,
+        int sectionIndex
+    );
+
+    // Full world invalidation
+    public void invalidateLoadedChunks();
+}
+```
+
+### LightCalculation
+
+Interface for pluggable light calculation algorithms:
+
+```java
+package com.hypixel.hytale.server.core.universe.world.lighting;
+
+public interface LightCalculation {
+    // Initialize lighting for loaded chunk
+    void init(WorldChunk chunk);
+
+    // Process queued chunk position
+    CalculationResult calculateLight(Vector3i chunkPosition);
+
+    // Mark block for update
+    void invalidateLightAtBlock(
+        Vector3i blockPosition,
+        WorldChunk chunk
+    );
+
+    // Mark sections for update
+    void invalidateLightInChunkSections(
+        WorldChunk chunk,
+        int... sectionIndices
+    );
+}
+
+// Calculation result
+public enum CalculationResult {
+    NOT_LOADED,          // Chunk or neighbors not in memory
+    DONE,                // Processing complete
+    INVALIDATED,         // Recalculation requested mid-process
+    WAITING_FOR_NEIGHBOUR // Neighbor section not ready
+}
+```
+
+### FloodLightCalculation
+
+Default implementation using flood-fill algorithm:
+
+```java
+package com.hypixel.hytale.server.core.universe.world.lighting;
+
+public class FloodLightCalculation implements LightCalculation {
+    // Two-phase calculation:
+    // 1. Local light (block light sources)
+    // 2. Global light (skylight propagation)
+}
+```
+
+**Propagation Rules:**
+
+| Propagation Type | Light Reduction |
+|------------------|-----------------|
+| Direct neighbor (6 faces) | -1 |
+| Edge connection (12 edges) | -2 |
+| Corner connection (8 corners) | -3 |
+| Through semitransparent | Additional -1 |
+| Through solid | Blocked |
+
+### FullBrightLightCalculation
+
+Debug wrapper that sets all skylight to maximum:
+
+```java
+package com.hypixel.hytale.server.core.universe.world.lighting;
+
+public class FullBrightLightCalculation implements LightCalculation {
+    // Wraps delegate calculation
+    // After completion, sets all skylight to 15
+}
+```
+
+## Light Data Storage
+
+### ChunkLightData
+
+Immutable light storage for chunk sections:
+
+```java
+package com.hypixel.hytale.server.core.universe.world.chunk.section;
+
+public class ChunkLightData {
+    // Constants
+    public static final int TREE_SIZE = 8;      // Octtree subdivision
+    public static final int MAX_VALUE = 15;     // Max light per channel
+    public static final int CHANNEL_COUNT = 4;  // RGBA + sky
+
+    // Get individual channel values (0-15)
+    public int getRedBlockLight(int index);
+    public int getGreenBlockLight(int index);
+    public int getBlueBlockLight(int index);
+    public int getSkyLight(int index);
+
+    // Get max of RGB channels
+    public int getBlockLightIntensity(int index);
+
+    // Get specific channel (0-3)
+    public int getLight(int index, int channel);
+
+    // Get raw 16-bit combined value
+    public short getLightRaw(int index);
+
+    // Static utilities
+    public static short combineLightValues(
+        int red, int green, int blue, int sky
+    );
+
+    public static int getLightValue(short value, int channel);
+}
+```
+
+### ChunkLightDataBuilder
+
+Mutable builder for light calculation:
+
+```java
+public class ChunkLightDataBuilder {
+    // Set individual channels
+    public void setLight(int index, int channel, int value);
+    public void setSkyLight(int index, int value);
+
+    // Set raw combined value
+    public void setLightRaw(int index, short value);
+
+    // Build immutable result
+    public ChunkLightData build();
+}
+```
+
+## Block Light Sources
+
+Blocks define their light emission in their block type definition:
+
+```java
+// BlockType light properties
+public class BlockType {
+    // Light emission (ColorLight format)
+    public ColorLight getBlockLight();
+
+    // Opacity for light propagation
+    public BlockOpacity getOpacity();
+}
+
+// Opacity types
+public enum BlockOpacity {
+    SOLID,           // Blocks all light
+    SEMITRANSPARENT, // Reduces light by additional 1
+    CUTOUT,          // Reduces light by additional 1
+    TRANSPARENT      // Full light pass-through
+}
+```
+
+### ColorLight
+
+Light color and radius definition:
+
+```java
+package com.hypixel.hytale.protocol;
+
+public class ColorLight {
+    public int radius;  // Light reach (1 byte)
+    public int red;     // Red intensity 0-15 (1 byte)
+    public int green;   // Green intensity 0-15 (1 byte)
+    public int blue;    // Blue intensity 0-15 (1 byte)
+
+    public ColorLight(int radius, int red, int green, int blue);
+}
+```
+
+## Usage Examples
+
+### Invalidating Light at Block
+
+```java
+import com.hypixel.hytale.server.core.universe.world.lighting.ChunkLightingManager;
+import com.hypixel.hytale.math.vector.Vector3i;
+
+// Get lighting manager from world
+World world = Universe.get().getWorld("default");
+ChunkLightingManager lightingManager = world.getLightingManager();
+
+// Mark block for recalculation (e.g., after placing light source)
+Vector3i blockPosition = new Vector3i(100, 64, 200);
+WorldChunk chunk = world.getChunk(blockPosition);
+
+lightingManager.invalidateLightAtBlock(blockPosition, chunk);
+```
+
+### Reading Light Values
+
+```java
+import com.hypixel.hytale.server.core.universe.world.chunk.section.ChunkLightData;
+
+// Get light data from chunk section
+WorldChunk chunk = world.getChunk(position);
+int sectionIndex = position.y / 32;
+ChunkLightData lightData = chunk.getLightData(sectionIndex);
+
+// Calculate local index within section
+int localX = position.x & 31;
+int localY = position.y & 31;
+int localZ = position.z & 31;
+int index = localX + (localY * 32) + (localZ * 32 * 32);
+
+// Read individual channels
+int red = lightData.getRedBlockLight(index);
+int green = lightData.getGreenBlockLight(index);
+int blue = lightData.getBlueBlockLight(index);
+int sky = lightData.getSkyLight(index);
+
+// Or get combined block light intensity
+int blockLight = lightData.getBlockLightIntensity(index);
+
+// Get raw 16-bit value
+short rawLight = lightData.getLightRaw(index);
+```
+
+### Switching Light Calculation Mode
+
+```java
+import com.hypixel.hytale.server.core.universe.world.lighting.*;
+
+// Switch to full bright mode (for testing)
+ChunkLightingManager manager = world.getLightingManager();
+LightCalculation current = manager.getLightCalculation();
+manager.setLightCalculation(new FullBrightLightCalculation(current));
+
+// Invalidate all chunks to apply
+manager.invalidateLoadedChunks();
+```
+
+## Light Propagation Algorithm
+
+### Local Light (Block Light)
+
+1. Find all light-emitting blocks in section
+2. Add their positions to propagation queue
+3. For each position in queue:
+   - Check 6 direct neighbors
+   - If neighbor has lower light, update and queue
+   - Apply opacity reduction
+4. Continue until queue is empty
+
+### Global Light (Skylight)
+
+1. Start from section borders
+2. Three propagation phases:
+   - **Sides**: Direct neighbors (-1 reduction)
+   - **Edges**: Edge connections (-2 reduction)
+   - **Corners**: Corner connections (-3 reduction)
+3. Check neighbor chunk sections if needed
+4. Wait for neighbors if not yet calculated
+
+```
+Propagation from center block:
+
+          Corner (-3)
+         /
+     Edge (-2)
+    /
+Side (-1) ─ CENTER ─ Side (-1)
+    \
+     Edge (-2)
+         \
+          Corner (-3)
+```
+
+## Commands
+
+Built-in lighting commands:
+
+| Command | Description |
+|---------|-------------|
+| `/lighting calculation flood` | Switch to flood algorithm |
+| `/lighting calculation fullbright` | Enable full brightness |
+| `/lighting invalidate` | Recalculate all loaded chunks |
+| `/lighting invalidate --one` | Recalculate player's chunk section |
+
+## Performance Considerations
+
+1. **Async Processing**: Light calculation runs on dedicated thread
+2. **Queue-based**: Changes are queued and processed in order
+3. **Section Granularity**: Updates are per 32x32x32 section
+4. **Neighbor Dependencies**: Sections wait for neighbors before completing
+5. **Octtree Storage**: Compact representation reduces memory
+
+## Related
+
+- [Dynamic Lighting](dynamic-lighting.md) - Entity light sources
+- [World System](overview.md) - Chunk management
+- [Block System](../blocks/overview.md) - Block light properties
+

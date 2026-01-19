@@ -1,0 +1,277 @@
+<!-- [VERIFIED: 2026-01-19] -->
+
+# Block Tracking
+
+The block tracking system tracks which player placed blocks and maintains placement counts per chunk.
+
+## Package Location
+
+- Components: `com.hypixel.hytale.server.core.modules.interaction.components`
+- Block Track: `com.hypixel.hytale.server.core.modules.interaction.blocktrack`
+
+## Overview
+
+When blocks are placed via the interaction system, two tracking mechanisms are available:
+
+1. **PlacedByInteractionComponent** - Tracks who placed a specific block
+2. **TrackedPlacement + BlockCounter** - Counts placements by block type
+
+## PlacedByInteractionComponent
+
+Tracks which player placed a block:
+
+```java
+package com.hypixel.hytale.server.core.modules.interaction.components;
+
+public class PlacedByInteractionComponent implements Component<ChunkStore> {
+    // Constructor
+    public PlacedByInteractionComponent(UUID whoPlacedUuid);
+
+    // Get placer UUID
+    public UUID getWhoPlacedUuid();
+
+    // Get component type
+    public static ComponentType<ChunkStore, PlacedByInteractionComponent>
+        getComponentType();
+}
+```
+
+### Usage Example
+
+```java
+import com.hypixel.hytale.server.core.modules.interaction.components.PlacedByInteractionComponent;
+import com.hypixel.hytale.server.core.modules.interaction.InteractionModule;
+import java.util.UUID;
+
+// Get component from block
+Ref<ChunkStore> blockRef = /* block reference */;
+PlacedByInteractionComponent placedBy = commandBuffer.getComponent(
+    blockRef,
+    InteractionModule.get().getPlacedByComponentType()
+);
+
+if (placedBy != null) {
+    UUID placerUuid = placedBy.getWhoPlacedUuid();
+
+    // Find the player who placed it
+    Ref<EntityStore> placerRef = entityStore.getRefFromUUID(placerUuid);
+    if (placerRef != null && placerRef.isValid()) {
+        // Player is online
+    }
+}
+```
+
+### Listening for Block Placements
+
+```java
+import com.hypixel.hytale.component.system.RefChangeSystem;
+import com.hypixel.hytale.server.core.modules.interaction.components.PlacedByInteractionComponent;
+
+public class BlockPlaceListener
+    extends RefChangeSystem<ChunkStore, PlacedByInteractionComponent> {
+
+    @Override
+    public void onComponentAdded(
+        Ref<ChunkStore> blockRef,
+        PlacedByInteractionComponent placedBy,
+        Store<ChunkStore> chunkStore,
+        CommandBuffer<ChunkStore> commandBuffer
+    ) {
+        UUID placerUuid = placedBy.getWhoPlacedUuid();
+
+        // Get block info
+        BlockModule.BlockStateInfo blockInfo = chunkStore.getComponent(
+            blockRef,
+            BlockModule.BlockStateInfo.getComponentType()
+        );
+
+        String blockType = blockInfo.getBlockTypeName();
+
+        // React to placement
+        getLogger().info(placerUuid + " placed " + blockType);
+    }
+
+    @Override
+    public void onComponentRemoved(
+        Ref<ChunkStore> blockRef,
+        PlacedByInteractionComponent placedBy,
+        Store<ChunkStore> chunkStore,
+        CommandBuffer<ChunkStore> commandBuffer
+    ) {
+        // Block was destroyed
+    }
+}
+```
+
+## TrackedPlacement
+
+Tracks block type for counting:
+
+```java
+package com.hypixel.hytale.server.core.modules.interaction.blocktrack;
+
+public class TrackedPlacement implements Component<ChunkStore> {
+    // Constructor
+    public TrackedPlacement(String blockName);
+
+    // Get block name
+    public String getBlockName();
+
+    // Get component type
+    public static ComponentType<ChunkStore, TrackedPlacement> getComponentType();
+}
+```
+
+## BlockCounter
+
+Resource maintaining per-chunk block placement counts:
+
+```java
+package com.hypixel.hytale.server.core.modules.interaction.blocktrack;
+
+public class BlockCounter implements Resource<ChunkStore> {
+    // Track a block placement
+    public void trackBlock(String blockName);
+
+    // Untrack a block (when destroyed)
+    public void untrackBlock(String blockName);
+
+    // Get count for block type
+    public int getBlockPlacementCount(String blockName);
+}
+```
+
+### Usage Example
+
+```java
+import com.hypixel.hytale.server.core.modules.interaction.blocktrack.BlockCounter;
+import com.hypixel.hytale.server.core.modules.interaction.InteractionModule;
+
+// Get block counter for chunk
+BlockCounter counter = commandBuffer.getResource(
+    InteractionModule.get().getBlockCounterResourceType()
+);
+
+// Check how many stone blocks placed
+int stoneCount = counter.getBlockPlacementCount("Stone");
+
+// Check grass blocks
+int grassCount = counter.getBlockPlacementCount("Grass");
+
+// Total player-placed blocks
+int total = stoneCount + grassCount; // etc.
+```
+
+## Automatic Tracking
+
+The system automatically:
+
+1. Adds `TrackedPlacement` when a block is placed via interaction
+2. Updates `BlockCounter` when `TrackedPlacement` is added/removed
+3. Removes tracking when blocks are destroyed
+
+```
+Block Placed → TrackedPlacement Added → BlockCounter.trackBlock()
+Block Broken → TrackedPlacement Removed → BlockCounter.untrackBlock()
+```
+
+## Practical Example: Protected Blocks
+
+Track blocks that only the placer can break:
+
+```java
+import com.hypixel.hytale.server.core.event.events.ecs.BreakBlockEvent;
+
+@Override
+protected void setup() {
+    getEventRegistry().register(BreakBlockEvent.class, this::onBreakBlock);
+}
+
+private void onBreakBlock(BreakBlockEvent event) {
+    // Get block reference
+    Ref<ChunkStore> blockRef = event.getBlockRef();
+
+    // Check who placed it
+    PlacedByInteractionComponent placedBy = getComponent(
+        blockRef,
+        InteractionModule.get().getPlacedByComponentType()
+    );
+
+    if (placedBy != null) {
+        UUID placerUuid = placedBy.getWhoPlacedUuid();
+        UUID breakerUuid = event.getPlayerUuid();
+
+        // Only placer can break
+        if (!placerUuid.equals(breakerUuid)) {
+            event.setCancelled(true);
+            // Send message to player
+        }
+    }
+}
+```
+
+## Practical Example: Placement Limits
+
+Limit how many blocks of a type can be placed:
+
+```java
+import com.hypixel.hytale.server.core.event.events.ecs.PlaceBlockEvent;
+
+private static final int MAX_TNT_PER_CHUNK = 10;
+
+private void onPlaceBlock(PlaceBlockEvent event) {
+    BlockType blockType = event.getBlockType();
+
+    if (blockType.getId().equals("tnt")) {
+        // Get block counter
+        BlockCounter counter = getBlockCounter(event.getChunk());
+
+        int tntCount = counter.getBlockPlacementCount("TNT");
+
+        if (tntCount >= MAX_TNT_PER_CHUNK) {
+            event.setCancelled(true);
+            // Send limit message
+        }
+    }
+}
+```
+
+## Serialization
+
+Both components serialize with entity/chunk data:
+
+**PlacedByInteractionComponent:**
+```json
+{
+  "PlacedByInteraction": {
+    "UUID": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+**TrackedPlacement:**
+```json
+{
+  "TrackedPlacement": {
+    "BlockName": "Stone"
+  }
+}
+```
+
+**BlockCounter:**
+```json
+{
+  "BlockCounter": {
+    "Stone": 42,
+    "Grass": 15,
+    "Wood": 23
+  }
+}
+```
+
+## Related
+
+- [Interaction System](overview.md) - Interaction overview
+- [Event System](../../core-concepts/event-system.md) - Block events
+- [Block System](../blocks/overview.md) - Block types
+

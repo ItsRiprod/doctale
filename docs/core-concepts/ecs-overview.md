@@ -1,0 +1,509 @@
+<!-- [VERIFIED: 2026-01-19] -->
+
+# Entity Component System (ECS) Overview
+
+Hytale uses an Entity Component System architecture for managing game entities, chunks, and their associated data. ECS separates data (components) from behavior (systems), enabling efficient processing of large numbers of entities.
+
+## Package Location
+
+- Core ECS: `com.hypixel.hytale.component`
+- Systems: `com.hypixel.hytale.component.system`
+- Queries: `com.hypixel.hytale.component.query`
+- EntityStore: `com.hypixel.hytale.server.core.universe.world.storage.EntityStore`
+- ChunkStore: `com.hypixel.hytale.server.core.universe.world.storage.ChunkStore`
+
+## Core Concepts
+
+### ECS Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                           Store                                  │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │                     Entities (Refs)                       │   │
+│  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐         │   │
+│  │  │ Entity  │ │ Entity  │ │ Entity  │ │ Entity  │   ...   │   │
+│  │  │  Ref 0  │ │  Ref 1  │ │  Ref 2  │ │  Ref 3  │         │   │
+│  │  └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘         │   │
+│  └───────│───────────│───────────│───────────│──────────────┘   │
+│          ▼           ▼           ▼           ▼                   │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │                   Components (Data)                       │   │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐     │   │
+│  │  │Position  │ │Velocity  │ │ Health   │ │Inventory │ ... │   │
+│  │  └──────────┘ └──────────┘ └──────────┘ └──────────┘     │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│                                                                  │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │                   Resources (World Data)                  │   │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐                  │   │
+│  │  │TimeOfDay │ │Weather   │ │GameRules │       ...        │   │
+│  │  └──────────┘ └──────────┘ └──────────┘                  │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│                                                                  │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │                   Systems (Logic)                         │   │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐     │   │
+│  │  │ Physics  │ │   AI     │ │ Combat   │ │ Weather  │ ... │   │
+│  │  └──────────┘ └──────────┘ └──────────┘ └──────────┘     │   │
+│  └──────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Key Terminology
+
+| Term | Description |
+|------|-------------|
+| **Store** | Container for entities, components, resources, and systems |
+| **Entity (Ref)** | A unique identifier for a game object |
+| **Component** | Data attached to an entity (no behavior) |
+| **Resource** | World-level data shared across all entities |
+| **System** | Logic that operates on entities with specific components |
+| **Archetype** | The set of component types an entity has |
+| **Query** | Filter for selecting entities by component composition |
+| **Holder** | Temporary container for entity components |
+
+## Store Types
+
+Hytale uses two primary store types:
+
+### EntityStore
+
+For entity-level data (players, mobs, items, etc.):
+
+```java
+// Access via plugin registry
+getEntityStoreRegistry().registerComponent(MyComponent.class, MyComponent::new);
+getEntityStoreRegistry().registerSystem(new MyEntitySystem());
+```
+
+### ChunkStore
+
+For chunk-level data (terrain, block data, etc.):
+
+```java
+// Access via plugin registry
+getChunkStoreRegistry().registerComponent(ChunkData.class, ChunkData::new);
+getChunkStoreRegistry().registerSystem(new ChunkProcessingSystem());
+```
+
+## Components
+
+Components are pure data containers attached to entities. They should contain no game logic.
+
+### Defining a Component
+
+```java
+import com.hypixel.hytale.component.Component;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+
+public class HealthComponent implements Component<EntityStore> {
+    private float health;
+    private float maxHealth;
+
+    public HealthComponent() {
+        this.health = 20.0f;
+        this.maxHealth = 20.0f;
+    }
+
+    public float getHealth() { return health; }
+    public void setHealth(float health) { this.health = health; }
+
+    public float getMaxHealth() { return maxHealth; }
+    public void setMaxHealth(float maxHealth) { this.maxHealth = maxHealth; }
+
+    @Override
+    public Component<EntityStore> clone() {
+        HealthComponent copy = new HealthComponent();
+        copy.health = this.health;
+        copy.maxHealth = this.maxHealth;
+        return copy;
+    }
+}
+```
+
+### Registering a Component
+
+```java
+@Override
+protected void setup() {
+    // Register without serialization
+    ComponentType<EntityStore, HealthComponent> healthType =
+        getEntityStoreRegistry().registerComponent(
+            HealthComponent.class,
+            HealthComponent::new
+        );
+
+    // Register with serialization (saved to disk)
+    ComponentType<EntityStore, PersistentData> dataType =
+        getEntityStoreRegistry().registerComponent(
+            PersistentData.class,
+            "myplugin:persistent_data",
+            PersistentData.CODEC
+        );
+}
+```
+
+### ComponentType
+
+`ComponentType<ECS_TYPE, T>` is a handle for accessing a specific component type:
+
+```java
+private ComponentType<EntityStore, HealthComponent> healthType;
+
+// In setup()
+this.healthType = getEntityStoreRegistry().registerComponent(
+    HealthComponent.class,
+    HealthComponent::new
+);
+
+// In system
+HealthComponent health = store.getComponent(ref, healthType);
+if (health != null) {
+    health.setHealth(health.getHealth() - 5);
+}
+```
+
+## Resources
+
+Resources are world-level data shared across all entities. Unlike components, resources aren't attached to specific entities.
+
+### Defining a Resource
+
+```java
+import com.hypixel.hytale.component.Resource;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+
+public class WeatherResource implements Resource<EntityStore> {
+    private String currentWeather = "sunny";
+    private float intensity = 1.0f;
+
+    public String getCurrentWeather() { return currentWeather; }
+    public void setCurrentWeather(String weather) { this.currentWeather = weather; }
+
+    public float getIntensity() { return intensity; }
+    public void setIntensity(float intensity) { this.intensity = intensity; }
+
+    @Override
+    public Resource<EntityStore> clone() {
+        WeatherResource copy = new WeatherResource();
+        copy.currentWeather = this.currentWeather;
+        copy.intensity = this.intensity;
+        return copy;
+    }
+}
+```
+
+### Registering a Resource
+
+```java
+@Override
+protected void setup() {
+    ResourceType<EntityStore, WeatherResource> weatherType =
+        getEntityStoreRegistry().registerResource(
+            WeatherResource.class,
+            WeatherResource::new
+        );
+}
+```
+
+### Accessing Resources
+
+```java
+// Get resource from store
+WeatherResource weather = store.getResource(weatherType);
+weather.setCurrentWeather("rain");
+```
+
+## Systems
+
+Systems contain the logic that operates on entities. They query for entities with specific components and process them.
+
+### System Base Class
+
+```java
+import com.hypixel.hytale.component.system.System;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+
+public class HealthRegenSystem extends System<EntityStore> {
+
+    private ComponentType<EntityStore, HealthComponent> healthType;
+
+    public HealthRegenSystem() {
+        // Register components this system needs
+        this.healthType = registerComponent(HealthComponent.class, HealthComponent::new);
+    }
+}
+```
+
+### System Types
+
+| System Type | Description |
+|-------------|-------------|
+| `TickingSystem` | Runs every tick |
+| `TickableSystem` | Ticking with enable/disable control |
+| `EntityTickingSystem` | Processes each matching entity per tick |
+| `ArchetypeTickingSystem` | Batch processes entities by archetype |
+| `ArchetypeChunkSystem` | Processes archetype chunks |
+| `EventSystem` | Responds to ECS events |
+| `EntityEventSystem` | Handles entity-specific events |
+| `WorldEventSystem` | Handles world-level events |
+| `QuerySystem` | Query-based entity iteration |
+| `RefSystem` | Tracks entity references |
+| `RefChangeSystem` | Detects reference changes |
+| `StoreSystem` | Store-level operations |
+| `HolderSystem` | Works with entity holders |
+
+### EntityTickingSystem Example
+
+```java
+import com.hypixel.hytale.component.ArchetypeChunk;
+import com.hypixel.hytale.component.CommandBuffer;
+import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+
+public class HealthRegenSystem extends EntityTickingSystem<EntityStore> {
+
+    private ComponentType<EntityStore, HealthComponent> healthType;
+
+    public HealthRegenSystem() {
+        this.healthType = registerComponent(HealthComponent.class, HealthComponent::new);
+    }
+
+    @Override
+    public Query<EntityStore> getQuery() {
+        return healthType;  // Only process entities with HealthComponent
+    }
+
+    @Override
+    public void tick(float dt, int index, ArchetypeChunk<EntityStore> chunk,
+                     Store<EntityStore> store, CommandBuffer<EntityStore> commandBuffer) {
+        // Get component from the archetype chunk at the given index
+        HealthComponent health = chunk.getComponent(index, healthType);
+        if (health.getHealth() < health.getMaxHealth()) {
+            health.setHealth(Math.min(health.getHealth() + 0.1f * dt, health.getMaxHealth()));
+        }
+    }
+}
+```
+
+### Registering Systems
+
+```java
+@Override
+protected void setup() {
+    getEntityStoreRegistry().registerSystem(new HealthRegenSystem());
+}
+```
+
+## Queries
+
+Queries filter entities based on their component composition.
+
+### Query Types
+
+| Query | Description |
+|-------|-------------|
+| `ComponentType` | Entities that have this component |
+| `AndQuery` | Entities with ALL specified components |
+| `OrQuery` | Entities with ANY of the specified components |
+| `NotQuery` | Entities that DON'T have the component |
+| `AnyQuery` | Matches any entity |
+| `ExactArchetypeQuery` | Matches exact archetype |
+
+### Using Queries
+
+```java
+import com.hypixel.hytale.component.query.AndQuery;
+import com.hypixel.hytale.component.query.NotQuery;
+
+// Entities with both Position and Velocity
+Query<EntityStore> movingEntities = new AndQuery<>(positionType, velocityType);
+
+// Entities with Health but NOT Dead
+Query<EntityStore> aliveEntities = new AndQuery<>(
+    healthType,
+    new NotQuery<>(deadType)
+);
+
+// Use in system
+@Override
+public Query<EntityStore> getQuery() {
+    return new AndQuery<>(healthType, hungerType);
+}
+```
+
+## Entity References (Refs)
+
+`Ref<ECS_TYPE>` is a reference to an entity in a store.
+
+### Working with Refs
+
+```java
+// Check if ref is valid
+if (ref.isValid()) {
+    // Get component
+    HealthComponent health = store.getComponent(ref, healthType);
+
+    // Check if entity has component
+    if (store.hasComponent(ref, healthType)) {
+        // ...
+    }
+}
+```
+
+### Creating Entities
+
+```java
+// Create a holder with components
+Holder<EntityStore> holder = store.getRegistry().newHolder();
+holder.addComponent(positionType, new PositionComponent(x, y, z));
+holder.addComponent(healthType, new HealthComponent());
+
+// Spawn entity from holder
+Ref<EntityStore> ref = store.spawn(holder);
+```
+
+### Removing Entities
+
+```java
+store.destroy(ref);
+```
+
+## Holders
+
+`Holder<ECS_TYPE>` is a temporary container for entity components, used when creating entities or transferring component data.
+
+```java
+// Create holder
+Holder<EntityStore> holder = store.getRegistry().newHolder();
+
+// Add components
+holder.addComponent(componentType, component);
+
+// Get component
+Component comp = holder.getComponent(componentType);
+
+// Check for component
+if (holder.getArchetype().contains(componentType)) {
+    // ...
+}
+
+// Clone holder
+Holder<EntityStore> cloned = holder.clone();
+```
+
+## Component Serialization
+
+For components that need to be saved/loaded, define a codec:
+
+```java
+public class PersistentComponent implements Component<EntityStore> {
+    private int level;
+    private String name;
+
+    public static final BuilderCodec<PersistentComponent> CODEC = BuilderCodec
+        .builder(PersistentComponent.class, PersistentComponent::new)
+        .append(new KeyedCodec<>("Level", Codec.INTEGER),
+                (c, v) -> c.level = v, c -> c.level)
+        .add()
+        .append(new KeyedCodec<>("Name", Codec.STRING),
+                (c, v) -> c.name = v, c -> c.name)
+        .add()
+        .build();
+
+    // ... getters, setters, clone
+}
+```
+
+Register with serialization:
+
+```java
+getEntityStoreRegistry().registerComponent(
+    PersistentComponent.class,
+    "myplugin:persistent",
+    PersistentComponent.CODEC
+);
+```
+
+## Best Practices
+
+1. **Keep components pure data**: No game logic in components
+2. **Systems do the work**: All behavior goes in systems
+3. **Use appropriate queries**: Only query for what you need
+4. **Cache ComponentTypes**: Store them as fields, not in methods
+5. **Check ref validity**: Always check `ref.isValid()` before use
+6. **Clone when copying**: Use `clone()` for component copies
+7. **Register in setup()**: All registrations happen during plugin setup
+
+## Complete Example
+
+```java
+public class DamagePlugin extends JavaPlugin {
+
+    private ComponentType<EntityStore, HealthComponent> healthType;
+    private ComponentType<EntityStore, DamageOverTimeComponent> dotType;
+
+    public DamagePlugin(JavaPluginInit init) {
+        super(init);
+    }
+
+    @Override
+    protected void setup() {
+        // Register components
+        this.healthType = getEntityStoreRegistry().registerComponent(
+            HealthComponent.class,
+            HealthComponent::new
+        );
+
+        this.dotType = getEntityStoreRegistry().registerComponent(
+            DamageOverTimeComponent.class,
+            DamageOverTimeComponent::new
+        );
+
+        // Register system
+        getEntityStoreRegistry().registerSystem(new DamageOverTimeSystem(healthType, dotType));
+    }
+}
+
+public class DamageOverTimeSystem extends EntityTickingSystem<EntityStore> {
+
+    private final ComponentType<EntityStore, HealthComponent> healthType;
+    private final ComponentType<EntityStore, DamageOverTimeComponent> dotType;
+
+    public DamageOverTimeSystem(
+        ComponentType<EntityStore, HealthComponent> healthType,
+        ComponentType<EntityStore, DamageOverTimeComponent> dotType
+    ) {
+        this.healthType = healthType;
+        this.dotType = dotType;
+    }
+
+    @Override
+    public Query<EntityStore> getQuery() {
+        return new AndQuery<>(healthType, dotType);
+    }
+
+    @Override
+    public void tick(float dt, int index, ArchetypeChunk<EntityStore> chunk,
+                     Store<EntityStore> store, CommandBuffer<EntityStore> commandBuffer) {
+        HealthComponent health = chunk.getComponent(index, healthType);
+        DamageOverTimeComponent dot = chunk.getComponent(index, dotType);
+
+        health.setHealth(health.getHealth() - dot.getDamagePerTick());
+
+        dot.decrementDuration();
+        if (dot.getDuration() <= 0) {
+            // Use command buffer for structural changes
+            commandBuffer.removeComponent(chunk.getRef(index), dotType);
+        }
+    }
+}
+```
+
+## Related
+
+- [Plugin Registries](./registries.md) - ECS registration methods
+- [Entity System](../api-reference/entities/overview.md) - Entity types and spawning
+- [World System](../api-reference/world/overview.md) - World and chunk management

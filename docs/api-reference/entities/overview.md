@@ -1,0 +1,373 @@
+<!-- [VERIFIED: 2026-01-19] -->
+
+# Entity System Overview
+
+The Entity System manages all game objects that exist within worlds, including players, mobs, items, projectiles, and other dynamic objects. Entities are implemented using the ECS architecture with components providing data and systems providing behavior.
+
+## Package Location
+
+- Entity base: `com.hypixel.hytale.server.core.entity.Entity`
+- PlayerRef: `com.hypixel.hytale.server.core.universe.PlayerRef`
+- Player: `com.hypixel.hytale.server.core.entity.entities.Player`
+- EntityStore: `com.hypixel.hytale.server.core.universe.world.storage.EntityStore`
+- TransformComponent: `com.hypixel.hytale.server.core.modules.entity.component.TransformComponent`
+
+## Core Concepts
+
+### Entity Hierarchy
+
+```
+Entity (base class)
+├── LivingEntity
+│   ├── Player
+│   ├── Creature
+│   └── NPC
+├── ItemEntity
+├── ProjectileEntity
+└── ... other entity types
+```
+
+### Entity as Component
+
+In Hytale's ECS, `Entity` subclasses are actually components themselves. Each entity type is registered as a component type:
+
+```java
+ComponentType<EntityStore, MyEntity> entityType =
+    getEntityStoreRegistry().registerComponent(MyEntity.class, ...);
+```
+
+## PlayerRef
+
+`PlayerRef` is the primary interface for working with connected players. It bridges the network connection with the in-world entity.
+
+### Accessing PlayerRef
+
+```java
+// From Universe (all players)
+List<PlayerRef> allPlayers = Universe.get().getPlayers();
+
+// From World (players in world)
+Collection<PlayerRef> worldPlayers = world.getPlayerRefs();
+
+// From event
+getEventRegistry().register(PlayerConnectEvent.class, event -> {
+    PlayerRef player = event.getPlayerRef();
+});
+
+// Find by name
+PlayerRef player = Universe.get().getPlayerByUsername("username", NameMatching.DEFAULT);
+```
+
+### PlayerRef Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `uuid` | `UUID` | Player's unique identifier |
+| `username` | `String` | Player's display name |
+| `language` | `String` | Player's language preference |
+| `packetHandler` | `PacketHandler` | Network packet handler |
+| `chunkTracker` | `ChunkTracker` | Tracks loaded chunks |
+
+### PlayerRef Methods
+
+```java
+// Basic info
+UUID uuid = player.getUuid();
+String name = player.getUsername();
+String language = player.getLanguage();
+
+// Check if valid (connected)
+if (player.isValid()) {
+    // Player is connected
+}
+
+// Get entity reference (if in world)
+Ref<EntityStore> ref = player.getReference();
+if (ref != null && ref.isValid()) {
+    // Access entity components
+}
+
+// Get holder (for component access when between worlds)
+Holder<EntityStore> holder = player.getHolder();
+
+// Get position
+Transform transform = player.getTransform();
+Vector3f headRotation = player.getHeadRotation();
+
+// Send message
+player.sendMessage(Message.raw("Hello!"));
+
+// Transfer to another server
+player.referToServer("other-server.example.com", 25565);
+player.referToServer("other-server.example.com", 25565, customData);
+```
+
+## Entity Class
+
+The base `Entity` class provides common functionality for all entities.
+
+### Entity Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `networkId` | `int` | Network identifier (-1 if not spawned) |
+| `world` | `World` | World the entity is in |
+| `reference` | `Ref<EntityStore>` | ECS reference |
+| `wasRemoved` | `boolean` | Whether entity was removed |
+
+### Entity Methods
+
+```java
+// Get world
+World world = entity.getWorld();
+
+// Get entity reference
+Ref<EntityStore> ref = entity.getReference();
+
+// Remove entity from world
+boolean removed = entity.remove();
+
+// Check if already removed
+if (entity.wasRemoved()) {
+    return;
+}
+
+// Check if collidable
+boolean collidable = entity.isCollidable();
+
+// Convert to holder (for serialization/transfer)
+Holder<EntityStore> holder = entity.toHolder();
+```
+
+### Entity Lifecycle
+
+```
+Create Entity Instance
+        ↓
+loadIntoWorld(world)    ← Assigns to world
+        ↓
+setReference(ref)       ← Links to ECS
+        ↓
+    [Active]
+        ↓
+    remove()            ← Removes from world
+        ↓
+unloadFromWorld()       ← Cleans up
+```
+
+## Working with Entity Components
+
+Entities use the ECS system for data storage:
+
+```java
+// Get entity store
+EntityStore entityStore = world.getEntityStore();
+Store<EntityStore> store = entityStore.getStore();
+
+// Get component from entity
+TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
+
+// Check if entity has component
+if (store.hasComponent(ref, HealthComponent.getComponentType())) {
+    HealthComponent health = store.getComponent(ref, HealthComponent.getComponentType());
+}
+
+// Add component to entity
+store.addComponent(ref, myComponentType, new MyComponent());
+
+// Remove component
+store.removeComponent(ref, myComponentType);
+```
+
+## Common Entity Components
+
+### TransformComponent
+
+Position and rotation in the world:
+
+```java
+TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
+
+// Get position
+Vector3d position = transform.getPosition();
+double x = position.x;
+double y = position.y;
+double z = position.z;
+
+// Get rotation
+Vector3f rotation = transform.getRotation();
+float pitch = rotation.x;
+float yaw = rotation.y;
+float roll = rotation.z;
+
+// Set position
+position.assign(newX, newY, newZ);
+```
+
+### ModelComponent
+
+Visual model and display:
+
+```java
+ModelComponent model = store.getComponent(ref, ModelComponent.getComponentType());
+
+// Get model reference
+Model.ModelReference modelRef = model.getModel();
+```
+
+### UUIDComponent
+
+Unique identifier:
+
+```java
+UUIDComponent uuidComp = store.getComponent(ref, UUIDComponent.getComponentType());
+UUID entityUuid = uuidComp.getUuid();
+```
+
+## Spawning Entities
+
+### Creating and Spawning
+
+```java
+// 1. Create holder with components
+Holder<EntityStore> holder = EntityStore.REGISTRY.newHolder();
+
+// 2. Add entity component
+MyEntity entity = new MyEntity();
+holder.addComponent(MyEntity.getComponentType(), entity);
+
+// 3. Add required components
+holder.addComponent(TransformComponent.getComponentType(),
+    new TransformComponent(x, y, z, 0, 0, 0));
+holder.addComponent(UUIDComponent.getComponentType(),
+    new UUIDComponent(UUID.randomUUID()));
+
+// 4. Spawn in store
+Store<EntityStore> store = world.getEntityStore().getStore();
+Ref<EntityStore> ref = store.spawn(holder);
+```
+
+### Using Entity Utilities
+
+```java
+// EntityUtils provides helper methods
+Holder<EntityStore> holder = EntityUtils.createEntityHolder(
+    entityType,
+    transform,
+    world
+);
+Ref<EntityStore> ref = store.spawn(holder);
+```
+
+## Entity Events
+
+### Entity Removal
+
+```java
+getEventRegistry().register(EntityRemoveEvent.class, event -> {
+    Entity entity = event.getEntity();
+    // Handle entity removal
+});
+```
+
+### Player Entity Events
+
+```java
+// Player added to world
+getEventRegistry().register(AddPlayerToWorldEvent.class, event -> {
+    PlayerRef player = event.getPlayerRef();
+    World world = event.getWorld();
+});
+
+// Player removed from world
+getEventRegistry().register(DrainPlayerFromWorldEvent.class, event -> {
+    PlayerRef player = event.getPlayerRef();
+});
+```
+
+## Entity Animation
+
+Entities support animations through the model system:
+
+```java
+// Default animation names
+String deathAnim = Entity.DefaultAnimations.DEATH;    // "Death"
+String hurtAnim = Entity.DefaultAnimations.HURT;      // "Hurt"
+String despawnAnim = Entity.DefaultAnimations.DESPAWN; // "Despawn"
+
+// Get hurt animations based on state
+String[] hurtAnims = Entity.DefaultAnimations.getHurtAnimationIds(
+    movementStates,
+    damageCause
+);
+```
+
+## Entity Serialization
+
+Entities can be serialized for persistence:
+
+```java
+// Entity has a CODEC for serialization
+BuilderCodec<Entity> codec = Entity.CODEC;
+
+// Clone entity (uses serialization)
+Entity cloned = (Entity) entity.clone();
+
+// Convert to holder for persistence
+Holder<EntityStore> holder = entity.toHolder();
+```
+
+## Player Entity Special Cases
+
+Player entities have special handling:
+
+```java
+// Player is both an Entity and has PlayerRef
+Player playerEntity = store.getComponent(ref, Player.getComponentType());
+PlayerRef playerRef = store.getComponent(ref, PlayerRef.getComponentType());
+
+// Access player-specific features
+MovementManager movement = store.getComponent(ref, MovementManager.getComponentType());
+CameraManager camera = store.getComponent(ref, CameraManager.getComponentType());
+ChunkTracker chunkTracker = playerRef.getChunkTracker();
+```
+
+## Entity Queries
+
+Query entities by their components:
+
+```java
+// Query all entities with specific components
+Query<EntityStore> query = new AndQuery<>(
+    TransformComponent.getComponentType(),
+    HealthComponent.getComponentType()
+);
+
+// Use in system
+public class MySystem extends EntityTickingSystem<EntityStore> {
+    @Override
+    public Query<EntityStore> getQuery() {
+        return new AndQuery<>(entityType, transformType);
+    }
+
+    @Override
+    public void tick(float dt, int index, ArchetypeChunk<EntityStore> chunk,
+                     Store<EntityStore> store, CommandBuffer<EntityStore> commandBuffer) {
+        // Process matching entities via chunk.getComponent(index, componentType)
+    }
+}
+```
+
+## Best Practices
+
+1. **Use ECS pattern**: Access entity data through components, not direct entity fields
+2. **Check validity**: Always check `ref.isValid()` before accessing
+3. **Run on correct thread**: Entity operations must run on the world thread
+4. **Handle removal**: Check `wasRemoved()` before operations on entity references
+5. **Use PlayerRef**: For players, work with `PlayerRef` rather than `Player` entity when possible
+
+## Related
+
+- [ECS Overview](../../core-concepts/ecs-overview.md) - Entity Component System
+- [World System](../world/overview.md) - World and entity store
+- [Event System](../../core-concepts/event-system.md) - Entity events

@@ -1,0 +1,281 @@
+<!-- [VERIFIED: 2026-01-19] -->
+
+# Component Catalog
+
+Complete catalog of ECS components in the Hytale server, organized by store type and category.
+
+## Package Locations
+
+- Entity Components: `com.hypixel.hytale.server.core.modules.entity.component`
+- Physics Components: `com.hypixel.hytale.server.core.modules.physics.component`
+- Chunk Components: `com.hypixel.hytale.server.core.universe.world.chunk`
+
+## EntityStore Components
+
+Components attached to entities in the EntityStore.
+
+### Core Entity Components
+
+| Component | Description |
+|-----------|-------------|
+| `TransformComponent` | Position (Vector3d) and rotation (Vector3f) |
+| `BoundingBox` | Collision/hitbox bounds |
+| `ModelComponent` | Visual model asset reference |
+| `DisplayNameComponent` | Entity display name |
+| `EntityScaleComponent` | Visual scale/size |
+| `HeadRotation` | Independent head rotation |
+| `ActiveAnimationComponent` | Current animation state |
+| `SnapshotBuffer` | Entity state snapshots |
+| `NewSpawnComponent` | Marker for newly spawned entities |
+
+### Physics Components
+
+| Component | Description |
+|-----------|-------------|
+| `Velocity` | Velocity vector and instructions |
+| `PhysicsValues` | Mass, drag, gravity settings |
+| `CollisionResultComponent` | Collision calculation results |
+
+### State Markers
+
+| Component | Description |
+|-----------|-------------|
+| `Invulnerable` | Cannot take damage |
+| `Intangible` | No collision/physics |
+| `Interactable` | Can be interacted with |
+| `Frozen` | Immobilized state |
+| `RespondToHit` | Hit response behavior |
+
+### Visual Components
+
+| Component | Description |
+|-----------|-------------|
+| `DynamicLight` | Dynamic light source |
+| `PersistentDynamicLight` | Persistent light source |
+| `PersistentModel` | Model persists across saves |
+| `Nameplate` | Display nameplate above entity |
+| `PlayerSkinComponent` | Player skin/texture |
+
+### Audio Components
+
+| Component | Description |
+|-----------|-------------|
+| `AudioComponent` | General audio |
+| `MovementAudioComponent` | Movement sounds |
+
+### Origin Markers
+
+| Component | Description |
+|-----------|-------------|
+| `FromWorldGen` | Entity from world generation |
+| `FromPrefab` | Entity from prefab |
+| `WorldGenId` | World generation identifier |
+
+### Entity System Components
+
+| Component | Package | Description |
+|-----------|---------|-------------|
+| `EffectControllerComponent` | `entity.effect` | Active status effects |
+| `MovementStatesComponent` | `entity.movement` | Movement state flags |
+| `KnockbackComponent` | `entity.knockback` | Knockback/impulse state |
+| `DamageDataComponent` | `entity.damage` | Combat timing data |
+| `InteractionManager` | `entity` | Interaction handling |
+| `EntityGroup` | `entity.group` | Group membership |
+
+### Projectile Components
+
+| Component | Description |
+|-----------|-------------|
+| `Projectile` | Marks entity as projectile |
+| `PredictedProjectile` | Client-predicted projectile |
+| `ProjectileComponent` | Legacy projectile data |
+
+### Player Components
+
+| Component | Description |
+|-----------|-------------|
+| `MovementManager` | Player movement control |
+| `CameraManager` | Camera state |
+| `UniqueItemUsagesComponent` | Item usage statistics |
+
+### Builtin Plugin Components
+
+| Component | Plugin | Description |
+|-----------|--------|-------------|
+| `WeatherTracker` | Weather | Weather state tracking |
+| `TeleportHistory` | Teleport | Teleport history |
+| `CraftingManager` | Crafting | Crafting state |
+| `MountedComponent` | Mount | What entity rides |
+| `MountedByComponent` | Mount | Who rides this entity |
+| `PlayerSomnolence` | Beds | Sleep/drowsiness |
+| `SleepTracker` | Beds | Sleep session |
+| `VoidEvent` | Portals | Void event properties |
+| `PlayerMemories` | Adventure | Player memory storage |
+| `ObjectiveHistoryComponent` | Adventure | Completed objectives |
+| `ReputationGroupComponent` | Adventure | Reputation data |
+| `AmbienceTracker` | Ambience | Ambience state |
+| `BuilderToolsUserData` | BuilderTools | User settings |
+| `DeployableComponent` | Deployables | Deployable properties |
+
+## ChunkStore Components
+
+Components attached to chunks in the ChunkStore.
+
+### Chunk Structure
+
+| Component | Description |
+|-----------|-------------|
+| `WorldChunk` | Main chunk container |
+| `ChunkColumn` | Vertical column of sections |
+| `ChunkSection` | 16x16x16 block section |
+| `BlockChunk` | Block type storage |
+| `BlockSection` | Block data section |
+| `FluidSection` | Fluid/liquid data |
+| `EntityChunk` | Entity container |
+| `EnvironmentChunk` | Environment/biome data |
+
+### Block Components
+
+| Component | Description |
+|-----------|-------------|
+| `BlockPhysics` | Block physics support values |
+| `BlockHealthChunk` | Block health/damage state |
+| `BlockMapMarker` | Block-level map markers |
+| `LaunchPad` | Launch pad properties |
+| `RespawnBlock` | Respawn point properties |
+
+### Interaction Components
+
+| Component | Description |
+|-----------|-------------|
+| `PlacedByInteractionComponent` | Who placed a block |
+| `TrackedPlacement` | Tracked block placement |
+
+### Spawning Components
+
+| Component | Description |
+|-----------|-------------|
+| `ChunkSpawnData` | Chunk spawn state |
+| `ChunkSpawnedNPCData` | NPCs spawned in chunk |
+| `SpawnJobData` | Active spawn jobs |
+| `ChunkSuppressionEntry` | Spawn suppression |
+
+### Builtin Plugin Chunk Components
+
+| Component | Plugin | Description |
+|-----------|--------|-------------|
+| `PortalDevice` | Portals | Portal configuration |
+| `BlockSpawner` | BlockSpawner | Spawner properties |
+| `BlockMountComponent` | Mount | Block mount point |
+| `Teleporter` | Adventure | Teleporter device |
+| `FarmingBlock` | Adventure | Farmable block |
+| `FarmingBlockState` | Adventure | Farming state |
+| `TilledSoilBlock` | Adventure | Tilled soil |
+| `CoopBlock` | Adventure | Co-op farming |
+| `InstanceBlock` | Instances | Instance block |
+
+## Accessing Components
+
+### EntityStore Components
+
+```java
+import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
+import com.hypixel.hytale.server.core.modules.physics.component.Velocity;
+import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+
+// Get component type
+ComponentType<EntityStore, TransformComponent> transformType =
+    TransformComponent.getComponentType();
+
+// Access component from store
+TransformComponent transform = store.getComponent(entityRef, transformType);
+
+// Access position
+Vector3d position = transform.getPosition();
+
+// Modify component
+transform.setPosition(new Vector3d(x, y, z));
+```
+
+### ChunkStore Components
+
+```java
+import com.hypixel.hytale.server.core.blocktype.component.BlockPhysics;
+import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
+
+// Get component type
+ComponentType<ChunkStore, BlockPhysics> physicsType =
+    BlockPhysics.getComponentType();
+
+// Access component from chunk store
+BlockPhysics physics = chunkStore.getComponent(chunkRef, physicsType);
+```
+
+## Component Relationships
+
+### Transform and Chunk
+
+```
+TransformComponent (EntityStore)
+    │
+    ├── position: Vector3d
+    ├── rotation: Vector3f
+    └── chunkRef: Ref<ChunkStore> ──► WorldChunk (ChunkStore)
+```
+
+### Entity and Effects
+
+```
+Entity (EntityStore)
+    │
+    ├── EffectControllerComponent
+    │       └── List<EntityEffect>
+    │
+    ├── MovementStatesComponent
+    │       └── movement flags
+    │
+    └── KnockbackComponent
+            └── knockback state
+```
+
+### Chunk and Spawning
+
+```
+WorldChunk (ChunkStore)
+    │
+    ├── ChunkSpawnData
+    │       └── spawn cooldown, state
+    │
+    ├── ChunkSpawnedNPCData
+    │       └── spawned NPC refs
+    │
+    └── EntityChunk
+            └── entity refs in chunk
+```
+
+## Component Summary
+
+| Store | Category | Count |
+|-------|----------|-------|
+| EntityStore | Core Entity | 26 |
+| EntityStore | Physics | 3 |
+| EntityStore | State Markers | 5 |
+| EntityStore | Visual | 5 |
+| EntityStore | Audio | 2 |
+| EntityStore | Entity System | 6 |
+| EntityStore | Projectile | 3 |
+| EntityStore | Player | 3 |
+| EntityStore | Builtin Plugins | 15+ |
+| ChunkStore | Structure | 8 |
+| ChunkStore | Block | 5 |
+| ChunkStore | Interaction | 2 |
+| ChunkStore | Spawning | 4 |
+| ChunkStore | Builtin Plugins | 10+ |
+
+## Related
+
+- [ECS Overview](../../core-concepts/ecs-overview.md) - ECS architecture
+- [Registries](../../core-concepts/registries.md) - Component registration
+- [Entity System](../entities/overview.md) - Entity management

@@ -1,0 +1,233 @@
+<!-- [VERIFIED: 2026-01-19] -->
+
+# Glossary
+
+This glossary defines terms commonly used throughout the Hytale Server Modding documentation.
+
+## A
+
+### Archetype
+A specific combination of components that defines an entity type. Entities with the same set of components share the same archetype. Archetypes enable efficient storage and querying.
+
+### Asset
+Game content defined in JSON files, such as block types, items, sounds, and particles. Assets are loaded from asset packs and can be modified or extended by plugins.
+
+### AssetMap
+A type-safe collection that stores loaded assets, providing methods for lookup by ID or index.
+
+### AssetPack
+A collection of asset files bundled with a plugin. Asset packs follow a specific directory structure and are loaded automatically when `IncludesAssetPack` is true in the plugin manifest.
+
+## B
+
+### Blackboard
+A shared memory structure used by NPCs for decision making and communication between AI components.
+
+### BlockState
+Per-block instance data stored in the ChunkStore for blocks that need persistent state (e.g., chests, doors). Block states are ECS components. **Note:** This class is marked `@Deprecated(forRemoval = true)`.
+
+### BlockType
+An asset that defines a block's appearance, behavior, and properties. Block types are loaded from the `blocktype/` directory.
+
+### BuilderCodec
+A type of codec that uses a builder pattern for defining serialization. It allows field-by-field specification with optional inheritance.
+
+## C
+
+### Chunk
+A 32x320x32 block column in the world (`ChunkUtil.SIZE=32`, `ChunkUtil.HEIGHT=320`). Chunks are the fundamental unit of world loading and saving.
+
+### ChunkStore
+The ECS store that manages chunk-level components and data, such as block states.
+
+### Codec
+A serialization/deserialization mechanism used throughout Hytale for converting objects to/from BSON or JSON format.
+
+### CommandBuffer
+A buffer that collects ECS operations during system execution. Operations are applied atomically after system processing completes.
+
+### Component
+A data container attached to entities or chunks in the ECS. Components hold state but no behavior.
+
+### ComponentType
+A type descriptor that identifies and provides metadata for a component class.
+
+## E
+
+### ECS (Entity Component System)
+The architectural pattern used by Hytale for game objects. Entities are IDs, components are data, and systems are behavior.
+
+### Entity
+A unique identifier in the ECS that can have components attached to it. Entities represent all dynamic objects in the game.
+
+### EntityStore
+The ECS store that manages entity components. Each world has its own EntityStore.
+
+### Event
+A message that signals something happened in the game. Events can be listened to by plugins and may be cancellable.
+
+### EventBus
+The central dispatcher that manages event listeners and delivers events to registered handlers.
+
+### EventPriority
+The order in which event listeners are called. Priorities range from FIRST (-21844) to LAST (21844).
+
+## F
+
+### Flock
+A group of NPCs that coordinate their behavior using flocking algorithms (alignment, separation, cohesion).
+
+## G
+
+### GlobalFilter
+A filter applied to all slots in an ItemContainer, controlling what items can be added or removed.
+
+## H
+
+### Holder
+A temporary container for components before they're spawned into a Store. Holders are used to construct entities.
+
+### Hotbar
+The quick-access inventory row typically displayed at the bottom of the player's screen.
+
+## I
+
+### ICancellable
+An interface for events that can be cancelled, preventing their default behavior.
+
+### Interaction
+A block or entity behavior triggered by player input. Interactions are defined as assets and executed server-side.
+
+### ItemContainer
+An interface for item storage, implemented by various container types like chests and player inventories.
+
+### ItemStack
+A stack of one or more items of the same type, with optional metadata and durability.
+
+## J
+
+### JavaPlugin
+The base class for Hytale server plugins. All plugins extend this class and override lifecycle methods.
+
+## K
+
+### KeyedCodec
+A codec that wraps another codec with a key name, used for fields in serialization.
+
+## L
+
+### LivingEntity
+An entity type that has health, can take damage, and can die. Players and NPCs are living entities.
+
+## M
+
+### MotionController
+An NPC component that handles movement calculations for different locomotion types (walking, flying, swimming).
+
+## N
+
+### NPC (Non-Player Character)
+An AI-controlled entity with a Role that defines its behavior.
+
+## P
+
+### PlayerRef
+The primary interface for working with connected players. It bridges network connections with in-world entities.
+
+### Plugin
+A server extension that adds or modifies functionality. Plugins are packaged as JAR files with a plugin.json manifest.
+
+### PluginManifest
+The metadata file (plugin.json) that describes a plugin, including its name, version, dependencies, and entry point.
+
+### Prefab
+A pre-built structure that can be placed in the world during generation or at runtime.
+
+## Q
+
+### Query
+A filter that specifies which entities a system processes, based on component composition.
+
+## R
+
+### Ref
+A stable reference to an entity or chunk in a Store. Refs remain valid across operations.
+
+### Registry
+A type-safe collection for storing registrations of components, systems, or other objects.
+
+### Resource
+A singleton-like piece of shared data in an ECS store, such as world time or weather state.
+
+### ResourceType
+A type descriptor that identifies and provides metadata for a resource class.
+
+### Role
+An NPC behavior configuration that defines AI, stats, and appearance.
+
+## S
+
+### Semver
+Semantic versioning format (MAJOR.MINOR.PATCH) used for plugin versions.
+
+### SemverRange
+A version constraint that specifies compatible plugin versions.
+
+### SlotFilter
+A filter applied to specific slots in an ItemContainer.
+
+### Spawn
+The creation and placement of an entity in the world.
+
+### SpawnBeacon
+A world entity that triggers NPC spawning based on configured conditions.
+
+### Store
+The ECS container that manages entities/chunks and their components for a specific store type.
+
+### System
+An ECS processor that operates on entities matching a specific Query. Systems provide behavior.
+
+## T
+
+### TickProcedure
+Block behavior executed on random ticks, used for growth, decay, and other time-based effects.
+
+### Transaction
+An inventory operation result that describes what happened and what remains.
+
+### Transform
+An entity's position and rotation in the world.
+
+### TransformComponent
+The ECS component that stores an entity's position and rotation.
+
+## U
+
+### Universe
+The top-level container for all worlds and player data. There is one Universe per server.
+
+## W
+
+### Warp
+A named teleport destination that players can travel to.
+
+### World
+A separate game dimension with its own terrain, entities, and rules. Multiple worlds can exist in a Universe.
+
+### WorldGenProvider
+An interface for world generation implementations. Different providers create different terrain types.
+
+## Z
+
+### Zone
+A large-scale region in world generation with distinct generation rules and biomes.
+
+---
+
+## See Also
+
+- [Plugin Manifest](../getting-started/plugin-manifest.md)
+- [ECS Overview](../core-concepts/ecs-overview.md)
+- [Event System](../core-concepts/event-system.md)
+- [Command System](../core-concepts/commands.md)

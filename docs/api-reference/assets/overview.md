@@ -1,0 +1,382 @@
+<!-- [VERIFIED: 2026-01-19] -->
+
+# Asset System Overview
+
+The Asset System manages all game content including blocks, items, entities, sounds, particles, and more. Assets are defined in JSON files and can be bundled with plugins.
+
+## Package Location
+
+`com.hypixel.hytale.server.core.asset.type`
+
+## Asset Pack Structure
+
+Asset packs follow a specific directory structure:
+
+```
+my-plugin.jar/
+├── plugin.json
+└── assets/
+    ├── blocktype/         # Block definitions
+    ├── item/              # Item definitions
+    ├── model/             # 3D models
+    ├── soundevent/        # Sound events
+    ├── soundset/          # Sound collections
+    ├── particle/          # Particle systems
+    ├── weather/           # Weather configurations
+    ├── entity/            # Entity definitions
+    ├── entityeffect/      # Status effects
+    ├── environment/       # Environment settings
+    ├── ambiencefx/        # Ambient effects
+    ├── gameplay/          # Gameplay configurations
+    └── ... other types
+```
+
+## Core Asset Types
+
+### Block Types (`blocktype/`)
+
+Define block behavior and properties:
+
+```json
+{
+  "Id": "MyPlugin_CustomBlock",
+  "DisplayName": "Custom Block",
+  "Model": "MyPlugin/custom_block",
+  "Material": "Stone",
+  "Hardness": 2.0,
+  "LightLevel": 0,
+  "IsOpaque": true,
+  "IsSolid": true,
+  "BlockSound": "Hytale/Stone"
+}
+```
+
+**Key properties:**
+| Property | Type | Description |
+|----------|------|-------------|
+| `Id` | `string` | Unique block identifier |
+| `DisplayName` | `string` | Localized display name |
+| `Model` | `string` | Model asset reference |
+| `Material` | `string` | Material for tools/damage |
+| `Hardness` | `float` | Mining difficulty |
+| `LightLevel` | `int` | Emitted light (0-15) |
+| `IsOpaque` | `bool` | Blocks light completely |
+| `IsSolid` | `bool` | Has collision |
+
+### Items (`item/`)
+
+Define items and their behavior:
+
+```json
+{
+  "Id": "MyPlugin_CustomSword",
+  "DisplayName": "Custom Sword",
+  "Model": "MyPlugin/sword_model",
+  "MaxStack": 1,
+  "MaxDurability": 500,
+  "AttackDamage": 7.0,
+  "AttackSpeed": 1.6,
+  "Tags": ["weapon", "sword"]
+}
+```
+
+**Key properties:**
+| Property | Type | Description |
+|----------|------|-------------|
+| `Id` | `string` | Unique item identifier |
+| `DisplayName` | `string` | Localized display name |
+| `MaxStack` | `int` | Maximum stack size |
+| `MaxDurability` | `float` | Maximum durability (0 = unbreakable) |
+| `AttackDamage` | `float` | Melee damage |
+| `Tags` | `string[]` | Item categorization tags |
+
+### Sound Events (`soundevent/`)
+
+Define sounds that can be played:
+
+```json
+{
+  "Id": "MyPlugin_CustomSound",
+  "Sounds": [
+    {
+      "Path": "sounds/custom_sound.ogg",
+      "Volume": 1.0,
+      "Pitch": 1.0
+    }
+  ],
+  "Category": "Master"
+}
+```
+
+### Particles (`particle/`)
+
+Define particle systems:
+
+```json
+{
+  "Id": "MyPlugin_CustomParticle",
+  "Emitters": [
+    {
+      "Type": "Point",
+      "Rate": 10,
+      "Lifetime": 1.0,
+      "Color": "#FF0000",
+      "Size": 0.1
+    }
+  ]
+}
+```
+
+### Entity Effects (`entityeffect/`)
+
+Define status effects for entities:
+
+```json
+{
+  "Id": "MyPlugin_CustomEffect",
+  "DisplayName": "Custom Effect",
+  "Duration": 300,
+  "Icon": "icons/custom_effect.png",
+  "Effects": {
+    "Speed": 1.5,
+    "Health": -1.0
+  }
+}
+```
+
+### Weather (`weather/`)
+
+Define weather configurations:
+
+```json
+{
+  "Id": "MyPlugin_CustomWeather",
+  "DisplayName": "Custom Weather",
+  "Fog": {
+    "Color": "#808080",
+    "Density": 0.5
+  },
+  "Clouds": {
+    "Enabled": true,
+    "Density": 0.8
+  },
+  "Precipitation": "Rain"
+}
+```
+
+### Gameplay (`gameplay/`)
+
+Configure gameplay mechanics:
+
+```json
+{
+  "Id": "MyPlugin_GameplayConfig",
+  "Combat": {
+    "DamageMultiplier": 1.0,
+    "DisplayHealthBars": true
+  },
+  "Death": {
+    "DropItems": true,
+    "DropExperience": true
+  }
+}
+```
+
+## Accessing Assets in Code
+
+### Get Asset by ID
+
+```java
+// Block types
+BlockType blockType = BlockType.getAssetMap().get("MyPlugin_CustomBlock");
+
+// Items
+Item item = Item.getAssetMap().get("MyPlugin_CustomSword");
+
+// Weather
+Weather weather = Weather.getAssetMap().get("MyPlugin_CustomWeather");
+
+// Entity effects
+EntityEffect effect = EntityEffect.getAssetMap().get("MyPlugin_CustomEffect");
+```
+
+### Asset Maps
+
+Each asset type has an `AssetMap` for lookups:
+
+```java
+AssetMap<BlockType> blockTypes = BlockType.getAssetMap();
+
+// Get by key
+BlockType block = blockTypes.get("Block_Key");
+
+// Get all keys
+Set<String> keys = blockTypes.keySet();
+
+// Check existence
+boolean exists = blockTypes.containsKey("Some_Block");
+
+// Get index (for network serialization)
+int index = blockTypes.getIndex("Block_Key");
+```
+
+## Registering Assets
+
+### In Plugin Manifest
+
+Set `IncludesAssetPack` in `plugin.json`:
+
+```json
+{
+  "Name": "MyPlugin",
+  "IncludesAssetPack": true
+}
+```
+
+### Programmatic Registration
+
+```java
+@Override
+protected void setup() {
+    // Register custom asset type handler
+    getAssetRegistry().register(/* asset registration */);
+}
+```
+
+## Asset Modifiers
+
+Modify existing assets at runtime:
+
+```java
+// Get block type
+BlockType stone = BlockType.getAssetMap().get("Block_Stone");
+
+// Assets are typically immutable
+// Use asset overrides in your asset pack instead
+```
+
+## Asset Pack Priority
+
+When multiple packs define the same asset, priority determines which is used:
+
+1. **Core Assets**: Base game assets (lowest priority)
+2. **Plugin Assets**: In order of plugin loading
+3. **Override Packs**: Explicit overrides (highest priority)
+
+## Asset Validation
+
+Assets are validated on load:
+
+```java
+// Assets use validators
+BuilderCodec<Item> codec = Item.CODEC;
+
+// Validation includes:
+// - Required fields
+// - Value ranges
+// - Reference validity
+// - Type constraints
+```
+
+## Asset Serialization
+
+Assets use the Codec system for serialization:
+
+```java
+// Most assets have a CODEC
+BuilderCodec<BlockType> blockCodec = BlockType.CODEC;
+BuilderCodec<Item> itemCodec = Item.CODEC;
+
+// Serialize to BSON
+BsonDocument doc = codec.encode(asset, extraInfo);
+
+// Deserialize
+Asset loaded = codec.decode(doc, extraInfo);
+```
+
+## Asset Hot-Reloading
+
+The server supports hot-reloading of assets during development:
+
+- Assets in development packs can be reloaded
+- Connected clients receive updated asset data
+- Not all asset changes take effect immediately
+
+## Complete Asset Type List
+
+All 35 asset types organized by category:
+
+### Content Assets
+| Directory | Class | Description |
+|-----------|-------|-------------|
+| `blocktype/` | `BlockType` | Block definitions |
+| `blockset/` | `BlockSet` | Block groupings |
+| `item/` | `Item` | Item definitions |
+| `fluid/` | `Fluid` | Fluid types |
+| `projectile/` | `Projectile` | Projectile definitions |
+
+### Visual Assets
+| Directory | Class | Description |
+|-----------|-------|-------------|
+| `model/` | `Model` | 3D models |
+| `particle/` | `Particle` | Particle systems |
+| `trail/` | `Trail` | Trail effects |
+| `modelvfx/` | `ModelVFX` | Model visual effects |
+| `fluidfx/` | `FluidFX` | Fluid visual effects |
+| `blockbreakingdecal/` | `BlockBreakingDecal` | Break animation overlays |
+| `blockhitbox/` | `BlockBoundingBoxes` | Block collision shapes |
+| `blockparticle/` | `BlockParticleSet` | Block particle effects |
+
+### Audio Assets
+| Directory | Class | Description |
+|-----------|-------|-------------|
+| `soundevent/` | `SoundEvent` | Individual sounds |
+| `soundset/` | `SoundSet` | Sound collections |
+| `blocksound/` | `BlockSoundSet` | Block-specific sounds |
+| `itemsound/` | `ItemSoundSet` | Item-specific sounds |
+| `audiocategory/` | `AudioCategory` | Audio categories |
+| `equalizereffect/` | `EqualizerEffect` | Audio equalizer effects |
+| `reverbeffect/` | `ReverbEffect` | Audio reverb effects |
+
+### World Assets
+| Directory | Class | Description |
+|-----------|-------|-------------|
+| `weather/` | `Weather` | Weather systems |
+| `environment/` | `Environment` | Environment settings |
+| `ambiencefx/` | `AmbienceFX` | Ambient effects |
+| `portalworld/` | `PortalWorld` | Portal world definitions |
+
+### Gameplay Assets
+| Directory | Class | Description |
+|-----------|-------|-------------|
+| `gameplay/` | `GameplayConfig` | Gameplay configuration |
+| `gamemode/` | `GameMode` | Game mode definitions |
+| `entityeffect/` | `EntityEffect` | Status effects |
+| `attitude/` | `Attitude` | NPC attitudes |
+| `camera/` | `Camera` | Camera configurations |
+| `itemanimation/` | `ItemAnimation` | Item animations |
+| `blocktick/` | `TickProcedure` | Block tick procedures |
+
+### Utility Assets
+| Directory | Class | Description |
+|-----------|-------|-------------|
+| `buildertool/` | `BuilderTool` | Builder tools |
+| `tagpattern/` | `TagPattern` | Tag matching patterns |
+| `responsecurve/` | `ResponseCurve` | Mathematical curves |
+| `wordlist/` | `WordList` | Word lists for generation |
+
+## Best Practices
+
+1. **Use unique prefixes**: Prefix asset IDs with your plugin name
+2. **Validate references**: Ensure referenced assets exist
+3. **Provide defaults**: Include sensible default values
+4. **Document assets**: Comment complex configurations
+5. **Test combinations**: Verify assets work together
+6. **Consider performance**: Avoid overly complex particle systems
+
+## Related
+
+- [Block Types](./blocks.md) - Detailed block documentation
+- [Items](./items.md) - Detailed item documentation
+- [Sounds](./sounds.md) - Audio system
+- [Particles](./particles.md) - Particle system
