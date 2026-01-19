@@ -1,0 +1,11 @@
+# Cloudflare Pages Redirects Configuration
+# https://developers.cloudflare.com/pages/configuration/redirects/
+
+# Redirect common documentation paths
+/docs/*  /:splat  301
+
+# Redirect old API paths if needed (examples)
+# /api/*  /api-reference/:splat  301
+
+# Handle trailing slashes consistently
+# Astro handles this, but these are fallbacks

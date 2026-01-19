@@ -4,6 +4,27 @@ import starlight from '@astrojs/starlight';
 
 // https://astro.build/config
 export default defineConfig({
+	// Update this to your Cloudflare Pages URL after deployment
+	site: 'https://hytale-modding-docs.pages.dev',
+
+	// Static output for Cloudflare Pages (optimal for documentation)
+	output: 'static',
+
+	// Build configuration
+	build: {
+		// Cloudflare Pages serves from root
+		assets: '_astro',
+	},
+
+	// Vite configuration for Cloudflare compatibility
+	vite: {
+		build: {
+			// Ensure compatibility with Cloudflare's environment
+			target: 'esnext',
+			cssTarget: 'chrome100',
+		},
+	},
+
 	integrations: [
 		starlight({
 			title: 'Hytale Server Modding',
@@ -20,10 +41,27 @@ export default defineConfig({
 						content: '#1a1a2e',
 					},
 				},
+				// Open Graph meta tags for social sharing
+				{
+					tag: 'meta',
+					attrs: {
+						property: 'og:type',
+						content: 'website',
+					},
+				},
+				{
+					tag: 'meta',
+					attrs: {
+						property: 'og:site_name',
+						content: 'Hytale Server Modding Docs',
+					},
+				},
 			],
 			customCss: [
 				'./src/styles/custom.css',
 			],
+			// Enable built-in search
+			pagefind: true,
 			sidebar: [
 				{
 					label: 'Getting Started',
