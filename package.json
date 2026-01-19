@@ -1,7 +1,7 @@
 {
   "name": "hytale-server-modding-docs",
   "type": "module",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Comprehensive documentation for Hytale server plugin development",
   "scripts": {
     "dev": "astro dev",
@@ -10,7 +10,7 @@
     "preview": "astro preview",
     "astro": "astro",
     "cf:preview": "wrangler pages dev dist",
-    "cf:deploy": "wrangler pages deploy dist",
+    "cf:deploy": "wrangler pages deploy dist --project-name=doctale --commit-dirty=true",
     "cf:login": "wrangler login"
   },
   "dependencies": {

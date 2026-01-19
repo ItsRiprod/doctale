@@ -4,8 +4,8 @@ import starlight from '@astrojs/starlight';
 
 // https://astro.build/config
 export default defineConfig({
-	// Update this to your Cloudflare Pages URL after deployment
-	site: 'https://hytale-modding-docs.pages.dev',
+	// Custom domain
+	site: 'https://doctale.dev',
 
 	// Static output for Cloudflare Pages (optimal for documentation)
 	output: 'static',

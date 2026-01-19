@@ -1,28 +1,10 @@
 # Cloudflare Pages Configuration
 # https://developers.cloudflare.com/pages/configuration/wrangler-configuration/
 
-name = "hytale-modding-docs"
+name = "doctale"
 
 # Pages-specific configuration
 pages_build_output_dir = "dist"
 
 # Compatibility settings
 compatibility_date = "2024-01-01"
-
-# Build configuration (used by wrangler pages deploy)
-[build]
-command = "npm run build"
-cwd = "."
-
-# Environment variables (if needed)
-[vars]
-# Add any environment variables here
-# EXAMPLE_VAR = "value"
-
-# Production environment
-[env.production]
-# Production-specific settings
-
-# Preview environment (for PR previews)
-[env.preview]
-# Preview-specific settings
