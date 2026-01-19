@@ -1,7 +1,7 @@
 {
-  "name": "hytale-server-modding-docs",
+  "name": "doctale",
   "type": "module",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Comprehensive documentation for Hytale server plugin development",
   "scripts": {
     "dev": "astro dev",
