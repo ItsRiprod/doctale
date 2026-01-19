@@ -1,141 +1,131 @@
 # Hytale Server Modding Documentation
 
-Unofficial documentation for creating plugins and mods for the Hytale dedicated server.
+[![Deploy to Cloudflare Workers](https://github.com/ItsRiprod/doctale/actions/workflows/deploy.yml/badge.svg)](https://github.com/ItsRiprod/doctale/actions/workflows/deploy.yml)
 
-## Project Status
+Unofficial, community-driven documentation for creating plugins and mods for the Hytale dedicated server.
 
-**Current Phase:** Refinement & Gap-Filling
+**[View the Documentation](https://doctale.pages.dev)**
 
-| Metric | Value |
-|--------|-------|
-| Documentation Files | 17 |
-| Total Lines | ~6,800 |
-| Source Files Analyzed | 5,218 Java files |
-| Coverage | Core systems documented, advanced features in progress |
+## About This Project
 
-### What's Done
+This documentation was generated through AI analysis of decompiled Hytale server code (~5,200 Java files). While we strive for accuracy, this is not official documentation from Hypixel Studios. Always verify API behavior against the actual server implementation.
+
+### What's Documented
+
 - Plugin system (lifecycle, manifest, registries)
 - Event system (registration, priorities, built-in events)
 - Command system (base classes, arguments, context)
-- ECS overview (components, systems, queries)
-- World system basics (universe, worlds, chunks, blocks)
-- Entity system basics (creation, management, living entities)
-- Asset system overview (types, packs, loading)
-- NPC/Flock system overview
+- Entity Component System (components, systems, queries)
+- World system (universe, worlds, chunks, blocks)
+- Entity management (creation, management, living entities)
+- Asset system (types, packs, loading)
+- NPC/Flock AI system
 - World generation basics
 
-### What's In Progress
-- Accuracy verification of existing documentation
-- Networking/Protocol documentation
-- Permission system documentation
-- Serialization (Codec) documentation
-- Physics system documentation
-- Complete component catalog
-- Complete event catalog
+## Development Setup
 
-## Documentation Structure
+### Prerequisites
+
+- **Node.js** 20 or higher
+- **npm** (comes with Node.js)
+- A code editor (VS Code recommended)
+
+### Quick Start
+
+```bash
+# Clone the repository
+git clone https://github.com/ItsRiprod/doctale.git
+cd doctale
+
+# Install dependencies
+npm install
+
+# Start the development server
+npm run dev
+```
+
+The documentation site will be available at **http://localhost:4322/**
+
+### Available Commands
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server with hot reload |
+| `npm run build` | Build the site for production |
+| `npm run preview` | Preview the production build locally |
+
+### Project Structure
 
 ```
 docs/
-├── getting-started/          # Start here
-│   ├── setup.md              # Development environment
-│   ├── first-plugin.md       # Your first plugin
-│   ├── plugin-lifecycle.md   # Plugin states and methods
-│   └── plugin-manifest.md    # plugin.json reference
-│
-├── core-concepts/            # Essential knowledge
-│   ├── event-system.md       # Events and listeners
-│   ├── ecs-overview.md       # Entity Component System
-│   ├── commands.md           # Command creation
-│   └── registries.md         # Registration system
-│
-├── api-reference/            # Detailed API docs
-│   ├── world/                # Universe, World, Chunks
-│   ├── entities/             # Entity management
-│   ├── blocks/               # Block types and states
-│   ├── assets/               # Asset types
-│   ├── inventory/            # Containers and items
-│   ├── npc/                  # NPC and Flock AI
-│   └── worldgen/             # World generation
-│
-├── tutorials/                # Practical guides
-│   └── builtin-plugins.md    # Built-in plugin analysis
-│
-└── appendix/                 # Reference materials
-    └── glossary.md           # Terminology
+├── astro.config.mjs          # Site config, sidebar navigation
+├── src/
+│   ├── content/docs/         # All documentation (markdown/mdx)
+│   └── styles/custom.css     # Theme customization
+├── public/                   # Static assets (favicon, images)
+├── extracted/                # Source code reference (~5,218 Java files)
+├── CLAUDE.md                 # Documentation standards
+└── CONTRIBUTING.md           # Contribution guidelines
 ```
 
-## Quick Start
+### Editing Documentation
 
-1. **Set up your development environment**
-   - See [getting-started/setup.md](docs/getting-started/setup.md)
-
-2. **Create your first plugin**
-   - See [getting-started/first-plugin.md](docs/getting-started/first-plugin.md)
-
-3. **Understand the core systems**
-   - [Event System](docs/core-concepts/event-system.md) - React to game events
-   - [Commands](docs/core-concepts/commands.md) - Add custom commands
-   - [ECS Overview](docs/core-concepts/ecs-overview.md) - Entity Component System
-
-## Source Material
-
-This documentation is derived from analysis of `HytaleServer-sources.jar`, containing:
-- ~5,218 Java source files
-- ~932 packages
-- Built-in reference plugins in `builtin/`
-
-### Key Packages
-
-| Package | Purpose |
-|---------|---------|
-| `server/core/plugin/` | Plugin system, lifecycle |
-| `server/core/event/` | Server events |
-| `server/core/command/` | Command framework |
-| `component/` | Entity Component System |
-| `server/core/universe/` | Worlds and chunks |
-| `builtin/` | Reference plugin implementations |
-
-## Documentation Standards
-
-All documentation in this project must meet:
-
-### Accuracy
-- Class/method names verified against source
-- Code examples compile with correct imports
-- Parameter and return types are accurate
-
-### Completeness
-- All public API methods documented
-- Package locations specified
-- Related classes cross-referenced
-
-### Digestibility
-- Clear, concise descriptions
-- Practical working examples
-- Logical organization
-
-See [CLAUDE.md](CLAUDE.md) for full documentation guidelines.
+1. Navigate to `src/content/docs/`
+2. Edit or create markdown/mdx files
+3. Add frontmatter with at minimum a title:
+   ```markdown
+   ---
+   title: "Page Title"
+   ---
+   ```
+4. If creating a new page, add it to the sidebar in `astro.config.mjs`
+5. Test locally with `npm run dev`
+6. Verify the build passes with `npm run build`
 
 ## Contributing
 
-### Reporting Issues
-If you find inaccuracies or gaps:
-1. Check the source code in `extracted/` to verify
-2. Note the file path and line numbers
-3. Describe the discrepancy
+We welcome contributions from the community! Please read our [Contributing Guidelines](CONTRIBUTING.md) before submitting changes.
 
-### Adding Documentation
-1. Follow the structure in [CLAUDE.md](CLAUDE.md)
-2. Verify all code examples compile
-3. Include package locations and imports
-4. Cross-reference related documentation
+### Contribution Workflow
 
-### Priority Areas
-See [TODO.md](TODO.md) for current priorities:
-- High: Networking, Permissions
-- Medium: Codecs, Physics, Catalogs
-- Low: Math utilities, Configuration
+1. **Fork** the repository
+2. **Create a branch** for your changes (never work directly on `main`)
+3. **Make your changes** and test locally
+4. **Submit a pull request** with screenshots of your changes
+
+### Requirements
+
+- All changes must be made through pull requests
+- PRs require screenshots showing the rendered changes
+- The build must pass before merging
+- At least one maintainer approval is required
+
+### What We Need Help With
+
+- Fixing inaccuracies in existing documentation
+- Adding missing API documentation
+- Improving and testing code examples
+- Adding tutorials for common tasks
+- Expanding the component and event catalogs
+
+See our [Issues](https://github.com/ItsRiprod/doctale/issues) page for specific tasks.
+
+## Branch Protection
+
+The `main` branch is protected. All changes must go through pull requests with:
+- Passing build checks
+- Required reviewer approval
+- Up-to-date branch with main
+
+This ensures documentation quality and prevents accidental overwrites.
+
+## Documentation Standards
+
+See [CLAUDE.md](CLAUDE.md) for complete documentation standards including:
+- File structure and frontmatter requirements
+- Code example standards (complete imports, no placeholders)
+- Available Starlight components for MDX files
+- Source code reference locations
 
 ## Verification Tags
 
@@ -145,6 +135,19 @@ Documentation uses these tags to indicate status:
 - `[INCOMPLETE]` - Missing significant content
 - `[EXAMPLE-NEEDED]` - Needs working code example
 
+## Tech Stack
+
+- [Astro](https://astro.build/) - Static site generator
+- [Starlight](https://starlight.astro.build/) - Documentation theme
+- [Cloudflare Workers](https://workers.cloudflare.com/) - Hosting
+
 ## License
 
-This is unofficial community documentation. Hytale is a trademark of Hypixel Studios.
+This is unofficial community documentation. Hytale is a trademark of Hypixel Studios. This project is not affiliated with or endorsed by Hypixel Studios.
+
+## Links
+
+- [Live Documentation](https://doctale.pages.dev)
+- [GitHub Repository](https://github.com/ItsRiprod/doctale)
+- [Report an Issue](https://github.com/ItsRiprod/doctale/issues/new/choose)
+- [Start a Discussion](https://github.com/ItsRiprod/doctale/discussions)

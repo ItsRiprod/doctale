@@ -1,0 +1,63 @@
+name: Feature Request / Documentation Request
+description: Suggest new documentation, tutorials, or improvements
+title: "[Request]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea for improving the documentation? We'd love to hear it!
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Request Type
+      options:
+        - New documentation page
+        - New tutorial
+        - Expand existing documentation
+        - Code example request
+        - Other improvement
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe what you'd like to see added or improved
+      placeholder: "It would be helpful to have documentation about..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use Case
+      description: Why would this be useful? What problem would it solve?
+    validations:
+      required: false
+
+  - type: textarea
+    id: existing-pages
+    attributes:
+      label: Related Pages
+      description: Are there existing pages this relates to?
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other information, references, or screenshots
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues to ensure this hasn't been requested
+          required: true

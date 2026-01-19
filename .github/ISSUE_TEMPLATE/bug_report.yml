@@ -1,0 +1,60 @@
+name: Bug Report / Inaccuracy
+description: Report an error, inaccuracy, or broken content in the documentation
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve the documentation! Please fill out the information below.
+
+  - type: input
+    id: page-url
+    attributes:
+      label: Documentation Page
+      description: URL or path of the page with the issue
+      placeholder: "https://doctale.pages.dev/getting-started/setup/ or /getting-started/setup/"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the Issue
+      description: What is incorrect or broken?
+      placeholder: "The method signature shown is wrong, the actual signature is..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: source-reference
+    attributes:
+      label: Source Code Reference
+      description: If you've verified against the source code, provide the file path and relevant details
+      placeholder: "In extracted/com/hypixel/hytale/server/core/event/... the actual implementation shows..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected / Correct Information
+      description: What should the documentation say instead?
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: Add screenshots if helpful to illustrate the issue
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues to ensure this hasn't been reported
+          required: true

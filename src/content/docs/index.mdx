@@ -13,6 +13,10 @@ hero:
       link: /api-reference/world/overview/
       icon: seti:folder
       variant: secondary
+    - text: GitHub
+      link: https://github.com/ItsRiprod/doctale
+      icon: github
+      variant: minimal
 ---
 
 import { Card, CardGrid, LinkCard, Aside } from '@astrojs/starlight/components';
@@ -183,3 +187,26 @@ All content on this site was **curated by an LLM (Claude)** through systematic a
 		href="/appendix/glossary/"
 	/>
 </CardGrid>
+
+---
+
+## Contribute
+
+This documentation is open source and community-driven. Help us improve it!
+
+<CardGrid>
+	<LinkCard
+		title="GitHub Repository"
+		description="View the source code, report issues, or submit improvements."
+		href="https://github.com/ItsRiprod/doctale"
+	/>
+	<LinkCard
+		title="Contributing Guide"
+		description="Learn how to contribute documentation, fix errors, or add examples."
+		href="https://github.com/ItsRiprod/doctale/blob/main/CONTRIBUTING.md"
+	/>
+</CardGrid>
+
+<Aside type="tip" title="Found an Error?">
+If you find inaccuracies or missing information, please [open an issue](https://github.com/ItsRiprod/doctale/issues/new/choose) or submit a pull request. All contributions are welcome!
+</Aside>
