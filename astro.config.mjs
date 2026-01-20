@@ -159,6 +159,70 @@ export default defineConfig({
 							collapsed: true,
 							items: [
 								{ label: 'Overview', slug: 'api-reference/assets/overview' },
+								{
+									label: 'Items',
+									collapsed: true,
+									items: [
+										{ label: 'Overview', slug: 'api-reference/assets/items/overview' },
+										{ label: 'Weapons', slug: 'api-reference/assets/items/weapons' },
+										{ label: 'Tools', slug: 'api-reference/assets/items/tools' },
+										{ label: 'Consumables', slug: 'api-reference/assets/items/consumables' },
+										{ label: 'Armor', slug: 'api-reference/assets/items/armor' },
+										{ label: 'Combat System', slug: 'api-reference/assets/items/combat' },
+										{ label: 'Recipes', slug: 'api-reference/assets/items/recipes' },
+										{ label: 'Durability & Quality', slug: 'api-reference/assets/items/durability' },
+									],
+								},
+								{
+									label: 'Blocks',
+									collapsed: true,
+									items: [
+										{ label: 'Block Types', slug: 'api-reference/assets/blocks/block-types' },
+										{ label: 'Textures', slug: 'api-reference/assets/blocks/textures' },
+										{ label: 'Decorative Sets', slug: 'api-reference/assets/blocks/decorative-sets' },
+										{ label: 'Animations', slug: 'api-reference/assets/blocks/animations' },
+									],
+								},
+								{
+									label: 'NPCs',
+									collapsed: true,
+									items: [
+										{ label: 'Asset Overview', slug: 'api-reference/assets/npcs/overview' },
+										{ label: 'Model Definitions', slug: 'api-reference/assets/npcs/models' },
+										{ label: 'Groups', slug: 'api-reference/assets/npcs/groups' },
+										{ label: 'Behaviors', slug: 'api-reference/assets/npcs/behaviors' },
+										{ label: 'Attachments', slug: 'api-reference/assets/npcs/attachments' },
+									],
+								},
+								{
+									label: 'Audio',
+									collapsed: true,
+									items: [
+										{ label: 'Overview', slug: 'api-reference/assets/audio/overview' },
+										{ label: 'Sound Events', slug: 'api-reference/assets/audio/sound-events' },
+										{ label: 'Sound Sets', slug: 'api-reference/assets/audio/sound-sets' },
+										{ label: 'Effects', slug: 'api-reference/assets/audio/effects' },
+									],
+								},
+								{
+									label: 'VFX',
+									collapsed: true,
+									items: [
+										{ label: 'Particles', slug: 'api-reference/assets/vfx/particles' },
+										{ label: 'Trails', slug: 'api-reference/assets/vfx/trails' },
+										{ label: 'Model Effects', slug: 'api-reference/assets/vfx/model-effects' },
+									],
+								},
+								{
+									label: 'World',
+									collapsed: true,
+									items: [
+										{ label: 'Environments', slug: 'api-reference/assets/world/environments' },
+										{ label: 'Weather', slug: 'api-reference/assets/world/weather' },
+										{ label: 'Instances', slug: 'api-reference/assets/world/instances' },
+										{ label: 'Prefabs', slug: 'api-reference/assets/world/prefabs' },
+									],
+								},
 							],
 						},
 						{
@@ -259,6 +323,20 @@ export default defineConfig({
 					label: 'Tutorials',
 					items: [
 						{ label: 'Built-in Plugins', slug: 'tutorials/builtin-plugins' },
+						{
+							label: 'Blockbench',
+							collapsed: true,
+							items: [
+								{ label: 'Setup', slug: 'tutorials/blockbench/setup' },
+							],
+						},
+						{
+							label: 'Examples',
+							collapsed: true,
+							items: [
+								{ label: 'Custom Weapon', slug: 'tutorials/examples/custom-weapon' },
+							],
+						},
 					],
 				},
 				{

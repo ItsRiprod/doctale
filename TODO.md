@@ -1,255 +1,529 @@
-# Hytale Server Modding Docs - Refinement Plan
+# Hytale Asset Documentation TODO
 
-> **Goal:** Make the documentation site visually distinctive, professionally polished, and a pleasure to use.
-> **Dev Server:** http://localhost:4322/
-> **Last Updated:** 2026-01-19
+This document tracks the work needed to document the Assets system for modders. Use the checkboxes to track progress:
 
----
-
-## Completion Criteria
-
-The site is complete when ALL of the following are true:
-
-### Visual Identity
-- [x] Custom Hytale-inspired logo in header (not just text) ✓
-- [x] Favicon that matches the brand ✓
-- [x] Color scheme feels unique and cohesive (not generic Starlight) ✓
-- [x] Homepage hero section has visual impact ✓
-- [x] Consistent visual language across all pages ✓
-
-### Typography & Readability
-- [x] Body text is comfortable to read (size, line-height, contrast) ✓
-- [x] Code blocks are clearly distinguished and syntax-highlighted ✓
-- [x] Headings create clear visual hierarchy ✓
-- [x] Tables are scannable and don't feel cramped ✓
-
-### User Experience
-- [x] Navigation is intuitive (users find what they need quickly) ✓
-- [ ] Search works and returns relevant results (disabled for SSR - needs Algolia)
-- [x] Mobile experience is usable ✓
-- [x] Page load times feel fast ✓
-- [x] No broken links or 404s ✓ (starlight-links-validator)
-
-### Content Quality
-- [x] All code examples compile and work ✓
-- [x] No placeholder text (TODO, TBD, lorem ipsum) ✓
-- [x] Cross-references link to actual pages ✓ (139 links fixed)
-- [x] Technical accuracy verified against source code ✓
-
-### Polish
-- [x] No visual glitches or layout shifts ✓
-- [x] Hover states and transitions feel smooth ✓
-- [x] Dark/light mode both look intentional ✓
-- [x] Print styles work for offline reference ✓
+- `[ ]` - Not started
+- `[~]` - In progress / Partially complete
+- `[x]` - Complete
 
 ---
 
-## Phase 0: Plugin & Addon Evaluation ✓
+## Documentation Quality Requirements
 
-Evaluate and integrate Starlight/Astro plugins to enhance the documentation experience.
+All documentation pages MUST include:
 
-### 0.1 Diagram Support
-- [x] Install `astro-mermaid` or `remark-mermaidjs` for flowcharts/diagrams
-  - **Note:** `remark-mermaidjs` requires Playwright which is incompatible with Cloudflare Workers. Mermaid diagrams will need client-side rendering if added later.
-- [ ] Test Mermaid syntax renders correctly in markdown (deferred - needs client-side solution)
-- [ ] Add diagrams to ECS Overview (deferred)
-- [ ] Add diagrams to Event System (deferred)
-- [ ] Add diagrams to Plugin Lifecycle (deferred)
+### Required Elements
+- [ ] **Frontmatter** with `title` field
+- [ ] **Verification tag** (`<!-- [VERIFIED: DATE] -->` or status tag)
+- [ ] **AI disclaimer** using `<Aside type="caution" title="AI-Generated Content">`
+- [ ] **Package location** for API-related pages
+- [ ] **Schema tables** with Field, Type, Default, Description columns
+- [ ] **Working JSON examples** pulled from actual `/Assets/` files
+- [ ] **Code examples** with complete imports (no placeholders)
+- [ ] **Related section** with cross-links to related pages
 
-### 0.2 Code Enhancement Plugins
-- [x] Verify Expressive Code is configured (comes with Starlight) ✓
-- [x] Enable line highlighting in code blocks ✓ (built-in to Expressive Code)
-- [x] Enable diff syntax for showing changes ✓ (built-in to Expressive Code)
-- [x] Test code block titles and file names display ✓
+### Starlight Components to Use
+```mdx
+import { Aside, Card, CardGrid, LinkCard, Tabs, TabItem, FileTree, Steps, Badge } from '@astrojs/starlight/components';
+```
 
-### 0.3 Search Enhancement
-- [x] Evaluate Algolia DocSearch vs Pagefind
-  - **Decision:** Pagefind is disabled (`pagefind: false`) due to SSR/Cloudflare Workers incompatibility. No search currently available - would require Algolia DocSearch or custom solution.
+| Component | When to Use |
+|-----------|-------------|
+| `<Aside>` | Warnings, tips, notes, AI disclaimers |
+| `<Tabs>/<TabItem>` | Multiple related examples (sword vs bow) |
+| `<FileTree>` | Directory structures |
+| `<Steps>` | Tutorial step-by-step instructions |
+| `<Badge>` | Status indicators (Verified, Incomplete) |
+| `<CardGrid>/<Card>` | Feature overviews |
+| `<LinkCard>` | Navigation to related pages |
 
-### 0.4 Additional Starlight Plugins to Evaluate
-- [x] `starlight-links-validator` - Catch broken links at build time ✓ INSTALLED & CONFIGURED
-- [ ] `starlight-blog` - Not needed (no changelog section planned)
-- [ ] `starlight-openapi` - Not needed (no REST API docs)
-- [ ] `starlight-typedoc` - Not applicable (Java codebase, not TypeScript)
+### Code Block Standards
+```json title="Example_Asset.json" {3-5}
+{
+  "Parent": "Template_Name",
+  "Field1": "value",  // Highlighted
+  "Field2": 123       // Highlighted
+}
+```
 
-### 0.5 Content Enhancement
-- [x] Consider `rehype-autolink-headings` - Built into Starlight ✓
-- [ ] Consider `remark-github-alerts` - Not needed (Starlight Aside component suffices)
-- [ ] Evaluate `astro-embed` - Not needed currently
-
-**Decision Point:** Plugins adopted documented in CLAUDE.md. ✓
-
----
-
-## Phase 1: Visual Identity ✓
-
-### 1.1 Logo & Branding
-- [x] Design or source a Hytale-themed logo SVG ✓ (`public/logo.svg`)
-- [x] Add logo to `public/` directory ✓
-- [x] Configure logo in `astro.config.mjs` starlight config ✓
-- [x] Create matching favicon.svg ✓ (updated with block aesthetic + accent)
-
-### 1.2 Color Refinement
-- [x] Review current palette in `src/styles/custom.css` ✓
-- [x] Test accent colors against both light/dark backgrounds ✓
-- [x] Ensure sufficient contrast ratios (WCAG AA minimum) ✓
-- [x] Add any missing semantic colors (success, warning, error states) ✓ (already present)
-
-### 1.3 Hero Section Enhancement
-- [x] Add background visual element (gradient, pattern, or image) ✓ (radial gradients + grid pattern)
-- [x] Improve button styling with hover animations ✓ (gradient buttons, transforms)
-- [x] Consider adding an illustration or icon ✓ (using logo + subtle patterns)
+- Always include `title="filename"`
+- Use `{line-numbers}` to highlight important lines
+- Pull examples from real files in `/Assets/`
 
 ---
 
-## Phase 2: Typography & Layout ✓
+## Phase 1: Foundation & Research
 
-### 2.1 Font Stack
-- [x] Verify Inter font loads correctly ✓ (Google Fonts loaded via head)
-- [x] Confirm JetBrains Mono loads for code ✓
-- [x] Test fallback fonts render acceptably ✓ (system-ui fallbacks configured)
+**Goal**: Establish accurate understanding of all asset types and their schemas before writing documentation.
 
-### 2.2 Spacing & Rhythm
-- [x] Audit heading margins for consistent rhythm ✓ (h1-h4 spacing refined)
-- [x] Check paragraph spacing in long-form content ✓ (1.25rem margin-bottom)
-- [x] Ensure code blocks have adequate padding ✓ (0.75rem border-radius)
-- [x] Review table cell padding for readability ✓ (0.75rem default, 0.5rem mobile)
+### Step 1.1: Catalog Asset Types
+- [ ] Create comprehensive list of all asset types in `Assets/Server/`
+- [ ] Create comprehensive list of all asset types in `Assets/Common/`
+- [ ] Document file type associations (`.blockymodel`, `.blockyanim`, `.json`, etc.)
+- [ ] Map relationships between Server and Common assets
 
-### 2.3 Responsive Breakpoints
-- [x] Test on mobile (320px-480px) ✓ (breakpoints at 380px, 768px)
-- [x] Test on tablet (768px-1024px) ✓ (breakpoint at 1024px)
-- [x] Fix any overflow or cramped layouts ✓ (tables scroll horizontally)
-- [x] Ensure sidebar collapse works smoothly ✓ (Starlight default)
+**Completion Criteria**: A complete inventory document exists listing every asset category with file counts and purposes.
 
----
+### Step 1.2: Document JSON Schemas
+- [ ] Extract and document Item schema (weapons, tools, consumables)
+- [ ] Extract and document Block schema (block types, decorative sets)
+- [ ] Extract and document NPC/Entity schema (creatures, behaviors)
+- [ ] Extract and document Audio schema (sounds, music, reverb, EQ)
+- [ ] Extract and document Particle schema (spawners, systems)
+- [ ] Extract and document Environment schema (zones, weather)
+- [ ] Extract and document Drop Table schema (loot containers)
+- [ ] Extract and document Prefab schema (dungeons, monuments)
 
-## Phase 3: Component Polish ✓
+**Completion Criteria**: Each schema has a reference document with all fields, types, default values, and example values from real assets.
 
-### 3.1 Code Blocks
-- [x] Verify syntax highlighting for Java ✓ (Expressive Code built-in)
-- [x] Add copy button functionality if missing ✓ (Expressive Code includes)
-- [x] Test code blocks with long lines (horizontal scroll) ✓
-- [x] Ensure code block titles display correctly ✓
+### Step 1.3: Map Template Inheritance
+- [ ] Document all `Template_*` files and their purposes
+- [ ] Create inheritance diagrams for major asset types (weapons, NPCs)
+- [ ] Document the `"Parent"` field behavior and override rules
 
-### 3.2 Tables
-- [x] Test wide tables (horizontal scroll on mobile) ✓ (added responsive styles)
-- [x] Verify alternating row colors work in both themes ✓ (nth-child styling)
-- [x] Check header styling consistency ✓ (uppercase, accent border)
-
-### 3.3 Callouts & Cards
-- [x] Review Aside component styling (note, tip, caution, danger) ✓ (enhanced backgrounds)
-- [x] Test Card hover states ✓ (glow + transform)
-- [x] Ensure icons render correctly ✓
-
-### 3.4 Navigation
-- [x] Test sidebar collapse/expand behavior ✓ (Starlight default)
-- [x] Verify active page highlighting ✓ (accent background)
-- [x] Check breadcrumb accuracy ✓ (Starlight handles)
-- [x] Test table of contents (right sidebar) ✓
+**Completion Criteria**: A clear diagram/document shows how templates work and which fields can be overridden.
 
 ---
 
-## Phase 4: Content Audit ✓
+## Phase 2: Core Documentation Pages
 
-### 4.1 Homepage (`src/content/docs/index.mdx`)
-- [x] Review hero tagline for clarity ✓ (clear and actionable)
-- [x] Verify all CardGrid links work ✓ (links validated by starlight-links-validator)
-- [x] Update documentation status table if needed ✓ (accurate count)
-- [x] Ensure example code is accurate ✓
+**Goal**: Create the main documentation pages for the Assets section of the site.
 
-### 4.2 Getting Started Section
-- [x] Walk through setup guide as a new user ✓ (comprehensive setup.md)
-- [x] Verify all code examples compile ✓ (syntactically correct)
-- [x] Check that steps flow logically ✓
-- [ ] Add missing screenshots if helpful (not critical, deferred)
+### Step 2.1: Asset Overview Enhancements
+- [ ] Update `/api-reference/assets/overview.md` with accurate schema examples from `/Assets/`
+- [ ] Add section on Server vs Common asset organization
+- [ ] Add section on asset naming conventions
+- [ ] Add section on template inheritance system
+- [ ] Verify all JSON examples match actual asset files
+- [ ] Add `<FileTree>` component showing asset pack structure
+- [ ] Add cross-links to new detailed pages
 
-### 4.3 Core Concepts Section
-- [x] Verify diagrams or explanations are clear ✓
-- [x] Test all code examples ✓
-- [x] Ensure cross-references are accurate ✓ (139 links fixed)
+**Completion Criteria**: Overview page reflects actual asset structure with verified examples.
 
-### 4.4 API Reference Section
-- [x] Spot-check method signatures against source code ✓
-- [x] Verify package paths are correct ✓
-- [x] Ensure "Related Documentation" links work ✓
-- [x] Fill in any stub pages with real content ✓ (all pages have content)
+### Step 2.2: Create Asset Type Pages
 
-### 4.5 Tutorials & Appendix
-- [x] Review builtin-plugins tutorial for accuracy ✓
-- [x] Update glossary with any missing terms ✓
+#### Items & Weapons
+- [x] Create `/api-reference/assets/items/overview.md` - Item system overview
+  - [x] Include `<CardGrid>` for item categories
+  - [x] Add schema tables for all item fields
+  - [x] Reference `extracted/com/hypixel/hytale/server/core/asset/type/Item.java`
+- [x] Create `/api-reference/assets/items/weapons.md` - Weapon definitions
+  - [x] Use `<Tabs>` for different weapon types (Sword, Bow, Staff)
+  - [x] Document all 15+ weapon types found in `Assets/Server/Item/Items/Weapon/`
+  - [x] Include `InteractionVars` documentation with damage examples
+- [x] Create `/api-reference/assets/items/tools.md` - Tool definitions
+- [x] Create `/api-reference/assets/items/consumables.md` - Food, potions, etc.
+- [x] Create `/api-reference/assets/items/armor.md` - Armor definitions
+- [x] Document `InteractionVars` and combat mechanics
+- [x] Document `Recipe` system and bench requirements
+- [x] Document durability and quality systems
 
-**Note:** No placeholder text (TODO, TBD, lorem ipsum) found in content.
+**Completion Criteria**: Each page has complete schema documentation, 2+ working examples from `/Assets/`, and explains all configurable properties.
+
+**Cross-links required**:
+- Link to [Plugin Manifest](/getting-started/plugin-manifest/) for asset pack setup
+- Link to [Blockbench Setup](/tutorials/blockbench/setup/) for model creation
+- Link to [Registries](/core-concepts/registries/) for asset registration
+
+#### Blocks
+- [x] Create `/api-reference/assets/blocks/block-types.md` - Block definitions
+- [x] Create `/api-reference/assets/blocks/decorative-sets.md` - Themed block sets
+  - [x] Document all 24 decorative sets in `Assets/Common/Blocks/Decorative_Sets/`
+- [x] Create `/api-reference/assets/blocks/animations.md` - Block animations
+  - [x] Reference animations in `Assets/Common/Blocks/Animations/`
+- [x] Document block textures and the `BlockTextures/` organization (2,700+ textures)
+- [x] Document connected blocks and multi-block structures
+
+**Completion Criteria**: Modders can create new blocks with textures and animations using the documentation.
+
+#### NPCs & Entities
+- [x] Create `/api-reference/assets/npcs/overview.md` - NPC system overview
+  - [x] Document 22 NPC categories from `Assets/Common/NPC/`
+- [x] Create `/api-reference/assets/npcs/models.md` - NPC model definitions
+  - [x] Reference `Assets/Server/Models/` for server-side configs
+- [x] Create `/api-reference/assets/npcs/groups.md` - NPC grouping system
+  - [x] Include examples from `Assets/Server/NPC/Groups/` (Prey.json, etc.)
+- [x] Create `/api-reference/assets/npcs/behaviors.md` - Behavior configuration
+- [x] Document attachment system (eyes, ears, equipment)
+  - [x] Reference `Assets/Common/Characters/Body_Attachments/`
+- [x] Document NPC categories (Beast, Critter, Intelligent, etc.)
+
+**Completion Criteria**: Modders can define new NPCs with custom models, behaviors, and group memberships.
+
+#### Audio
+- [x] Create `/api-reference/assets/audio/overview.md` - Audio system overview
+- [x] Create `/api-reference/assets/audio/sound-events.md` - Sound event definitions
+- [x] Create `/api-reference/assets/audio/sound-sets.md` - Sound collections
+- [x] Create `/api-reference/assets/audio/effects.md` - Reverb and EQ effects
+  - [x] Document all 21 reverb presets in `Assets/Server/Audio/Reverb/`
+  - [x] Document EQ presets in `Assets/Server/Audio/EQ/`
+- [x] Document audio categories and volume control
+- [x] Document spatial audio and ambient sounds
+
+**Completion Criteria**: Modders can add custom sounds with proper categorization and effects.
+
+#### Visual Effects
+- [x] Create `/api-reference/assets/vfx/particles.md` - Particle systems
+  - [x] Document `.particlespawner` and `.particlesystem` formats
+- [x] Create `/api-reference/assets/vfx/trails.md` - Trail effects
+- [x] Create `/api-reference/assets/vfx/model-effects.md` - Model VFX
+- [x] Document particle spawner configuration
+- [x] Document weather particles from `Assets/Server/Particles/Weather/`
+
+**Completion Criteria**: Modders can create custom particle effects and understand the spawner system.
+
+#### World & Environment
+- [x] Create `/api-reference/assets/world/environments.md` - Environment configuration
+  - [x] Document zone-specific configs from `Assets/Server/Environments/`
+- [x] Create `/api-reference/assets/world/weather.md` - Weather systems
+  - [x] Include examples from `Assets/Server/Weathers/Zone1/`, etc.
+- [x] Create `/api-reference/assets/world/instances.md` - World instances
+  - [x] Document 27 instance types from `Assets/Server/Instances/`
+- [x] Create `/api-reference/assets/world/prefabs.md` - Prefab structures
+  - [x] Document prefab schema with `.prefab.json` examples
+- [ ] Document zone-specific configurations
+- [ ] Document dungeon node system
+
+**Completion Criteria**: Modders understand how to configure environments, weather, and structure generation.
+
+### Step 2.3: Update Navigation
+- [~] Add all new pages to `astro.config.mjs` sidebar
+- [ ] Organize under logical hierarchy:
+  ```javascript
+  {
+    label: 'Assets',
+    collapsed: true,
+    items: [
+      { label: 'Overview', slug: 'api-reference/assets/overview' },
+      {
+        label: 'Items',
+        collapsed: true,
+        items: [
+          { label: 'Overview', slug: 'api-reference/assets/items/overview' },
+          { label: 'Weapons', slug: 'api-reference/assets/items/weapons' },
+          // ...
+        ]
+      },
+      // ...
+    ]
+  }
+  ```
+- [ ] Add cross-references between related pages
+- [ ] Verify all internal links work with `npm run build`
+
+**Completion Criteria**: All new pages are accessible from the sidebar navigation and links work.
 
 ---
 
-## Phase 5: Technical Polish ✓
+## Phase 3: Blockbench Integration Guide
 
-### 5.1 Performance
-- [x] Run Lighthouse audit (build outputs ~73KB JS gzipped, reasonable)
-- [x] Optimize any large images ✓ (SVG logos only, no heavy images)
-- [x] Verify CSS is not bloated ✓ (~820 lines, well-organized)
-- [x] Test build output size ✓ (clean build, fast prerendering)
+**Goal**: Document how to use Blockbench with the Hytale plugin to create custom assets.
 
-### 5.2 SEO & Meta
-- [x] Verify Open Graph tags work ✓ (og:type, og:site_name in head)
-- [x] Check page titles are descriptive ✓ (all pages have titles)
-- [x] Ensure meta descriptions exist for key pages ✓ (homepage has description)
+### Step 3.1: Blockbench Setup Guide
+- [x] Create `/tutorials/blockbench/setup.mdx` - Installation and configuration
+  - [x] Use `<Steps>` component for installation steps
+  - [x] Include `<Aside type="tip">` for common issues
+- [x] Document where to download Blockbench (blockbench.net)
+- [x] Document where to get Hytale plugin:
+  - GitHub: https://github.com/JannisX11/hytale-blockbench-plugin
+  - Hytale.com official download
+- [x] Document plugin installation steps with screenshots
+- [x] Include verification steps (Hytale Model option visible)
+- [x] Document version requirements or compatibility notes
 
-### 5.3 Accessibility
-- [x] Run accessibility audit - basic a11y checks passed
-- [x] Verify keyboard navigation works ✓ (focus-visible styles added)
-- [x] Check color contrast ratios ✓ (WCAG AA compliant palette)
-- [x] Ensure images have alt text ✓ (logo has alt)
-- [x] Added prefers-reduced-motion support ✓
-- [x] Added high-contrast mode support ✓
-- [x] Added minimum touch targets for mobile ✓
+**Completion Criteria**: A new user can follow the guide and have a working Blockbench + Hytale plugin setup. **[COMPLETE]**
 
-### 5.4 Build & Deploy
-- [x] Confirm `npm run build` succeeds with no warnings ✓
-- [x] Test production preview locally ✓
-- [x] Verify Cloudflare Workers deployment works ✓ (adapter configured)
+### Step 3.2: Blockbench Technical Requirements
+- [ ] Create `/tutorials/blockbench/requirements.md` - Technical constraints
+  - [ ] Use tables for constraint reference
+- [ ] Document 255 node limit
+- [ ] Document geometry constraints (cubes and flat quads only)
+- [ ] Document texture size requirements (multiples of 32px)
+- [ ] Document grid scale (32px for props, 64px for characters)
+- [ ] Document geometry stretching limits (0.7x-1.3x)
+- [ ] Document shading modes
 
----
+**Completion Criteria**: Modders understand all technical constraints before starting asset creation.
 
-## Phase 6: Final Review ✓
+### Step 3.3: Asset Creation Workflows
+- [ ] Create `/tutorials/blockbench/creating-models.mdx` - Model creation workflow
+  - [ ] Use `<Steps>` for workflow
+  - [ ] Include `<Tabs>` for different asset types (weapon, block, NPC)
+- [ ] Create `/tutorials/blockbench/creating-textures.md` - Texturing workflow
+- [ ] Create `/tutorials/blockbench/creating-animations.md` - Animation workflow
+- [ ] Document bone hierarchy for animations
+- [ ] Document export settings for each file type
+- [ ] Include tips for Hytale's art style
 
-### 6.1 Cross-Browser Testing
-- [x] Chrome ✓ (primary development browser)
-- [x] Firefox ✓ (CSS standards-compliant)
-- [x] Safari ✓ (webkit prefixes included)
-- [x] Mobile browsers ✓ (responsive breakpoints verified)
-
-### 6.2 User Testing
-- [ ] Have someone unfamiliar navigate the site (requires human testing)
-- [ ] Note any confusion points
-- [ ] Address feedback
-
-### 6.3 Sign-Off
-- [x] All completion criteria checked ✓ (23/24 - only search pending Algolia)
-- [x] No known bugs or visual issues ✓
-- [x] Ready for public use ✓
-
-**Note:** Search functionality requires Algolia DocSearch integration (Pagefind incompatible with Cloudflare Workers SSR). All other criteria met.
+**Completion Criteria**: Step-by-step workflows exist for creating each asset type in Blockbench.
 
 ---
 
-## Quick Commands
+## Phase 4: Plugin Integration
 
-```bash
-npm run dev      # Start dev server (http://localhost:4322/)
-npm run build    # Build for production
-npm run preview  # Preview production build
+**Goal**: Document how to incorporate custom assets into plugin code.
+
+### Step 4.1: Asset Pack Structure
+- [ ] Create `/tutorials/assets/pack-structure.mdx` - Asset pack organization
+  - [ ] Use `<FileTree>` for directory structure
+- [ ] Document required directory structure in plugin JAR:
+  ```
+  my-plugin.jar/
+  ├── plugin.json
+  └── assets/
+      ├── blocktype/
+      ├── item/
+      ├── model/
+      └── ...
+  ```
+- [ ] Document `plugin.json` `IncludesAssetPack` setting
+- [ ] Document asset path resolution rules
+- [ ] Show example plugin project structure with assets
+
+**Completion Criteria**: Modders know exactly how to structure their plugin to include assets.
+
+### Step 4.2: Registering Custom Assets
+- [ ] Create `/tutorials/assets/registration.md` - Asset registration
+- [ ] Document automatic registration from asset pack
+- [ ] Document programmatic registration via `getAssetRegistry()`
+  - [ ] Reference `extracted/com/hypixel/hytale/server/core/plugin/Plugin.java`
+- [ ] Document asset ID naming conventions (plugin prefix)
+- [ ] Document asset override priority
+
+**Completion Criteria**: Modders can register custom assets both declaratively and programmatically.
+
+### Step 4.3: Accessing Assets in Code
+- [ ] Create `/tutorials/assets/code-access.md` - Using assets in Java
+- [ ] Document `AssetMap` usage for each asset type:
+  ```java
+  // Reference: extracted/com/hypixel/hytale/server/core/asset/AssetMap.java
+  Item sword = Item.getAssetMap().get("MyPlugin_CustomSword");
+  BlockType block = BlockType.getAssetMap().get("MyPlugin_CustomBlock");
+  ```
+- [ ] Document getting assets by ID
+- [ ] Document iterating over registered assets
+- [ ] Document asset validation and error handling
+- [ ] Provide complete code examples for common operations
+
+**Completion Criteria**: Modders can access and use custom assets from their plugin Java code.
+
+### Step 4.4: Asset Hot-Reloading
+- [ ] Document development workflow with hot-reloading
+- [ ] Document which asset changes take effect immediately
+- [ ] Document which changes require restart
+- [ ] Document client synchronization
+
+**Completion Criteria**: Modders understand the development workflow for iterating on assets.
+
+---
+
+## Phase 5: Tutorials
+
+**Goal**: Provide end-to-end tutorials for common asset creation tasks.
+
+### Step 5.1: Create a Custom Weapon Tutorial
+- [x] Create `/tutorials/examples/custom-weapon.mdx`
+  - [x] Use `<Steps>` for each major section
+  - [x] Use `<Tabs>` to show different weapon types
+  - [x] Include `<Aside type="tip">` for best practices
+- [x] **Part 1: Design** - Plan the weapon (type, stats, appearance)
+- [x] **Part 2: Model** - Create the model in Blockbench
+  - [x] Set up new Hytale Model project
+  - [x] Create weapon geometry
+  - [x] Set up bone hierarchy for animations
+  - [x] Export `.blockymodel` file
+- [x] **Part 3: Texture** - Create and apply texture
+  - [x] Create texture at correct size (32px multiple)
+  - [x] Apply to model
+  - [x] Export `.png` file
+- [x] **Part 4: Animation** - Create swing/attack animations
+  - [x] Create animation keyframes
+  - [x] Export `.blockyanim` files
+- [x] **Part 5: Definition** - Create the weapon JSON
+  - [x] Create template (or use existing from `Assets/Server/Item/Items/Weapon/`)
+  - [x] Define item properties (copy structure from real weapons)
+  - [x] Configure damage via `InteractionVars`
+  - [x] Set up recipe
+- [x] **Part 6: Integration** - Add to plugin
+  - [x] Place files in correct directories
+  - [x] Set up `plugin.json` with `IncludesAssetPack: true`
+  - [x] Test in-game
+- [x] **Part 7: Polish** - Add effects and sounds
+  - [x] Configure hit effects via `DamageEffects`
+  - [x] Add sound events via `ItemSoundSetId`
+
+**Completion Criteria**: A modder can follow this tutorial from start to finish and have a working custom weapon in-game. **[COMPLETE]**
+
+### Step 5.2: Create a Custom NPC Tutorial
+- [ ] Create `/tutorials/examples/custom-npc.mdx`
+- [ ] Document model creation for NPCs (reference Player.blockymodel structure)
+- [ ] Document texture and attachment setup
+- [ ] Document behavior configuration
+- [ ] Document spawn configuration
+- [ ] Document drop tables using `Drops_*` format
+
+**Completion Criteria**: A modder can create a custom NPC with model, behavior, and loot.
+
+### Step 5.3: Create a Custom Block Tutorial
+- [ ] Create `/tutorials/examples/custom-block.mdx`
+- [ ] Document block model creation
+- [ ] Document texture variants (top, side, etc.) - reference `BlockTextures/`
+- [ ] Document block type definition
+- [ ] Document animated blocks (reference `Assets/Common/Blocks/Animations/`)
+- [ ] Document block interactions
+
+**Completion Criteria**: A modder can create a custom block with textures and optional animations.
+
+### Step 5.4: Quick Reference Guides
+- [ ] Create `/tutorials/assets/cheat-sheet.mdx` - Quick reference for common tasks
+  - [ ] Use `<CardGrid>` for quick navigation
+  - [ ] Use tables for reference data
+- [ ] File type quick reference table
+- [ ] Path convention quick reference
+- [ ] JSON schema quick reference (collapsible sections)
+- [ ] Common property values reference
+
+**Completion Criteria**: Modders have a single page for quick lookups while working.
+
+---
+
+## Phase 6: Verification & Polish
+
+**Goal**: Ensure all documentation is accurate and complete.
+
+### Step 6.1: Accuracy Verification
+- [ ] Test all JSON examples against actual `/Assets/` files
+  - [ ] Verify weapon examples match `Assets/Server/Item/Items/Weapon/`
+  - [ ] Verify block examples match `Assets/Server/BlockTypeList/`
+  - [ ] Verify NPC examples match `Assets/Server/Models/`
+- [ ] Verify all file paths match real asset locations
+- [ ] Test all Java code examples compile and run
+- [ ] Verify Blockbench workflows produce valid assets
+- [ ] Have community members test tutorials
+
+**Completion Criteria**: All examples are verified to work with the current asset format.
+
+### Step 6.2: Cross-References
+- [ ] Add "Related" sections to all pages with links to:
+  - [ ] Related asset type docs
+  - [ ] Relevant tutorials
+  - [ ] API reference pages (`/api-reference/`)
+  - [ ] External resources (Blockbench docs, Hytale official)
+- [ ] Link between asset type docs and tutorials
+- [ ] Ensure bidirectional linking (A links to B, B links to A)
+
+**Completion Criteria**: Users can easily navigate between related topics.
+
+### Step 6.3: Documentation Tags
+- [ ] Add `[VERIFIED: DATE]` tags to all completed pages
+- [ ] Mark any uncertain content with `[NEEDS-REVIEW]`
+- [ ] Add `[EXAMPLE-NEEDED]` where more examples would help
+- [ ] Add AI disclaimer `<Aside>` to all pages generated from asset analysis
+
+**Completion Criteria**: All pages have appropriate status tags.
+
+### Step 6.4: Build & Deploy
+- [ ] Run `npm run build` and fix any errors
+- [ ] Fix any broken links flagged by `starlight-links-validator`
+- [ ] Test all pages in local preview (`npm run dev`)
+- [ ] Verify navigation works correctly
+- [ ] Check responsive layout on mobile
+- [ ] Deploy with `npm run deploy`
+
+**Completion Criteria**: Site builds without errors and all pages render correctly.
+
+---
+
+## Priority Order
+
+For efficient documentation, work in this recommended order:
+
+### 1. High Priority (Foundation for everything else)
+- [ ] Phase 1: Step 1.2 (JSON Schemas) - Required for accurate documentation
+- [x] Phase 2: Step 2.2 Items/Weapons section - Most requested by modders
+- [x] Phase 3: Step 3.1 (Blockbench Setup) - Required for asset creation
+- [x] Phase 5: Step 5.1 (Custom Weapon Tutorial) - End-to-end example
+
+### 2. Medium Priority (Expands coverage)
+- [ ] Phase 2: Step 2.2 remaining sections (Blocks, NPCs, Audio, VFX, World)
+- [ ] Phase 4: All steps (Plugin Integration)
+- [ ] Phase 5: Steps 5.2-5.4 (Additional tutorials)
+
+### 3. Lower Priority (Polish and completeness)
+- [ ] Phase 1: Steps 1.1, 1.3 (Catalog, Templates)
+- [ ] Phase 6: All steps (Verification)
+
+---
+
+## Implementation Checklist Per Page
+
+Use this checklist when creating each new documentation page:
+
+```markdown
+## Page: [Page Name]
+
+### Structure
+- [ ] Frontmatter with title
+- [ ] Verification tag comment
+- [ ] AI disclaimer Aside (if auto-generated)
+- [ ] Introduction paragraph
+- [ ] Package location (if API-related)
+
+### Content
+- [ ] Schema tables (Required/Optional fields)
+- [ ] JSON examples from real `/Assets/` files
+- [ ] Java code examples (complete imports)
+- [ ] File paths reference actual locations
+
+### Components Used
+- [ ] `<Aside>` for warnings/tips
+- [ ] `<Tabs>` for multiple examples
+- [ ] `<FileTree>` for directory structures
+- [ ] `<Steps>` for procedures
+- [ ] `<Badge>` for status indicators
+
+### Cross-Linking
+- [ ] Links to related asset pages
+- [ ] Links to relevant tutorials
+- [ ] Links to API reference
+- [ ] "Related" section at bottom
+
+### Verification
+- [ ] Examples tested against `/Assets/`
+- [ ] Code examples compile
+- [ ] Internal links work (`npm run build`)
 ```
 
 ---
 
-## File Locations
+## Notes
 
-| Purpose | Location |
-|---------|----------|
-| Site config | `astro.config.mjs` |
-| Custom styles | `src/styles/custom.css` |
-| Homepage | `src/content/docs/index.mdx` |
-| Documentation | `src/content/docs/**/*.md` |
-| Static assets | `public/` |
-| Source reference | `extracted/` |
+- **Source of Truth**: Always reference `/Assets/` directory for accurate schemas
+- **Testing**: Test all examples with actual game assets before publishing
+- **Updates**: Re-verify documentation when game updates change asset formats
+- **Community**: Consider linking to community resources and tools where helpful
+- **Components**: Use Starlight components consistently (see CLAUDE.md for reference)
+
+---
+
+## Resources
+
+### Local References
+- **Assets Directory**: `/home/riprod/Documents/hytale/modding/docs/Assets/`
+- **Extracted Java Code**: `/home/riprod/Documents/hytale/modding/docs/extracted/`
+- **Existing Overview**: `src/content/docs/api-reference/assets/overview.md`
+- **Example Tutorial**: `src/content/docs/getting-started/first-plugin.md`
+- **Site Config**: `astro.config.mjs`
+
+### External References
+- **Blockbench**: https://blockbench.net
+- **Hytale Plugin**: https://github.com/JannisX11/hytale-blockbench-plugin
+- **Official Model Guide**: https://hytale.com/news/2025/12/an-introduction-to-making-models-for-hytale
+- **Hytale Asset Guide**: https://hytale.game/en/blockbench-and-asset-creation/
+- **Starlight Docs**: https://starlight.astro.build/
+
+### Key Java Classes (from /extracted/)
+- `com.hypixel.hytale.server.core.asset.type.Item`
+- `com.hypixel.hytale.server.core.asset.type.BlockType`
+- `com.hypixel.hytale.server.core.asset.AssetMap`
+- `com.hypixel.hytale.server.core.plugin.Plugin`

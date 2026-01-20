@@ -1,0 +1,584 @@
+---
+title: "Block Type Assets"
+---
+
+{/* [VERIFIED: 2026-01-20] */}
+
+import { Aside, Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="AI-Generated Content">
+This documentation was generated from analysis of decompiled source code and game assets. Some details may be incomplete or subject to change.
+</Aside>
+
+Block types define the visual appearance, physical properties, and behavior of blocks in Hytale. Unlike items, block definitions are embedded within item JSON files using the `BlockType` object.
+
+## Package Location
+
+`com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType`
+
+## Asset Organization
+
+Block definitions are found in item files throughout the `Assets/Server/Item/Items/` directory:
+
+<FileTree>
+- Assets/Server/Item/Items/
+  - Rock/
+    - Stone/
+      - Rock_Stone.json
+      - Rock_Stone_Brick.json
+      - Rock_Stone_Cobble.json
+  - Soil/
+    - Dirt/
+    - Grass/
+    - Clay_Plaster/
+  - Wood/
+    - Oak/
+    - Birch/
+    - Cedar/
+  - Ore/
+    - Iron/
+    - Copper/
+    - Gold/
+  - Furniture/
+    - Crude/
+    - Village/
+  - Plant/
+    - Grass/
+    - Flowers/
+</FileTree>
+
+Block type lists for scatter generation are defined in:
+- `Assets/Server/BlockTypeList/` - Contains block list files like `Ores.json`, `Soils.json`, `Rock.json`
+
+## BlockType Schema
+
+The `BlockType` object is embedded within item definitions:
+
+### Required Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Material` | `string` | Physical material type (`Solid`, `Empty`, `Liquid`) |
+| `DrawType` | `string` | Rendering method (`Cube`, `Model`, `CubeWithModel`, `Empty`) |
+
+### Rendering Properties
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `Textures` | `array` | - | Texture definitions with face assignments |
+| `CustomModel` | `string` | - | Path to `.blockymodel` file for non-cube blocks |
+| `CustomModelTexture` | `array` | - | Texture variants for custom models |
+| `CustomModelScale` | `float` | `1.0` | Scale factor for custom models |
+| `CustomModelAnimation` | `string` | - | Default animation for the model |
+| `Opacity` | `string` | `Solid` | Light blocking (`Solid`, `Transparent`, `SemiTransparent`) |
+| `Light` | `object` | - | Emitted light color and intensity |
+| `Tint` | `array` | - | Color tint values (hex strings) |
+| `ParticleColor` | `string` | - | Hex color for break particles |
+
+### Physical Properties
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `Group` | `string` | - | Material group for tool effectiveness (`Stone`, `Dirt`, `Wood`) |
+| `HitboxType` | `string` | `Full` | Collision shape type |
+| `InteractionHitboxType` | `string` | - | Separate hitbox for interactions |
+| `Flags` | `object` | `{}` | Boolean flags for behavior |
+| `DamageToEntities` | `int` | `0` | Contact damage (e.g., cacti, magma) |
+
+### Placement & Rotation
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `VariantRotation` | `string` | - | Rotation variant type (`NESW`, `UpDownNESW`, `DoublePipe`) |
+| `RandomRotation` | `string` | - | Random rotation on placement (`YawStep90`) |
+| `PlacementSettings` | `object` | - | Placement rules and rotation mode |
+| `FlipType` | `string` | - | Flip behavior for mirrored variants |
+
+### Support System
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Support` | `object` | Required support per face (e.g., `Down: [{}]`) |
+| `Supporting` | `object` | Support provided to neighbors per face |
+| `SupportDropType` | `string` | Behavior when support lost (`BREAK`, `DROP`, `NONE`) |
+
+### Sound & Particles
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `BlockSoundSetId` | `string` | Sound set for step/break/place sounds |
+| `BlockParticleSetId` | `string` | Particle set for break effects |
+| `AmbientSoundEventId` | `string` | Looping ambient sound |
+| `InteractionSoundEventId` | `string` | Sound on interaction |
+
+### Gathering
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Gathering.Breaking.GatherType` | `string` | Tool type for efficient breaking (`Rocks`, `Woods`, `Soils`) |
+| `Gathering.Breaking.ItemId` | `string` | Alternative item dropped when broken |
+| `Gathering.Breaking.DropList` | `object` | Complex drop table configuration |
+
+### States & Animations
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `State` | `object` | State machine for interactive blocks |
+| `State.Definitions` | `object` | Named state definitions with properties |
+| `State.Id` | `string` | State type identifier (e.g., `container`) |
+| `State.Capacity` | `int` | Container capacity for storage blocks |
+| `ConnectedBlockRuleSet` | `object` | Rules for connecting to neighbors |
+
+## DrawType Values
+
+| Value | Description | Use Case |
+|-------|-------------|----------|
+| `Cube` | Standard 6-faced cube | Stone, dirt, most blocks |
+| `Model` | Custom 3D model only | Furniture, decorations |
+| `CubeWithModel` | Cube base with model overlay | Ores (rock + ore chunks) |
+| `Empty` | Invisible, no rendering | Air, triggers |
+
+## Examples
+
+### Basic Solid Block
+
+A simple stone block with texture variants:
+
+```json title="Rock_Stone.json" {13-18,25-37}
+{
+  "TranslationProperties": {
+    "Name": "server.items.Rock_Stone.name"
+  },
+  "ItemLevel": 10,
+  "MaxStack": 100,
+  "Icon": "Icons/ItemsGenerated/Rock_Stone.png",
+  "Categories": ["Blocks.Rocks"],
+  "PlayerAnimationsId": "Block",
+  "Set": "Rock_Stone",
+  "BlockType": {
+    "Material": "Solid",
+    "DrawType": "Cube",
+    "Group": "Stone",
+    "Flags": {},
+    "Gathering": {
+      "Breaking": {
+        "GatherType": "Rocks",
+        "ItemId": "Rock_Stone_Cobble"
+      }
+    },
+    "BlockParticleSetId": "Stone",
+    "Textures": [
+      {
+        "All": "BlockTextures/Rock_Stone.png",
+        "Weight": 2
+      },
+      {
+        "All": "BlockTextures/Rock_Stone_2.png",
+        "Weight": 1
+      },
+      {
+        "All": "BlockTextures/Rock_Stone_3.png",
+        "Weight": 1
+      }
+    ],
+    "ParticleColor": "#737055",
+    "BlockSoundSetId": "Stone",
+    "Aliases": ["stone", "stone00"],
+    "BlockBreakingDecalId": "Breaking_Decals_Rock"
+  },
+  "ResourceTypes": [
+    { "Id": "Rock" },
+    { "Id": "Rock_Stone" }
+  ],
+  "Tags": {
+    "Type": ["Rock"]
+  },
+  "ItemSoundSetId": "ISS_Blocks_Stone"
+}
+```
+
+### Ore Block with Model Overlay
+
+Ores use `CubeWithModel` to render ore chunks on top of a base rock texture:
+
+```json title="Ore_Iron_Stone.json" {11-22}
+{
+  "TranslationProperties": {
+    "Name": "server.items.Ore_Iron_Stone.name"
+  },
+  "Icon": "Icons/ItemsGenerated/Ore_Iron_Stone.png",
+  "Categories": ["Blocks.Ores"],
+  "BlockType": {
+    "Material": "Solid",
+    "DrawType": "CubeWithModel",
+    "CustomModel": "Resources/Ores/Ore_Large.blockymodel",
+    "CustomModelTexture": [
+      {
+        "Texture": "Resources/Ores/Ore_Textures/Iron.png",
+        "Weight": 1
+      }
+    ],
+    "Group": "Stone",
+    "Flags": {},
+    "RandomRotation": "YawStep90",
+    "Gathering": {
+      "Breaking": {
+        "GatherType": "Rocks",
+        "DropList": {
+          "Container": {
+            "Type": "Multiple",
+            "Containers": [
+              { "Type": "Single", "Item": { "ItemId": "Ore_Iron" } },
+              { "Type": "Single", "Item": { "ItemId": "Rock_Stone_Cobble" } }
+            ]
+          }
+        }
+      }
+    },
+    "BlockParticleSetId": "Stone",
+    "Textures": [
+      { "Weight": 1, "All": "BlockTextures/Rock_Stone.png" }
+    ],
+    "ParticleColor": "#88886a",
+    "BlockSoundSetId": "Ore"
+  },
+  "MaxStack": 25,
+  "ItemSoundSetId": "ISS_Blocks_Stone"
+}
+```
+
+### Stairs with State Variants
+
+Stairs use connected block rules and multiple state definitions:
+
+```json title="Rock_Stone_Brick_Stairs.json" {34-51,64-72}
+{
+  "TranslationProperties": {
+    "Name": "server.items.Rock_Stone_Brick_Stairs.name"
+  },
+  "BlockType": {
+    "Material": "Solid",
+    "DrawType": "Model",
+    "Opacity": "Transparent",
+    "CustomModel": "Blocks/Structures/Stairs/Stairs.blockymodel",
+    "CustomModelTexture": [
+      {
+        "Texture": "Blocks/Structures/Stairs/Stairs_Textures/Stone_Brick.png",
+        "Weight": 1
+      }
+    ],
+    "Group": "Stone",
+    "HitboxType": "Stairs",
+    "VariantRotation": "UpDownNESW",
+    "BlockParticleSetId": "Stone",
+    "Supporting": {
+      "Down": [{}],
+      "North": [{}]
+    },
+    "ParticleColor": "#737055",
+    "BlockSoundSetId": "Stone",
+    "State": {
+      "Definitions": {
+        "Corner_Right": {
+          "CustomModel": "Blocks/Structures/Stairs/Stairs_Corner_Right.blockymodel",
+          "HitboxType": "Stairs_Corner_Right",
+          "FlipType": "Orthogonal",
+          "Supporting": { "Down": [{}] }
+        },
+        "Inverted_Corner_Right": {
+          "CustomModel": "Blocks/Structures/Stairs/Stairs_Inverted_Corner_Right.blockymodel",
+          "HitboxType": "Stairs_Inverted_Corner_Right",
+          "FlipType": "Orthogonal",
+          "Supporting": { "Down": [{}], "North": [{}], "East": [{}] }
+        },
+        "Corner_Left": {
+          "CustomModel": "Blocks/Structures/Stairs/Stairs_Corner_Left.blockymodel",
+          "HitboxType": "Stairs_Corner_Left",
+          "FlipType": "Orthogonal"
+        },
+        "Inverted_Corner_Left": {
+          "CustomModel": "Blocks/Structures/Stairs/Stairs_Inverted_Corner_Left.blockymodel",
+          "HitboxType": "Stairs_Inverted_Corner_Left"
+        }
+      }
+    },
+    "PlacementSettings": {
+      "RotationMode": "StairFacingPlayer"
+    },
+    "ConnectedBlockRuleSet": {
+      "Type": "Stair",
+      "Corner_Left": { "State": "Corner_Left" },
+      "Corner_Right": { "State": "Corner_Right" },
+      "Inverted_Corner_Left": { "State": "Inverted_Corner_Left" },
+      "Inverted_Corner_Right": { "State": "Inverted_Corner_Right" },
+      "Straight": { "State": "default" }
+    }
+  },
+  "ItemSoundSetId": "ISS_Blocks_Stone"
+}
+```
+
+### Interactive Door with Animations
+
+Doors define open/close states with animations:
+
+```json title="Furniture_Crude_Door.json" {44-52,71-93}
+{
+  "TranslationProperties": {
+    "Name": "server.items.Furniture_Crude_Door.name"
+  },
+  "PlayerAnimationsId": "Block",
+  "Categories": ["Furniture.Doors"],
+  "Set": "Furniture_Crude",
+  "Icon": "Icons/ItemsGenerated/Furniture_Crude_Door.png",
+  "BlockType": {
+    "BlockParticleSetId": "Wood",
+    "CustomModel": "Blocks/Decorative_Sets/Crude/Door.blockymodel",
+    "CustomModelTexture": [
+      {
+        "Texture": "Blocks/Decorative_Sets/Crude/Door_Texture.png",
+        "Weight": 1
+      }
+    ],
+    "DrawType": "Model",
+    "Flags": {},
+    "Gathering": {
+      "Breaking": { "GatherType": "Woods" }
+    },
+    "HitboxType": "Door",
+    "Material": "Solid",
+    "Opacity": "Transparent",
+    "ParticleColor": "#63412c",
+    "ConnectedBlockRuleSet": {
+      "Type": "CustomTemplate",
+      "TemplateShapeAssetId": "DoorConnectedBlockTemplate",
+      "TemplateShapeBlockPatterns": {
+        "Default": "Furniture_Crude_Door"
+      }
+    },
+    "State": {
+      "Definitions": {
+        "CloseDoorIn": {
+          "InteractionSoundEventId": "SFX_Door_Crude_Close",
+          "CustomModelAnimation": "Blocks/Animations/Door/Door_Close_In.blockyanim"
+        },
+        "CloseDoorOut": {
+          "InteractionSoundEventId": "SFX_Door_Crude_Close",
+          "CustomModelAnimation": "Blocks/Animations/Door/Door_Close_Out.blockyanim"
+        },
+        "DoorBlocked": {},
+        "OpenDoorIn": {
+          "HitboxType": "Door_Open_In",
+          "InteractionHitboxType": "Door_Open_In_Interaction",
+          "InteractionSoundEventId": "SFX_Door_Crude_Open",
+          "CustomModelAnimation": "Blocks/Animations/Door/Door_Open_In.blockyanim"
+        },
+        "OpenDoorOut": {
+          "HitboxType": "Door_Open_Out",
+          "InteractionHitboxType": "Door_Open_Out_Interaction",
+          "InteractionSoundEventId": "SFX_Door_Crude_Open",
+          "CustomModelAnimation": "Blocks/Animations/Door/Door_Open_Out.blockyanim"
+        }
+      }
+    },
+    "VariantRotation": "NESW",
+    "BlockSoundSetId": "Wood",
+    "IsDoor": true,
+    "Interactions": {
+      "Use": "Door"
+    }
+  },
+  "ItemSoundSetId": "ISS_Blocks_Wood"
+}
+```
+
+### Container Block (Chest)
+
+Chests define storage capacity and opening animations:
+
+```json title="Furniture_Crude_Chest_Small.json" {36-49,66-78}
+{
+  "TranslationProperties": {
+    "Name": "server.items.Furniture_Crude_Chest_Small.name"
+  },
+  "Categories": ["Furniture.Containers"],
+  "Set": "Furniture_Crude",
+  "BlockType": {
+    "BlockParticleSetId": "Wood",
+    "BlockSoundSetId": "Wood",
+    "CustomModel": "Blocks/Decorative_Sets/Crude/Chest_Small.blockymodel",
+    "CustomModelTexture": [
+      {
+        "Texture": "Blocks/Decorative_Sets/Crude/Chest_Small_Texture.png",
+        "Weight": 1
+      }
+    ],
+    "DrawType": "Model",
+    "Flags": {
+      "IsUsable": true
+    },
+    "Gathering": {
+      "Breaking": { "GatherType": "Woods" }
+    },
+    "Material": "Solid",
+    "Opacity": "Transparent",
+    "ParticleColor": "#63412c",
+    "ConnectedBlockRuleSet": {
+      "Type": "CustomTemplate",
+      "TemplateShapeAssetId": "ChestConnectedBlockTemplate",
+      "TemplateShapeBlockPatterns": {
+        "Default": "Furniture_Crude_Chest_Small",
+        "Double": "Furniture_Crude_Chest_Large"
+      }
+    },
+    "State": {
+      "Id": "container",
+      "Capacity": 18,
+      "Definitions": {
+        "CloseWindow": {
+          "InteractionSoundEventId": "SFX_Chest_Wooden_Close",
+          "CustomModelAnimation": "Blocks/Animations/Chest/Chest_Close.blockyanim"
+        },
+        "OpenWindow": {
+          "InteractionSoundEventId": "SFX_Chest_Wooden_Open",
+          "CustomModelAnimation": "Blocks/Animations/Chest/Chest_Open.blockyanim"
+        }
+      }
+    },
+    "Supporting": {
+      "Up": [{ "FaceType": "Full" }]
+    },
+    "Support": {
+      "Down": [{ "FaceType": "Full" }]
+    },
+    "VariantRotation": "NESW",
+    "Interactions": {
+      "Primary": "Break_Container",
+      "Use": "Open_Container"
+    }
+  },
+  "ItemSoundSetId": "ISS_Blocks_Wood"
+}
+```
+
+### Plant Block with Tint
+
+Plants often use parent templates and tint colors:
+
+```json title="Plant_Grass_Rocky.json" {6-18}
+{
+  "TranslationProperties": {
+    "Name": "server.items.Plant_Grass_Rocky.name"
+  },
+  "Icon": "Icons/ItemsGenerated/Plant_Grass_Rocky.png",
+  "Parent": "Plant_Grass_Lush",
+  "BlockType": {
+    "CustomModel": "Blocks/Foliage/Plants/Cross_17px.blockymodel",
+    "CustomModelTexture": [
+      {
+        "Texture": "Blocks/Foliage/Plants/Cross_17px_Textures/Rocky_GS.png",
+        "Weight": 1
+      }
+    ],
+    "HitboxType": "Plant_Medium",
+    "Tint": ["#dcb86d"]
+  }
+}
+```
+
+## Block Categories
+
+Blocks are organized into several main categories:
+
+### Natural Blocks
+
+| Category | Location | Examples |
+|----------|----------|----------|
+| Rock | `Rock/` | Stone, Basalt, Marble, Sandstone |
+| Soil | `Soil/` | Dirt, Grass, Clay, Sand |
+| Ore | `Ore/` | Iron, Copper, Gold, Mithril, Adamantite |
+| Wood | `Wood/` | Oak, Birch, Cedar (logs, planks, leaves) |
+| Plant | `Plant/` | Grass, Flowers, Vines, Crops |
+
+### Crafted Blocks
+
+| Category | Location | Examples |
+|----------|----------|----------|
+| Furniture | `Furniture/` | Doors, Chests, Tables, Chairs |
+| Structural | Within Rock/Wood | Stairs, Slabs, Walls, Pillars |
+
+### Block Material Groups
+
+| Group | Tool Type | Examples |
+|-------|-----------|----------|
+| `Stone` | Pickaxe | Stone, Brick, Ore |
+| `Dirt` | Shovel | Dirt, Grass, Sand, Gravel |
+| `Wood` | Hatchet | Logs, Planks, Furniture |
+| `Organic` | Any | Plants, Leaves |
+
+## Texture Definitions
+
+### Face-Specific Textures
+
+```json
+"Textures": [
+  {
+    "Up": "BlockTextures/Stone_Top.png",
+    "Down": "BlockTextures/Stone_Bottom.png",
+    "North": "BlockTextures/Stone_Side.png",
+    "South": "BlockTextures/Stone_Side.png",
+    "East": "BlockTextures/Stone_Side.png",
+    "West": "BlockTextures/Stone_Side.png",
+    "Weight": 1
+  }
+]
+```
+
+### All-Face Shorthand
+
+```json
+"Textures": [
+  {
+    "All": "BlockTextures/Stone.png",
+    "Weight": 1
+  }
+]
+```
+
+### Weighted Variants
+
+Multiple texture entries with different weights create visual variety:
+
+```json
+"Textures": [
+  { "All": "BlockTextures/Stone.png", "Weight": 2 },
+  { "All": "BlockTextures/Stone_2.png", "Weight": 1 },
+  { "All": "BlockTextures/Stone_3.png", "Weight": 1 }
+]
+```
+
+<Aside type="tip">
+Higher weight values make that texture variant more likely to appear. In the example above, the first texture appears 50% of the time.
+</Aside>
+
+## VariantRotation Values
+
+| Value | Description |
+|-------|-------------|
+| `NESW` | 4 rotations (North, East, South, West) |
+| `UpDownNESW` | 6 rotations (all faces) |
+| `DoublePipe` | 2 rotations (horizontal pipe) |
+
+## Flags Object
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `IsUsable` | `bool` | Block can be interacted with |
+| `IsStackable` | `bool` | Blocks can stack vertically |
+
+## Related
+
+- [Block System Overview](/api-reference/blocks/overview/) - Java API for blocks
+- [Decorative Sets](/api-reference/assets/blocks/decorative-sets/) - Themed block collections
+- [Block Animations](/api-reference/assets/blocks/animations/) - Animation system for blocks
+- [Connected Blocks](/api-reference/world/connected-blocks/) - Connection rules

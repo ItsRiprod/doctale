@@ -1,0 +1,275 @@
+---
+title: "Audio Effects"
+---
+
+{/* [VERIFIED: 2026-01-20] */}
+
+import { Aside, Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="AI-Generated Content">
+This documentation was generated from analysis of decompiled source code and game assets. Some details may be incomplete or subject to change.
+</Aside>
+
+Audio effects include reverb presets for spatial acoustics and EQ presets for frequency filtering. These effects are applied based on environment and player location.
+
+## Asset Location
+
+<FileTree>
+- Assets/Server/Audio/
+  - Reverb/
+    - Rev_Default.json
+    - Rev_Cave.json
+    - Rev_Forest.json
+    - Rev_Plains.json
+    - Rev_Temple.json
+    - ...
+  - EQ/
+    - EQ_Default.json
+    - EQ_Underwater.json
+</FileTree>
+
+## Reverb Presets
+
+Reverb simulates how sound reflects in different environments. Hytale includes 21 reverb presets.
+
+### Reverb Schema
+
+| Field | Type | Range | Description |
+|-------|------|-------|-------------|
+| `DryGain` | `float` | -100 to 0 | Direct sound level (dB) |
+| `Gain` | `float` | -100 to 0 | Overall reverb level (dB) |
+| `ModalDensity` | `float` | 0 to 1 | Echo density |
+| `Diffusion` | `float` | 0 to 1 | Diffusion amount |
+| `DecayTime` | `float` | 0.1 to 20 | Reverb tail length (seconds) |
+| `HighFrequencyGain` | `float` | -100 to 0 | High frequency attenuation (dB) |
+| `HighFrequencyDecayRatio` | `float` | 0.1 to 2 | HF decay relative to LF |
+| `ReflectionGain` | `float` | -100 to 10 | Early reflections level (dB) |
+| `ReflectionDelay` | `float` | 0 to 0.3 | Early reflection delay (seconds) |
+| `LateReverbGain` | `float` | -100 to 20 | Late reverb level (dB) |
+| `LateReverbDelay` | `float` | 0 to 0.1 | Late reverb delay (seconds) |
+| `RoomRolloffFactor` | `float` | 0 to 10 | Distance attenuation factor |
+| `AirAbsorbptionHighFrequencyGain` | `float` | -100 to 0 | Air absorption (dB) |
+| `LimitDecayHighFrequency` | `bool` | - | Limit HF decay to LF |
+
+### Available Presets
+
+#### Outdoor Presets
+
+| Preset | Decay Time | Character |
+|--------|------------|-----------|
+| `Rev_Plains` | Short | Open, minimal reflection |
+| `Rev_Plains_Desert` | Short | Dry, sparse |
+| `Rev_Plains_Fog` | Short | Muffled |
+| `Rev_Plains_Snow` | Short | Crisp, dampened |
+| `Rev_Forest` | Medium | Natural, diffuse |
+| `Rev_Forest_Desert` | Medium | Sparse canopy |
+| `Rev_Forest_Fog` | Medium | Dense, atmospheric |
+| `Rev_Forest_Snow` | Medium | Muted, cold |
+| `Rev_Mountain` | Long | Open, echoing |
+| `Rev_Mountain_Fog` | Long | Atmospheric |
+| `Rev_Mountain_Snow` | Long | Cold, distant |
+| `Rev_Swamp` | Medium | Wet, dense |
+| `Rev_Swamp_Foggy` | Medium | Heavy atmosphere |
+
+#### Interior Presets
+
+| Preset | Decay Time | Character |
+|--------|------------|-----------|
+| `Rev_Cave` | Long (~11s) | Cavernous, deep echoes |
+| `Rev_Mineshaft` | Medium | Enclosed, metallic |
+| `Rev_Temple` | Medium | Stone, reverent |
+| `Rev_Temple_Grand` | Long | Large hall, majestic |
+| `Rev_Mage_Tower` | Medium | Magical resonance |
+| `Rev_Village` | Short | Populated, domestic |
+| `Rev_Reflective_Slap` | Short | Hard surfaces |
+
+### Example: Cave Reverb
+
+```json title="Rev_Cave.json"
+{
+  "DryGain": 0,
+  "ModalDensity": 1,
+  "Diffusion": 1,
+  "Gain": -15,
+  "HighFrequencyGain": -39,
+  "DecayTime": 11,
+  "HighFrequencyDecayRatio": 1.3,
+  "ReflectionGain": -10.4,
+  "ReflectionDelay": 0.2,
+  "LateReverbGain": 0,
+  "LateReverbDelay": 0.02,
+  "RoomRolloffFactor": 0,
+  "AirAbsorbptionHighFrequencyGain": -0.05,
+  "LimitDecayHighFrequency": false
+}
+```
+
+Key characteristics:
+- **Long decay (11s)** - Creates deep cave echo
+- **High diffusion (1.0)** - Smooth reverb tail
+- **High frequency attenuation (-39 dB)** - Muffled, distant sound
+- **Delayed reflections (0.2s)** - Simulates large space
+
+### Example: Plains Reverb
+
+```json title="Rev_Plains.json"
+{
+  "DryGain": 0,
+  "ModalDensity": 0.3,
+  "Diffusion": 0.8,
+  "Gain": -25,
+  "HighFrequencyGain": -5,
+  "DecayTime": 1.5,
+  "HighFrequencyDecayRatio": 0.8,
+  "ReflectionGain": -20,
+  "ReflectionDelay": 0.01,
+  "LateReverbGain": -15,
+  "LateReverbDelay": 0.01,
+  "RoomRolloffFactor": 0,
+  "AirAbsorbptionHighFrequencyGain": -0.02,
+  "LimitDecayHighFrequency": true
+}
+```
+
+Key characteristics:
+- **Short decay (1.5s)** - Open air, minimal reflection
+- **Low density (0.3)** - Sparse environment
+- **Quiet reverb (-25 dB)** - Natural outdoor feel
+
+## EQ Presets
+
+EQ (equalization) adjusts frequency balance for special audio conditions.
+
+### EQ Schema
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `LowGain` | `float` | Bass frequency gain (dB) |
+| `LowCutOff` | `float` | Low band frequency (Hz) |
+| `LowMidGain` | `float` | Low-mid frequency gain (dB) |
+| `LowMidCenter` | `float` | Low-mid center frequency (Hz) |
+| `LowMidWidth` | `float` | Low-mid bandwidth |
+| `HighMidGain` | `float` | High-mid frequency gain (dB) |
+| `HighMidCenter` | `float` | High-mid center frequency (Hz) |
+| `HighMidWidth` | `float` | High-mid bandwidth |
+| `HighGain` | `float` | Treble frequency gain (dB) |
+| `HighCutOff` | `float` | High band frequency (Hz) |
+
+### Available Presets
+
+| Preset | Description |
+|--------|-------------|
+| `EQ_Default` | No frequency adjustment |
+| `EQ_Underwater` | Muffled, filtered sound |
+
+### Example: Underwater EQ
+
+```json title="EQ_Underwater.json"
+{
+  "LowGain": 0,
+  "LowCutOff": 300,
+  "LowMidGain": -17.19,
+  "LowMidCenter": 1000,
+  "LowMidWidth": 1,
+  "HighMidGain": -17.9,
+  "HighMidCenter": 1500,
+  "HighMidWidth": 1,
+  "HighGain": -17.9,
+  "HighCutOff": 4000
+}
+```
+
+Key characteristics:
+- **Bass preserved (0 dB)** - Low frequencies travel well underwater
+- **Mid frequencies cut (~-17 dB)** - Muffled speech and effects
+- **High frequencies cut (~-18 dB)** - Water absorbs high frequencies
+
+## Environment Application
+
+Effects are applied based on environment configuration:
+
+```json title="Environment reference example"
+{
+  "ReverbPresetId": "Rev_Cave",
+  "EQPresetId": "EQ_Default"
+}
+```
+
+### Transition Blending
+
+When moving between environments, effects crossfade:
+- Reverb parameters interpolate smoothly
+- EQ settings blend over transition duration
+- Player position determines active environment
+
+## Creating Custom Effects
+
+### Custom Reverb
+
+```json title="MyPlugin_Rev_CustomDungeon.json"
+{
+  "DryGain": 0,
+  "ModalDensity": 0.7,
+  "Diffusion": 0.9,
+  "Gain": -18,
+  "HighFrequencyGain": -25,
+  "DecayTime": 4.5,
+  "HighFrequencyDecayRatio": 1.0,
+  "ReflectionGain": -8,
+  "ReflectionDelay": 0.08,
+  "LateReverbGain": -5,
+  "LateReverbDelay": 0.03,
+  "RoomRolloffFactor": 0,
+  "AirAbsorbptionHighFrequencyGain": -0.03,
+  "LimitDecayHighFrequency": true
+}
+```
+
+### Custom EQ
+
+```json title="MyPlugin_EQ_Magical.json"
+{
+  "LowGain": 3,
+  "LowCutOff": 200,
+  "LowMidGain": 0,
+  "LowMidCenter": 800,
+  "LowMidWidth": 1,
+  "HighMidGain": 2,
+  "HighMidCenter": 3000,
+  "HighMidWidth": 0.8,
+  "HighGain": 4,
+  "HighCutOff": 8000
+}
+```
+
+## Reverb Design Guidelines
+
+### Small Spaces
+
+| Parameter | Value | Reason |
+|-----------|-------|--------|
+| DecayTime | 0.5-2s | Quick reflections |
+| ReflectionDelay | 0.01-0.05s | Close walls |
+| Gain | -20 to -10 | Moderate effect |
+
+### Large Spaces
+
+| Parameter | Value | Reason |
+|-----------|-------|--------|
+| DecayTime | 3-8s | Long echoes |
+| ReflectionDelay | 0.1-0.3s | Distant walls |
+| Gain | -15 to -5 | Prominent effect |
+
+### Outdoor
+
+| Parameter | Value | Reason |
+|-----------|-------|--------|
+| DecayTime | 0.5-2s | Minimal reflection |
+| ModalDensity | 0.2-0.5 | Sparse echoes |
+| Gain | -30 to -20 | Subtle effect |
+
+## Related
+
+- [Audio Overview](/api-reference/assets/audio/overview/) - Audio system overview
+- [Sound Events](/api-reference/assets/audio/sound-events/) - Sound event definitions
+- [Environments](/api-reference/assets/world/environments/) - Environment configuration

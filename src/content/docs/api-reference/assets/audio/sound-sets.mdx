@@ -1,0 +1,495 @@
+---
+title: "Sound Sets"
+---
+
+{/* [VERIFIED: 2026-01-20] */}
+
+import { Aside, Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="AI-Generated Content">
+This documentation was generated from analysis of decompiled source code and game assets. Some details may be incomplete or subject to change.
+</Aside>
+
+Sound sets define collections of sound events for items, NPCs, weapons, and UI interactions. They map action contexts to specific sound event IDs.
+
+## Asset Locations
+
+<FileTree>
+- Assets/Server/Audio/
+  - ItemSounds/
+    - ISS_Default.json
+    - ISS_Weapons_Blade_Large.json
+    - ISS_Weapons_Blunt_Small.json
+    - ISS_Armor_Heavy.json
+    - ISS_Items_Potion.json
+    - (36 item sound sets)
+  - SoundSets/
+    - CreativePlayDefaults.json
+  - AudioCategories/
+    - AudioCat_Music.json
+    - AudioCat_Weapons.json
+    - AudioCat_Footsteps.json
+    - AudioCat_NPC.json
+    - AudioCat_Inventory.json
+    - AudioCat_Discovery.json
+    - NPC/
+      - AudioCat_NPC_Wolf.json
+      - AudioCat_NPC_Zombie.json
+      - (80+ NPC audio categories)
+    - Weapons/
+      - AudioCat_Sword.json
+      - AudioCat_Battleaxe.json
+      - AudioCat_Shortbow.json
+      - (8 weapon categories)
+</FileTree>
+
+## Item Sound Sets (ISS)
+
+Item Sound Sets define sounds for inventory interactions like dropping and dragging items.
+
+### Schema
+
+```json
+{
+  "SoundEvents": {
+    "Drop": "<sound_event_id>",
+    "Drag": "<sound_event_id>"
+  }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `SoundEvents` | `object` | Map of action context to sound event ID |
+| `SoundEvents.Drop` | `string` | Sound when item is dropped |
+| `SoundEvents.Drag` | `string` | Sound when item is dragged |
+
+### Categories
+
+#### Weapons
+
+| Sound Set | Description |
+|-----------|-------------|
+| `ISS_Weapons_Blade_Large` | Large swords, greatswords |
+| `ISS_Weapon_Blade_Small` | Daggers, knives |
+| `ISS_Weapon_Blunt_Large` | Hammers, maces |
+| `ISS_Weapons_Blunt_Small` | Clubs, small bludgeons |
+| `ISS_Weapons_Stone_Large` | Large stone weapons |
+| `ISS_Weapons_Stone_Small` | Small stone weapons |
+| `ISS_Weapons_Wood` | Wooden weapons |
+| `ISS_Weapons_Wand` | Magic wands |
+| `ISS_Weapons_Shield_Metal` | Metal shields |
+| `ISS_Weapons_Shield_Wood` | Wooden shields |
+| `ISS_Weapons_Arrows` | Arrows and bolts |
+| `ISS_Weapons_Books` | Spellbooks |
+
+#### Armor
+
+| Sound Set | Description |
+|-----------|-------------|
+| `ISS_Armor_Heavy` | Plate armor, metal gear |
+| `ISS_Armor_Leather` | Leather armor |
+| `ISS_Armor_Cloth` | Cloth armor, robes |
+
+#### Items
+
+| Sound Set | Description |
+|-----------|-------------|
+| `ISS_Items_Metal` | Metal ingots, tools |
+| `ISS_Items_Cloth` | Fabric, clothing |
+| `ISS_Items_Leather` | Leather items |
+| `ISS_Items_Paper` | Books, scrolls, paper |
+| `ISS_Items_Potion` | Potions, bottles |
+| `ISS_Items_Gems` | Gems, crystals |
+| `ISS_Items_Ingots` | Metal bars |
+| `ISS_Items_Bones` | Bones, skeletal items |
+| `ISS_Items_Seeds` | Seeds, small items |
+| `ISS_Items_Foliage` | Plant materials |
+| `ISS_Items_Clay` | Clay, ceramic items |
+| `ISS_Items_Shells` | Shells, chitin |
+| `ISS_Items_Splatty` | Soft, wet items |
+| `ISS_Items_Chest` | Chests, containers |
+| `ISS_Items_Gadget` | Mechanical items |
+
+#### Blocks
+
+| Sound Set | Description |
+|-----------|-------------|
+| `ISS_Blocks_Wood` | Wooden blocks |
+| `ISS_Blocks_Stone` | Stone blocks |
+| `ISS_Blocks_Gravel` | Gravel, loose materials |
+| `ISS_Blocks_Soft` | Soft blocks (dirt, sand) |
+| `ISS_Blocks_Splatty` | Wet/muddy blocks |
+
+### Examples
+
+```json title="ISS_Weapons_Blade_Large.json"
+{
+  "SoundEvents": {
+    "Drop": "SFX_Drop_Weapons_Blade_Large",
+    "Drag": "SFX_Drag_Weapons_Blade_Large"
+  }
+}
+```
+
+```json title="ISS_Default.json"
+{
+  "SoundEvents": {
+    "Drag": "SFX_Drag_Item_Default",
+    "Drop": "SFX_Drop_Item_Default"
+  }
+}
+```
+
+```json title="ISS_Armor_Heavy.json"
+{
+  "SoundEvents": {
+    "Drag": "SFX_Drag_Armor_Heavy",
+    "Drop": "SFX_Drop_Armor_Heavy"
+  }
+}
+```
+
+### Usage in Items
+
+Items reference sound sets via the `ItemSoundSetId` property:
+
+```json title="Weapon_Sword_Iron.json (excerpt)"
+{
+  "Parent": "Template_Weapon_Sword",
+  "ItemSoundSetId": "ISS_Weapons_Blade_Large",
+  "Model": "Items/Weapons/Sword/Iron.blockymodel"
+}
+```
+
+## UI Sound Sets
+
+UI Sound Sets define sounds for specific interface interactions.
+
+### Schema
+
+```json
+{
+  "SoundEvents": {
+    "<context>": "<sound_event_id>"
+  },
+  "Category": "<audio_category>"
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `SoundEvents` | `object` | Map of UI context to sound event ID |
+| `Category` | `string` | Audio category for volume control |
+
+### Creative Play Sound Set
+
+```json title="CreativePlayDefaults.json"
+{
+  "SoundEvents": {
+    "Error": "SFX_Creative_Play_Error",
+    "Rotate_Yaw": "SFX_Rotate_Yaw_Default",
+    "Rotate_Pitch": "SFX_Rotate_Pitch_Default",
+    "Rotate_Roll": "SFX_Rotate_Roll_Default",
+    "Eyedropper_Select": "SFX_Creative_Play_Eyedropper_Select",
+    "Add_Mask": "SFX_Creative_Play_Add_Mask",
+    "Set_Mask": "SFX_Creative_Play_Set_Mask",
+    "Selection_Scale": "SFX_Creative_Play_Selection_Scale",
+    "Selection_Drag": "SFX_Creative_Play_Selection_Drag",
+    "Selection_Widget": "SFX_Creative_Play_Selection_Widget",
+    "Selection_Place": "SFX_Creative_Play_Selection_Place",
+    "Brush_Mode": "SFX_Creative_Play_Brush_Mode",
+    "Brush_Erase": "SFX_Creative_Play_Brush_Erase",
+    "Brush_Paint": "SFX_Creative_Play_Brush_Paint_Base",
+    "Brush_Stamp": "SFX_Creative_Play_Brush_Stamp",
+    "Brush_Paint_Idle_Layer": "SFX_Creative_Play_Brush_Paint_Idle_Layer",
+    "Brush_Paint_Move_Layer": "SFX_Creative_Play_Brush_Paint_Move_Layer",
+    "Brush_Shape": "SFX_Creative_Play_Brush_Shape",
+    "Paste": "SFX_Creative_Play_Paste"
+  },
+  "Category": "UI"
+}
+```
+
+## Audio Categories
+
+Audio categories define volume settings and hierarchy for groups of sounds.
+
+### Schema
+
+```json
+{
+  "Volume": <float>,
+  "Parent": "<parent_category_id>"
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Volume` | `float` | Volume level (0 = uses parent/default) |
+| `Parent` | `string` | Parent category for inheritance |
+
+### Top-Level Categories
+
+| Category | Description |
+|----------|-------------|
+| `AudioCat_Music` | Background music |
+| `AudioCat_Weapons` | Weapon sounds |
+| `AudioCat_Footsteps` | Movement sounds |
+| `AudioCat_NPC` | NPC vocalizations |
+| `AudioCat_Inventory` | Inventory interactions |
+| `AudioCat_Discovery` | Discovery notifications |
+
+### NPC Audio Categories
+
+NPC-specific audio categories inherit from `AudioCat_NPC`:
+
+```json title="AudioCat_NPC_Wolf.json"
+{
+  "Volume": 0,
+  "Parent": "AudioCat_NPC"
+}
+```
+
+**Available NPC Categories**:
+- Livestock: `AudioCat_NPC_Cow`, `AudioCat_NPC_Sheep`, `AudioCat_NPC_Pig`, `AudioCat_NPC_Horse`, `AudioCat_NPC_Chicken`
+- Predators: `AudioCat_NPC_Wolf`, `AudioCat_NPC_Bear_Grizzly`, `AudioCat_NPC_Hyena`, `AudioCat_NPC_Fox`
+- Creatures: `AudioCat_NPC_Spider`, `AudioCat_NPC_Snake`, `AudioCat_NPC_Scorpion`, `AudioCat_NPC_Bat`
+- Enemies: `AudioCat_NPC_Zombie`, `AudioCat_NPC_Skeleton`, `AudioCat_NPC_Goblin`, `AudioCat_NPC_Trork`
+- Mythical: `AudioCat_NPC_Dragon`, `AudioCat_NPC_Yeti`, `AudioCat_NPC_Fen_Stalker`
+- Birds: `AudioCat_NPC_Crow`, `AudioCat_NPC_Owl`, `AudioCat_NPC_Sparrow`, `AudioCat_NPC_Raven`
+
+### Weapon Audio Categories
+
+Weapon-specific categories for combat sounds:
+
+| Category | Description |
+|----------|-------------|
+| `AudioCat_Sword` | Sword combat sounds |
+| `AudioCat_Battleaxe` | Axe combat sounds |
+| `AudioCat_Mace` | Blunt weapon sounds |
+| `AudioCat_Daggers` | Dagger combat sounds |
+| `AudioCat_Shortbow` | Bow sounds |
+| `AudioCat_Hand_Crossbow` | Crossbow sounds |
+| `AudioCat_Magic_Staff` | Staff/magic sounds |
+| `AudioCat_Shield` | Shield block sounds |
+
+## Ambience Sound Sets
+
+Ambience systems define environmental audio with conditions.
+
+### Ambient Bed Schema
+
+Background ambient loops:
+
+```json title="AmbFX_Zone1_Plains_Gen_Day.json"
+{
+  "Conditions": {
+    "DayTime": {
+      "Min": 5,
+      "Max": 19
+    },
+    "SunLightLevel": {
+      "Min": 10,
+      "Max": 15
+    },
+    "EnvironmentTagPattern": {
+      "Op": "And",
+      "Patterns": [
+        { "Op": "Equals", "Tag": "Zone1" },
+        {
+          "Op": "Or",
+          "Patterns": [
+            { "Op": "Equals", "Tag": "Plains" },
+            { "Op": "Equals", "Tag": "Encounters" }
+          ]
+        }
+      ]
+    },
+    "Walls": {
+      "Min": 0,
+      "Max": 3
+    }
+  },
+  "AmbientBed": {
+    "Track": "Sounds/Environments/Zone1/Environments/Plains/Day/Z1_Plains_Gen_Day_Stereo_LOOP.ogg",
+    "Volume": 1.0
+  }
+}
+```
+
+### Emitter Schema
+
+Positional ambient sounds:
+
+```json title="Emit_Zone1_Plains_Gen_Day.json"
+{
+  "Conditions": {
+    "DayTime": {
+      "Min": 5,
+      "Max": 19
+    },
+    "SunLightLevel": {
+      "Min": 10,
+      "Max": 15
+    },
+    "EnvironmentTagPattern": {
+      "Op": "And",
+      "Patterns": [
+        { "Op": "Equals", "Tag": "Zone1" },
+        { "Op": "Or", "Patterns": [
+          { "Op": "Equals", "Tag": "Plains" },
+          { "Op": "Equals", "Tag": "Encounters" }
+        ]}
+      ]
+    },
+    "WeatherTagPattern": {
+      "Op": "Not",
+      "Pattern": { "Op": "Equals", "Tag": "Rain" }
+    }
+  },
+  "Sounds": [
+    {
+      "SoundEventId": "SFX_Z1_Emit_Plains_Gen_Day_Birds",
+      "Frequency": { "Min": 1, "Max": 3 },
+      "Radius": { "Min": 1, "Max": 7 }
+    },
+    {
+      "SoundEventId": "SFX_Z1_Emit_Plains_Gen_Day_Insects",
+      "Radius": { "Min": 2, "Max": 8 },
+      "Frequency": { "Min": 2, "Max": 4 }
+    },
+    {
+      "SoundEventId": "SFX_Z1_Emit_Plains_Gen_Day_Wind",
+      "Frequency": { "Min": 0, "Max": 2 },
+      "Radius": { "Min": 2, "Max": 5 }
+    }
+  ]
+}
+```
+
+### Condition Properties
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `DayTime` | `object` | Hour range (0-24) |
+| `SunLightLevel` | `object` | Sun exposure level (0-15) |
+| `EnvironmentTagPattern` | `object` | Environment tag matching |
+| `WeatherTagPattern` | `object` | Weather tag matching |
+| `Walls` | `object` | Enclosure level (0-4) |
+
+### Tag Pattern Operators
+
+| Operator | Description |
+|----------|-------------|
+| `Equals` | Tag matches exactly |
+| `And` | All patterns must match |
+| `Or` | Any pattern must match |
+| `Not` | Pattern must not match |
+
+### Emitter Sound Properties
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `SoundEventId` | `string` | Sound event to play |
+| `Frequency` | `object` | Time between plays (seconds) |
+| `Radius` | `object` | Distance range (blocks) |
+
+## Ambience Organization
+
+<FileTree>
+- Assets/Server/Audio/AmbienceFX/
+  - Ambience/
+    - Zone1/
+      - Global/
+        - Night/
+        - Wind/
+        - Sunrise/
+        - Sunset/
+      - Environments/
+        - Plains/
+          - Day/
+          - Night/
+        - Forest/
+        - Swamp/
+        - Mountain/
+        - Shore/
+        - Dungeon/
+        - Trork/
+        - Kweebec/
+    - Zone2/
+    - Zone3/
+    - Zone4/
+    - Global/
+      - Cave/
+    - Unique/
+      - Forgotten_Temple/
+      - Dread_Wade/
+  - ReverbZones/
+    - Plains/
+    - Forest/
+    - Mountain/
+    - Swamp/
+    - Underground/
+    - Prefabs/
+</FileTree>
+
+## Creating Custom Sound Sets
+
+### Item Sound Set
+
+```json title="MyPlugin_ISS_Custom.json"
+{
+  "SoundEvents": {
+    "Drop": "SFX_MyPlugin_Item_Drop",
+    "Drag": "SFX_MyPlugin_Item_Drag"
+  }
+}
+```
+
+### NPC Audio Category
+
+```json title="AudioCat_NPC_MyCreature.json"
+{
+  "Volume": 0,
+  "Parent": "AudioCat_NPC"
+}
+```
+
+### Custom Ambience
+
+```json title="AmbFX_MyPlugin_Cave.json"
+{
+  "Conditions": {
+    "SunLightLevel": {
+      "Min": 0,
+      "Max": 4
+    },
+    "EnvironmentTagPattern": {
+      "Op": "Equals",
+      "Tag": "Cave"
+    }
+  },
+  "AmbientBed": {
+    "Track": "Sounds/MyPlugin/Cave_Ambient_LOOP.ogg",
+    "Volume": 0.8
+  }
+}
+```
+
+## Best Practices
+
+1. **Use appropriate categories** - Match item type to sound set
+2. **Inherit from parents** - Use `Parent` for NPC categories
+3. **Set conditions carefully** - Ensure ambience doesn't overlap incorrectly
+4. **Use tag patterns** - Combine environment and weather tags
+5. **Test volume levels** - Ensure sounds aren't too loud/quiet
+6. **Follow naming conventions** - Use `ISS_`, `AudioCat_`, `AmbFX_` prefixes
+
+## Related
+
+- [Audio Overview](/api-reference/assets/audio/overview/) - Audio system overview
+- [Sound Events](/api-reference/assets/audio/sound-events/) - Sound event definitions
+- [Audio Effects](/api-reference/assets/audio/effects/) - Reverb and EQ effects
+- [Weather Systems](/api-reference/assets/world/weather/) - Weather that affects ambience
+- [Environments](/api-reference/assets/world/environments/) - Environment tags

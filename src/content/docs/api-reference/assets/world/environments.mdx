@@ -1,0 +1,278 @@
+---
+title: "Environment Configuration"
+---
+
+{/* [VERIFIED: 2026-01-20] */}
+
+import { Aside, Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="AI-Generated Content">
+This documentation was generated from analysis of decompiled source code and game assets. Some details may be incomplete or subject to change.
+</Aside>
+
+Environment configurations define weather forecasts, spawn densities, and audio/visual settings for different world regions. Each zone and biome can have unique environmental characteristics.
+
+## Asset Location
+
+<FileTree>
+- Assets/Server/Environments/
+  - Default.json
+  - Zone0/
+  - Zone1/
+    - Env_Zone1_Autumn.json
+    - Env_Zone1_Azure.json
+    - Env_Zone1_Caves.json
+    - Env_Zone1_Caves_Forests.json
+    - Env_Zone1_Caves_Goblins.json
+    - Env_Zone1_Dungeons.json
+  - Zone2/
+  - Zone3/
+  - Zone4/
+  - Unique/
+  - Legacy/
+</FileTree>
+
+## Environment Schema
+
+### Core Properties
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `WeatherForecasts` | `object` | Hour-by-hour weather configuration |
+| `SpawnDensity` | `float` | NPC spawn multiplier (0-1) |
+| `Tags` | `object` | Environment classification tags |
+
+### Weather Forecasts
+
+Weather is configured per hour (0-23):
+
+```json title="Basic weather forecast structure"
+{
+  "WeatherForecasts": {
+    "0": [
+      { "WeatherId": "Zone1_Clear", "Weight": 60 },
+      { "WeatherId": "Zone1_Cloudy_Light", "Weight": 30 },
+      { "WeatherId": "Zone1_Rain_Light", "Weight": 10 }
+    ],
+    "1": [
+      { "WeatherId": "Zone1_Clear", "Weight": 60 },
+      { "WeatherId": "Zone1_Cloudy_Light", "Weight": 40 }
+    ]
+  }
+}
+```
+
+### Weather Entry Properties
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `WeatherId` | `string` | Reference to weather definition |
+| `Weight` | `int` | Probability weight (higher = more likely) |
+
+### Tags
+
+Tags categorize environments for spawning and behavior:
+
+```json
+{
+  "Tags": {
+    "Zone1": ["Caves", "Forests"],
+    "Biome": ["Underground"]
+  }
+}
+```
+
+## Zone Environments
+
+### Zone 1 (Plains)
+
+| Environment | Description |
+|-------------|-------------|
+| `Env_Zone1_Autumn` | Fall-themed with warm colors |
+| `Env_Zone1_Azure` | Blue-tinted magical area |
+| `Env_Zone1_Caves` | Underground cave system |
+| `Env_Zone1_Caves_Forests` | Forest cave entrances |
+| `Env_Zone1_Caves_Goblins` | Goblin-inhabited caves |
+| `Env_Zone1_Caves_Mountains` | Mountain caverns |
+| `Env_Zone1_Caves_Plains` | Plains cave system |
+| `Env_Zone1_Caves_Rats` | Rat-infested caves |
+| `Env_Zone1_Caves_Spiders` | Spider nest caves |
+| `Env_Zone1_Caves_Swamps` | Swamp caverns |
+| `Env_Zone1_Caves_Volcanic_T1-T3` | Volcanic caves (tiers) |
+| `Env_Zone1_Dungeons` | Dungeon interiors |
+| `Env_Zone1_Encounters` | Combat encounter areas |
+
+### Zone 2 (Desert)
+
+Desert and jungle environments with heat effects.
+
+### Zone 3 (Taiga)
+
+Cold environments with snow and ice.
+
+### Zone 4 (Volcanic)
+
+Extreme heat and lava environments.
+
+## Examples
+
+### Cave Environment
+
+```json title="Env_Zone1_Caves.json"
+{
+  "SpawnDensity": 0.5,
+  "Tags": {
+    "Zone1": ["Caves"]
+  },
+  "WeatherForecasts": {
+    "0": [{ "WeatherId": "Cave_Shallow", "Weight": 100 }],
+    "1": [{ "WeatherId": "Cave_Shallow", "Weight": 100 }],
+    "2": [{ "WeatherId": "Cave_Shallow", "Weight": 100 }],
+    "3": [{ "WeatherId": "Cave_Shallow", "Weight": 100 }],
+    "4": [{ "WeatherId": "Cave_Shallow", "Weight": 100 }],
+    "5": [{ "WeatherId": "Cave_Shallow", "Weight": 100 }],
+    "6": [{ "WeatherId": "Cave_Shallow", "Weight": 100 }],
+    "7": [{ "WeatherId": "Cave_Shallow", "Weight": 100 }],
+    "8": [{ "WeatherId": "Cave_Shallow", "Weight": 100 }],
+    "9": [{ "WeatherId": "Cave_Shallow", "Weight": 100 }],
+    "10": [{ "WeatherId": "Cave_Shallow", "Weight": 100 }],
+    "11": [{ "WeatherId": "Cave_Shallow", "Weight": 100 }],
+    "12": [{ "WeatherId": "Cave_Shallow", "Weight": 100 }],
+    "13": [{ "WeatherId": "Cave_Shallow", "Weight": 100 }],
+    "14": [{ "WeatherId": "Cave_Shallow", "Weight": 100 }],
+    "15": [{ "WeatherId": "Cave_Shallow", "Weight": 100 }],
+    "16": [{ "WeatherId": "Cave_Shallow", "Weight": 100 }],
+    "17": [{ "WeatherId": "Cave_Shallow", "Weight": 100 }],
+    "18": [{ "WeatherId": "Cave_Shallow", "Weight": 100 }],
+    "19": [{ "WeatherId": "Cave_Shallow", "Weight": 100 }],
+    "20": [{ "WeatherId": "Cave_Shallow", "Weight": 100 }],
+    "21": [{ "WeatherId": "Cave_Shallow", "Weight": 100 }],
+    "22": [{ "WeatherId": "Cave_Shallow", "Weight": 100 }],
+    "23": [{ "WeatherId": "Cave_Shallow", "Weight": 100 }]
+  }
+}
+```
+
+Key characteristics:
+- **50% spawn density** - Reduced monster spawning
+- **Cave_Shallow weather** - Constant cave conditions (no time-of-day change)
+- **Tags** - Marked as Zone1 Caves for spawn rules
+
+### Dynamic Weather Environment
+
+```json title="Example outdoor environment"
+{
+  "SpawnDensity": 1.0,
+  "Tags": {
+    "Zone1": ["Plains", "Outdoor"]
+  },
+  "WeatherForecasts": {
+    "0": [
+      { "WeatherId": "Zone1_Clear_Night", "Weight": 70 },
+      { "WeatherId": "Zone1_Cloudy_Night", "Weight": 30 }
+    ],
+    "6": [
+      { "WeatherId": "Zone1_Clear_Dawn", "Weight": 60 },
+      { "WeatherId": "Zone1_Fog_Morning", "Weight": 40 }
+    ],
+    "12": [
+      { "WeatherId": "Zone1_Clear_Day", "Weight": 50 },
+      { "WeatherId": "Zone1_Cloudy_Day", "Weight": 30 },
+      { "WeatherId": "Zone1_Rain", "Weight": 20 }
+    ],
+    "18": [
+      { "WeatherId": "Zone1_Clear_Dusk", "Weight": 70 },
+      { "WeatherId": "Zone1_Cloudy_Dusk", "Weight": 30 }
+    ]
+  }
+}
+```
+
+## Weather Definitions
+
+Weather definitions are stored in `Assets/Server/Weathers/`:
+
+<FileTree>
+- Assets/Server/Weathers/
+  - Zone1/
+    - Zone1_Clear.json
+    - Zone1_Cloudy_Light.json
+    - Zone1_Cloudy_Medium.json
+    - Zone1_Rain_Light.json
+    - Zone1_Rain_Heavy.json
+    - Zone1_Storm.json
+  - Zone2/
+  - Zone3/
+  - Zone4/
+  - Cave_Shallow.json
+  - Cave_Deep.json
+</FileTree>
+
+Weather definitions include:
+- Sky appearance
+- Fog settings
+- Particle effects (rain, snow)
+- Ambient sounds
+- Reverb preset
+- Lighting adjustments
+
+## Spawn Density
+
+The `SpawnDensity` multiplier affects NPC spawning:
+
+| Value | Effect |
+|-------|--------|
+| `0.0` | No spawning |
+| `0.5` | Half normal spawning |
+| `1.0` | Normal spawning |
+| `1.5` | 150% spawning |
+| `2.0` | Double spawning |
+
+## Creating Custom Environments
+
+```json title="MyPlugin_Env_Custom.json"
+{
+  "SpawnDensity": 0.8,
+  "Tags": {
+    "MyPlugin": ["CustomBiome"],
+    "Zone1": ["Special"]
+  },
+  "WeatherForecasts": {
+    "0": [
+      { "WeatherId": "MyPlugin_Weather_Night", "Weight": 100 }
+    ],
+    "6": [
+      { "WeatherId": "MyPlugin_Weather_Dawn", "Weight": 100 }
+    ],
+    "12": [
+      { "WeatherId": "MyPlugin_Weather_Day", "Weight": 70 },
+      { "WeatherId": "MyPlugin_Weather_Special", "Weight": 30 }
+    ],
+    "18": [
+      { "WeatherId": "MyPlugin_Weather_Dusk", "Weight": 100 }
+    ]
+  }
+}
+```
+
+## Environment Transitions
+
+When players move between environments:
+- Weather interpolates smoothly
+- Audio crossfades between ambiences
+- Spawn rules update at boundaries
+- Visual effects blend between settings
+
+## Best Practices
+
+1. **Use weights wisely** - Higher weights = more common weather
+2. **Match time of day** - Use appropriate weather for each hour
+3. **Consider spawn density** - Balance difficulty with density
+4. **Use meaningful tags** - Enable targeted NPC spawn rules
+5. **Test transitions** - Ensure smooth environment boundaries
+
+## Related
+
+- [Audio Effects](/api-reference/assets/audio/effects/) - Reverb and EQ presets
+- [Particle Systems](/api-reference/assets/vfx/particles/) - Weather particles
+- [World Overview](/api-reference/world/overview/) - World system API

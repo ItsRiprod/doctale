@@ -1,0 +1,363 @@
+---
+title: "Block Textures"
+---
+
+{/* [VERIFIED: 2026-01-20] */}
+
+import { Aside, Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="AI-Generated Content">
+This documentation was generated from analysis of decompiled source code and game assets. Some details may be incomplete or subject to change.
+</Aside>
+
+Block textures define the visual appearance of blocks in the game world. The texture system supports directional variants (top, side, bottom), animated textures, and tint gradients for biome-based coloring.
+
+## Asset Location
+
+<FileTree>
+- Assets/Common/
+  - BlockTextures/
+    - Soil_Dirt.png
+    - Soil_Grass_Side.png
+    - Soil_Grass_Top_GS.png
+    - Rock_Basalt.png
+    - Rock_Basalt_Brick.png
+    - Clay_Blue.png
+    - ...645 texture files
+  - Blocks/
+    - Decorative_Sets/
+      - Village/
+      - Tavern/
+      - Ancient/
+    - Stone/
+    - Foliage/
+    - Farming/
+  - TintGradients/
+    - Grass_Cold.png
+    - Grass_Warm.png
+</FileTree>
+
+## Texture Organization
+
+### Block Textures Directory
+
+The `BlockTextures/` directory contains ~645 PNG texture files for standard blocks. Textures are organized by naming convention rather than subdirectories.
+
+### Naming Conventions
+
+#### Base Textures
+
+```
+{Category}_{Material}.png
+```
+
+Examples:
+- `Soil_Dirt.png` - Basic dirt texture
+- `Rock_Basalt.png` - Basalt rock texture
+- `Clay_Blue.png` - Blue clay texture
+- `Chalk.png` - Chalk texture
+
+#### Directional Variants
+
+Blocks with different appearances on different faces use suffixes:
+
+| Suffix | Face | Description |
+|--------|------|-------------|
+| `_Top` | +Y | Top face of block |
+| `_Side` | ±X, ±Z | Side faces |
+| `_Bottom` | -Y | Bottom face |
+| `_Front` | -Z | Front face (oriented blocks) |
+| `_Back` | +Z | Back face |
+
+Examples:
+- `Soil_Grass_Top.png` - Grass top face
+- `Soil_Grass_Side.png` - Grass side face (dirt with grass edge)
+- `Bone_Top.png` - Bone block top
+- `Bone_Side.png` - Bone block sides
+
+#### Variant Textures
+
+Multiple visual variants use numeric suffixes:
+
+```
+{Name}_{Variant}.png
+```
+
+Examples:
+- `Peachstone_Brick.png`
+- `Peachstone_Brick02.png`
+- `Peachstone_Brick03.png`
+- `Peachstone_Brick04.png`
+
+#### Decorative Variants
+
+| Suffix | Description |
+|--------|-------------|
+| `_Brick` | Brick pattern |
+| `_Cobble` | Cobblestone pattern |
+| `_Smooth` | Smooth surface |
+| `_Ornate` | Decorative pattern |
+| `_Decorative` | Complex decorative pattern |
+
+Examples:
+- `Calcite.png` - Base calcite
+- `Calcite_Brick.png` - Calcite bricks
+- `Calcite_Brick_Smooth.png` - Smooth calcite bricks
+- `Calcite_Brick_Ornate.png` - Ornate calcite bricks
+- `Calcite_Cobble.png` - Calcite cobblestone
+
+### Tint Gradient Textures
+
+Suffix `_GS` indicates a grayscale texture that uses tint gradients for biome-based coloring:
+
+- `Soil_Grass_Top_GS.png` - Grayscale grass for tinting
+- `Soil_Grass_Side_GS.png` - Grayscale grass side
+- `Moss_Block_GS_Top.png` - Grayscale moss
+
+## Texture Categories
+
+### Soil & Natural
+
+| Category | Count | Examples |
+|----------|-------|----------|
+| Soil | ~40 | `Soil_Dirt`, `Soil_Grass`, `Soil_Clay` |
+| Rock | ~100 | `Rock_Basalt`, `Rock_Aqua`, `Rock_Crystal` |
+| Sand | ~15 | `Sand`, `Sand_Red`, `Sand_Volcanic` |
+| Clay | ~30 | `Clay_Blue`, `Clay_Smooth_Red` |
+
+### Processed & Building
+
+| Category | Count | Examples |
+|----------|-------|----------|
+| Brick | ~50 | `Calcite_Brick`, `Rock_Basalt_Brick` |
+| Plank | ~20 | `Plank_Oak`, `Plank_Pine` |
+| Metal | ~15 | `Metal_Iron`, `Metal_Gold` |
+| Glass | ~10 | `Glass`, `Glass_Stained_*` |
+
+### Special
+
+| Category | Count | Examples |
+|----------|-------|----------|
+| Crystal | ~20 | `Rock_Crystal_Blue`, `Rock_Crystal_Purple` |
+| Mushroom | ~15 | `Mushroom_Block_Blue`, `Mushroom_Block_Brown` |
+| Cloth | ~15 | `Cloth_Black`, `Cloth_Blue` |
+
+## Block Type Lists
+
+Block types are organized into lists for tool interactions and game logic.
+
+<FileTree>
+- Assets/Server/BlockTypeList/
+  - Soils.json
+  - Rock.json
+  - Ores.json
+  - Snow.json
+  - TreeWood.json
+  - TreeLeaves.json
+  - Gravel.json
+  - PlantsAndTrees.json
+</FileTree>
+
+### Soils List
+
+```json title="Soils.json"
+{
+  "Blocks": [
+    "Soil_Dirt",
+    "Soil_Dirt_Burnt",
+    "Soil_Dirt_Cold",
+    "Soil_Dirt_Dry",
+    "Soil_Dirt_Poisoned",
+    "Soil_Grass",
+    "Soil_Grass_Burnt",
+    "Soil_Grass_Cold",
+    "Soil_Grass_Deep",
+    "Soil_Grass_Dry",
+    "Soil_Grass_Full",
+    "Soil_Grass_Sunny",
+    "Soil_Grass_Wet"
+  ]
+}
+```
+
+These lists are used by tools to determine mining behavior and durability loss.
+
+## Decorative Sets
+
+The `Blocks/Decorative_Sets/` directory contains themed block collections with models and textures.
+
+### Available Sets
+
+| Set | Contents | Theme |
+|-----|----------|-------|
+| Village | Furniture, containers | Human village |
+| Tavern | Tables, chairs, barrels | Inn furnishings |
+| Ancient | Ruins, artifacts | Ancient civilization |
+| Desert | Desert structures | Arid region |
+| Frozen_Castle | Ice furniture | Frozen region |
+| Jungle | Jungle structures | Tropical region |
+| Kweebec | Kweebec-style | Kweebec architecture |
+| Temple_Light | Temple blocks | Light temple |
+| Temple_Dark | Temple blocks | Dark temple |
+| Temple_Emerald | Temple blocks | Emerald temple |
+| Scarak_Hive | Organic shapes | Scarak structures |
+| Scarak_Temple | Temple blocks | Scarak temple |
+
+### Set Contents
+
+Each decorative set typically includes:
+
+```
+{Set}/
+├── Barrel.blockymodel
+├── Barrel_*.png (texture variants)
+├── Bed.blockymodel
+├── Bed_Texture.png
+├── Chair.blockymodel
+├── Chair_Texture.png
+├── Chest.blockymodel
+├── Chest_Texture.png
+├── Door.blockymodel
+├── Door_Texture.png
+├── Table.blockymodel
+├── Table_Texture.png
+├── Lantern.blockymodel
+├── Lantern_Texture.png
+└── ...
+```
+
+### Village Set Example
+
+```
+Village/
+├── Barrel.blockymodel
+├── Barrel_Ancient.png
+├── Barrel_Crude.png
+├── Barrel_Tavern.png
+├── Bed.blockymodel
+├── Bed_Texture.png
+├── Bench.blockymodel
+├── Chest.blockymodel
+├── Chest_Small.blockymodel
+├── Door.blockymodel
+├── Lantern.blockymodel
+├── Lantern_Ceiling.blockymodel
+├── Painting*.blockymodel (various sizes)
+├── Pot.blockymodel
+├── Pot_Broken.blockymodel
+├── Table.blockymodel
+├── Wardrobe.blockymodel
+└── Window*.blockymodel (connected block variants)
+```
+
+## Texture Requirements
+
+### Dimensions
+
+| Requirement | Value |
+|-------------|-------|
+| Size | Multiples of 32px (32, 64, 96, 128...) |
+| Standard block | 32x32 pixels |
+| High-detail | 64x64 or 128x128 pixels |
+| Format | PNG with alpha channel |
+
+### Alpha Channel
+
+- **Opaque blocks**: No alpha needed
+- **Transparent blocks** (glass, leaves): Alpha for transparency
+- **Connected blocks**: Alpha for edge blending
+
+### Tint Gradients
+
+For biome-tinted textures (grass, leaves):
+
+1. Create grayscale base texture (`_GS` suffix)
+2. Game applies tint gradient based on biome
+3. Allows same texture to appear different colors in different regions
+
+## Creating Custom Textures
+
+### Basic Block Texture
+
+```
+MyPlugin_Block_Custom.png
+```
+
+- Size: 32x32 pixels
+- PNG format
+- Place in plugin's assets folder
+
+### Directional Block
+
+For blocks with different top/side/bottom:
+
+```
+MyPlugin_Block_Custom.png        # All faces (fallback)
+MyPlugin_Block_Custom_Top.png    # Top face
+MyPlugin_Block_Custom_Side.png   # Side faces
+MyPlugin_Block_Custom_Bottom.png # Bottom face
+```
+
+### Tinted Block
+
+1. Create grayscale texture:
+```
+MyPlugin_Grass_Custom_GS.png
+```
+
+2. Reference tint gradient in block definition
+
+### Texture Variants
+
+For random variation:
+```
+MyPlugin_Block_Stone.png
+MyPlugin_Block_Stone02.png
+MyPlugin_Block_Stone03.png
+```
+
+## Color Categories
+
+### Natural Colors by Biome
+
+| Biome | Grass Tint | Soil Color |
+|-------|------------|------------|
+| Plains | Bright green | Brown |
+| Desert | Yellow-green | Tan |
+| Cold/Taiga | Blue-green | Gray-brown |
+| Jungle | Deep green | Dark brown |
+| Volcanic | Orange | Black/gray |
+| Burnt | Brown | Charred |
+
+### Clay Colors
+
+Available clay colors:
+- Black, Blue, Cyan, Green, Grey
+- Lime, Orange, Pink, Purple
+- Red, White, Yellow
+
+Each has both rough (`Clay_*`) and smooth (`Clay_Smooth_*`) variants.
+
+### Crystal Colors
+
+- Blue, Cyan, Green, Pink, Purple, Red
+
+Each crystal color has base and `_Top` variants.
+
+## Best Practices
+
+1. **Follow naming conventions** - Use established prefixes and suffixes
+2. **Match existing style** - Study vanilla textures for art direction
+3. **Use appropriate resolution** - 32x32 for most blocks
+4. **Consider tiling** - Textures should tile seamlessly
+5. **Optimize file size** - Use PNG compression
+6. **Test in-game** - Verify appearance under different lighting
+7. **Provide variants** - Multiple variants reduce repetition
+8. **Use grayscale for tinting** - Allows biome adaptation
+
+## Related
+
+- [Block Types](/api-reference/assets/blocks/block-types/) - Block definitions
+- [Decorative Sets](/api-reference/assets/blocks/decorative-sets/) - Themed block sets
+- [Animations](/api-reference/assets/blocks/animations/) - Block animations
+- [Connected Blocks](/api-reference/world/connected-blocks/) - Multi-block connections

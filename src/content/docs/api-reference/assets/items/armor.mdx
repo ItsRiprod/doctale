@@ -1,0 +1,668 @@
+---
+title: "Armor"
+---
+
+{/* [VERIFIED: 2026-01-20] */}
+
+import { Aside, Card, CardGrid, LinkCard, Tabs, TabItem, FileTree, Badge } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="AI-Generated Content">
+This documentation was generated from analysis of 119 armor definition files in `/Assets/Server/Item/Items/Armor/`.
+Verify all information against actual asset files before use in production.
+</Aside>
+
+Armor items provide defensive stats through damage resistance and health bonuses. Armor pieces equip to specific slots on the player character and can hide certain cosmetic elements when worn.
+
+## Asset Location
+
+**Server Definitions:** `Assets/Server/Item/Items/Armor/[Material]/`
+**Client Models:** `Assets/Common/Items/Armors/[Material]/`
+
+## Armor Slots
+
+Each armor piece equips to one of four slots:
+
+| Slot | Piece Name | Protection Weight | Example |
+|------|------------|-------------------|---------|
+| `Head` | Helmet | 20% | `Armor_Iron_Head` |
+| `Chest` | Chestplate | 36% | `Armor_Iron_Chest` |
+| `Hands` | Gauntlets | 16% | `Armor_Iron_Hands` |
+| `Legs` | Leggings | 28% | `Armor_Iron_Legs` |
+
+## Armor Materials (30 Sets)
+
+### Heavy Armor (Metal)
+
+| Material | Quality | Item Level | Durability | Description |
+|----------|---------|------------|------------|-------------|
+| Copper | Common | 15 | 80 | Early-game metal |
+| Bronze | Common | 17 | 90 | Copper alloy |
+| Iron | Uncommon | 20 | 100 | Standard metal |
+| Steel | Uncommon | 25 | 110 | Reinforced iron |
+| Cobalt | Rare | 30 | 120 | Blue metal |
+| Mithril | Rare | 35 | 130 | Lightweight metal |
+| Thorium | Epic | 40 | 140 | Radioactive metal |
+| Onyxium | Epic | 45 | 145 | Dark metal |
+| Adamantite | Legendary | 50 | 150 | Ultimate metal |
+
+### Medium Armor (Leather)
+
+| Material | Quality | Item Level | Durability | Description |
+|----------|---------|------------|------------|-------------|
+| Leather_Soft | Common | 10 | 100 | Basic hide |
+| Leather_Light | Common | 15 | 120 | Treated leather |
+| Leather_Medium | Uncommon | 20 | 130 | Reinforced leather |
+| Leather_Heavy | Rare | 25 | 140 | Hardened leather |
+| Leather_Raven | Epic | 30 | 150 | Dark leather |
+
+### Light Armor (Cloth)
+
+| Material | Quality | Item Level | Durability | Description |
+|----------|---------|------------|------------|-------------|
+| Cloth_Linen | Common | 10 | 120 | Basic fabric |
+| Cloth_Cotton | Common | 15 | 130 | Woven cotton |
+| Cloth_Wool | Uncommon | 20 | 140 | Warm wool |
+| Cloth_Silk | Rare | 25 | 150 | Fine silk |
+| Cloth_Cindercloth | Epic | 30 | 160 | Fire-resistant |
+
+### Special Armor
+
+| Material | Quality | Description |
+|----------|---------|-------------|
+| Bronze_Ornate | Uncommon | Decorative bronze |
+| Steel_Ancient | Rare | Ancient steel set |
+| Diving_Crude | Common | Underwater gear |
+| Kweebec | Uncommon | Kweebec-styled |
+| Trork_Warrior | Uncommon | Trork tribal |
+| Trooper | Rare | Military set |
+| Prisma | Epic | Crystalline armor |
+| Wood | Common | Wooden armor |
+| Wool | Common | Padded wool |
+
+## JSON Schema Reference
+
+### Core Armor Properties
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Parent` | `string` | Template to inherit from (often `Armor_Iron_*`) |
+| `TranslationProperties` | `object` | Localization configuration |
+| `Model` | `string` | Path to `.blockymodel` file |
+| `Texture` | `string` | Path to texture file |
+| `Icon` | `string` | Path to inventory icon |
+| `Quality` | `string` | Quality tier |
+| `ItemLevel` | `integer` | Level requirement |
+| `Categories` | `string[]` | Should include `"Items.Armors"` |
+
+### Armor-Specific Properties
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Armor` | `object` | Armor configuration block |
+| `Armor.ArmorSlot` | `string` | Equipment slot: `Head`, `Chest`, `Hands`, `Legs` |
+| `Armor.BaseDamageResistance` | `number` | Base resistance value (usually 0) |
+| `Armor.DamageResistance` | `object` | Damage reduction by type |
+| `Armor.StatModifiers` | `object` | Stat bonuses (Health, etc.) |
+| `Armor.CosmeticsToHide` | `string[]` | Cosmetic slots hidden by armor |
+| `Armor.DamageClassEnhancement` | `object` | Damage type buffs |
+
+### Durability Properties
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `MaxDurability` | `number` | `100` | Maximum durability |
+| `DurabilityLossOnHit` | `number` | `0.5` | Durability lost when damaged |
+
+## Armor Configuration Block
+
+The `Armor` object contains all armor-specific stats:
+
+```json title="Armor configuration structure"
+{
+  "Armor": {
+    "ArmorSlot": "Chest",
+    "BaseDamageResistance": 0,
+    "CosmeticsToHide": ["Overtop", "Cape"],
+    "DamageResistance": {
+      "Physical": [
+        { "Amount": 0.09, "CalculationType": "Multiplicative" }
+      ],
+      "Projectile": [
+        { "Amount": 0.09, "CalculationType": "Multiplicative" }
+      ]
+    },
+    "StatModifiers": {
+      "Health": [
+        { "Amount": 17, "CalculationType": "Additive" }
+      ]
+    }
+  }
+}
+```
+
+## Damage Resistance System
+
+Armor reduces incoming damage through percentage-based resistance:
+
+### Resistance Formula
+
+```
+Final Damage = Base Damage × (1 - Resistance)
+```
+
+### Resistance by Slot (Iron Tier)
+
+| Slot | Physical Resistance | Health Bonus |
+|------|---------------------|--------------|
+| Head | 5% | +9 |
+| Chest | 9% | +17 |
+| Hands | 4% | +7 |
+| Legs | 7% | +13 |
+| **Full Set** | **25%** | **+46** |
+
+### Resistance Scaling by Material
+
+| Material Tier | Chest Resistance | Full Set Resistance |
+|---------------|------------------|---------------------|
+| Cloth/Leather (Tier 1) | 6% | 15-18% |
+| Copper/Bronze (Tier 2) | 7% | 18-20% |
+| Iron (Tier 3) | 9% | 25% |
+| Steel (Tier 4) | 10% | 28% |
+| Cobalt (Tier 5) | 11% | 31% |
+| Mithril (Tier 6) | 12% | 34% |
+| Adamantite (Tier 7) | 14.4% | 40%+ |
+
+## Complete Armor Examples
+
+### Iron Chestplate
+
+```json title="Armor_Iron_Chest.json" {70-99}
+{
+  "TranslationProperties": {
+    "Name": "server.items.Armor_Iron_Chest.name"
+  },
+  "Quality": "Uncommon",
+  "ItemLevel": 20,
+  "PlayerAnimationsId": "Block",
+  "ItemSoundSetId": "ISS_Armor_Heavy",
+  "Categories": ["Items.Armors"],
+  "Icon": "Icons/ItemsGenerated/Armor_Iron_Chest.png",
+  "IconProperties": {
+    "Rotation": [22.5, 45, 22.5],
+    "Scale": 0.45,
+    "Translation": [0, -13.2]
+  },
+  "Model": "Items/Armors/Iron/Chest.blockymodel",
+  "Texture": "Items/Armors/Iron/Chest_Texture.png",
+  "Recipe": {
+    "Input": [
+      { "ItemId": "Ingredient_Bar_Iron", "Quantity": 16 },
+      { "ItemId": "Ingredient_Leather_Light", "Quantity": 7 },
+      { "ItemId": "Ingredient_Fabric_Scrap_Linen", "Quantity": 6 }
+    ],
+    "BenchRequirement": [{
+      "Id": "Armor_Bench",
+      "Type": "Crafting",
+      "Categories": ["Armor_Chest"]
+    }],
+    "KnowledgeRequired": false,
+    "TimeSeconds": 3
+  },
+  "Interactions": {
+    "Primary": {
+      "Interactions": [{ "Type": "EquipItem" }]
+    },
+    "Secondary": {
+      "Interactions": [{ "Type": "EquipItem" }]
+    }
+  },
+  "Armor": {
+    "ArmorSlot": "Chest",
+    "BaseDamageResistance": 0,
+    "CosmeticsToHide": ["Overtop", "Cape"],
+    "DamageResistance": {
+      "Physical": [
+        { "Amount": 0.09, "CalculationType": "Multiplicative" }
+      ],
+      "Projectile": [
+        { "Amount": 0.09, "CalculationType": "Multiplicative" }
+      ]
+    },
+    "StatModifiers": {
+      "Health": [
+        { "Amount": 17, "CalculationType": "Additive" }
+      ]
+    }
+  },
+  "MaxDurability": 100,
+  "DurabilityLossOnHit": 0.5,
+  "Tags": {
+    "Type": ["Armor"],
+    "Family": ["Iron"]
+  }
+}
+```
+
+### Complete Iron Set
+
+<Tabs>
+  <TabItem label="Head">
+```json title="Armor_Iron_Head.json"
+{
+  "TranslationProperties": {
+    "Name": "server.items.Armor_Iron_Head.name"
+  },
+  "Quality": "Uncommon",
+  "ItemLevel": 20,
+  "PlayerAnimationsId": "Block",
+  "ItemSoundSetId": "ISS_Armor_Heavy",
+  "Categories": ["Items.Armors"],
+  "Icon": "Icons/ItemsGenerated/Armor_Iron_Head.png",
+  "Model": "Items/Armors/Iron/Head.blockymodel",
+  "Texture": "Items/Armors/Iron/Head_Texture.png",
+  "Recipe": {
+    "Input": [
+      { "ItemId": "Ingredient_Bar_Iron", "Quantity": 9 },
+      { "ItemId": "Ingredient_Leather_Light", "Quantity": 4 },
+      { "ItemId": "Ingredient_Fabric_Scrap_Linen", "Quantity": 3 }
+    ],
+    "BenchRequirement": [{
+      "Id": "Armor_Bench",
+      "Type": "Crafting",
+      "Categories": ["Armor_Head"]
+    }],
+    "KnowledgeRequired": false,
+    "TimeSeconds": 3
+  },
+  "Interactions": {
+    "Primary": { "Interactions": [{ "Type": "EquipItem" }] },
+    "Secondary": { "Interactions": [{ "Type": "EquipItem" }] }
+  },
+  "Armor": {
+    "ArmorSlot": "Head",
+    "BaseDamageResistance": 0,
+    "CosmeticsToHide": ["EarAccessory", "Ear", "Haircut", "HeadAccessory"],
+    "DamageResistance": {
+      "Physical": [{ "Amount": 0.05, "CalculationType": "Multiplicative" }],
+      "Projectile": [{ "Amount": 0.05, "CalculationType": "Multiplicative" }]
+    },
+    "StatModifiers": {
+      "Health": [{ "Amount": 9, "CalculationType": "Additive" }]
+    }
+  },
+  "MaxDurability": 100,
+  "DurabilityLossOnHit": 0.5,
+  "Tags": { "Type": ["Armor"], "Family": ["Iron"] }
+}
+```
+  </TabItem>
+  <TabItem label="Hands">
+```json title="Armor_Iron_Hands.json"
+{
+  "TranslationProperties": {
+    "Name": "server.items.Armor_Iron_Hands.name"
+  },
+  "Quality": "Uncommon",
+  "ItemLevel": 20,
+  "PlayerAnimationsId": "Block",
+  "ItemSoundSetId": "ISS_Armor_Heavy",
+  "Categories": ["Items.Armors"],
+  "Icon": "Icons/ItemsGenerated/Armor_Iron_Hands.png",
+  "Model": "Items/Armors/Iron/Hands.blockymodel",
+  "Texture": "Items/Armors/Iron/Hands_Texture.png",
+  "Recipe": {
+    "Input": [
+      { "ItemId": "Ingredient_Bar_Iron", "Quantity": 7 },
+      { "ItemId": "Ingredient_Leather_Light", "Quantity": 3 },
+      { "ItemId": "Ingredient_Fabric_Scrap_Linen", "Quantity": 3 }
+    ],
+    "BenchRequirement": [{
+      "Id": "Armor_Bench",
+      "Type": "Crafting",
+      "Categories": ["Armor_Hands"]
+    }],
+    "KnowledgeRequired": false,
+    "TimeSeconds": 3
+  },
+  "Interactions": {
+    "Primary": { "Interactions": [{ "Type": "EquipItem" }] },
+    "Secondary": { "Interactions": [{ "Type": "EquipItem" }] }
+  },
+  "Armor": {
+    "ArmorSlot": "Hands",
+    "BaseDamageResistance": 0,
+    "DamageResistance": {
+      "Physical": [{ "Amount": 0.04, "CalculationType": "Multiplicative" }],
+      "Projectile": [{ "Amount": 0.04, "CalculationType": "Multiplicative" }]
+    },
+    "StatModifiers": {
+      "Health": [{ "Amount": 7, "CalculationType": "Additive" }]
+    }
+  },
+  "MaxDurability": 100,
+  "DurabilityLossOnHit": 0.5,
+  "Tags": { "Type": ["Armor"], "Family": ["Iron"] }
+}
+```
+  </TabItem>
+  <TabItem label="Legs">
+```json title="Armor_Iron_Legs.json"
+{
+  "TranslationProperties": {
+    "Name": "server.items.Armor_Iron_Legs.name"
+  },
+  "Quality": "Uncommon",
+  "ItemLevel": 20,
+  "PlayerAnimationsId": "Block",
+  "ItemSoundSetId": "ISS_Armor_Heavy",
+  "Categories": ["Items.Armors"],
+  "Icon": "Icons/ItemsGenerated/Armor_Iron_Legs.png",
+  "Model": "Items/Armors/Iron/Legs.blockymodel",
+  "Texture": "Items/Armors/Iron/Legs_Texture.png",
+  "Recipe": {
+    "Input": [
+      { "ItemId": "Ingredient_Bar_Iron", "Quantity": 13 },
+      { "ItemId": "Ingredient_Leather_Light", "Quantity": 6 },
+      { "ItemId": "Ingredient_Fabric_Scrap_Linen", "Quantity": 4 }
+    ],
+    "BenchRequirement": [{
+      "Id": "Armor_Bench",
+      "Type": "Crafting",
+      "Categories": ["Armor_Legs"]
+    }],
+    "KnowledgeRequired": false,
+    "TimeSeconds": 3
+  },
+  "Interactions": {
+    "Primary": { "Interactions": [{ "Type": "EquipItem" }] },
+    "Secondary": { "Interactions": [{ "Type": "EquipItem" }] }
+  },
+  "Armor": {
+    "ArmorSlot": "Legs",
+    "BaseDamageResistance": 0,
+    "CosmeticsToHide": ["Pants", "Shoes"],
+    "DamageResistance": {
+      "Physical": [{ "Amount": 0.07, "CalculationType": "Multiplicative" }],
+      "Projectile": [{ "Amount": 0.07, "CalculationType": "Multiplicative" }]
+    },
+    "StatModifiers": {
+      "Health": [{ "Amount": 13, "CalculationType": "Additive" }]
+    }
+  },
+  "MaxDurability": 100,
+  "DurabilityLossOnHit": 0.5,
+  "Tags": { "Type": ["Armor"], "Family": ["Iron"] }
+}
+```
+  </TabItem>
+</Tabs>
+
+### Advanced Armor (Adamantite)
+
+```json title="Armor_Adamantite_Chest.json" {51-86}
+{
+  "TranslationProperties": {
+    "Name": "server.items.Armor_Adamantite_Chest.name"
+  },
+  "Parent": "Armor_Iron_Chest",
+  "Quality": "Rare",
+  "ItemLevel": 40,
+  "Icon": "Icons/ItemsGenerated/Armor_Adamantite_Chest.png",
+  "IconProperties": {
+    "Rotation": [22.5, 45, 22.5],
+    "Scale": 0.335,
+    "Translation": [0.3, 0.3]
+  },
+  "Model": "Items/Armors/Adamantite/Chest.blockymodel",
+  "Texture": "Items/Armors/Adamantite/Chest_Texture.png",
+  "Recipe": {
+    "Input": [
+      { "ItemId": "Ingredient_Bar_Adamantite", "Quantity": 28 },
+      { "ItemId": "Ingredient_Leather_Heavy", "Quantity": 8 },
+      { "ItemId": "Ingredient_Fabric_Scrap_Cindercloth", "Quantity": 7 }
+    ],
+    "BenchRequirement": [{
+      "Id": "Armor_Bench",
+      "Type": "Crafting",
+      "Categories": ["Armor_Chest"],
+      "RequiredTierLevel": 3
+    }],
+    "KnowledgeRequired": false,
+    "TimeSeconds": 3
+  },
+  "Armor": {
+    "ArmorSlot": "Chest",
+    "BaseDamageResistance": 0,
+    "CosmeticsToHide": ["Overtop"],
+    "StatModifiers": {
+      "Health": [{ "Amount": 24, "CalculationType": "Additive" }]
+    },
+    "DamageResistance": {
+      "Physical": [{ "Amount": 0.144, "CalculationType": "Multiplicative" }],
+      "Projectile": [{ "Amount": 0.144, "CalculationType": "Multiplicative" }]
+    },
+    "DamageClassEnhancement": {
+      "Light": [{ "Amount": 0.06, "CalculationType": "Multiplicative" }]
+    }
+  },
+  "MaxDurability": 150,
+  "Tags": { "Type": ["Armor"], "Family": ["Adamantite"] },
+  "ItemSoundSetId": "ISS_Armor_Heavy",
+  "DurabilityLossOnHit": 0.5
+}
+```
+
+### Light Armor (Leather)
+
+```json title="Armor_Leather_Light_Chest.json"
+{
+  "TranslationProperties": {
+    "Name": "server.items.Armor_Leather_Light_Chest.name"
+  },
+  "Parent": "Armor_Iron_Chest",
+  "Quality": "Common",
+  "ItemLevel": 15,
+  "Icon": "Icons/ItemsGenerated/Armor_Leather_Light_Chest.png",
+  "Model": "Items/Armors/Leather_Light/Chest.blockymodel",
+  "Texture": "Items/Armors/Leather_Light/Chest_Texture.png",
+  "Recipe": {
+    "TimeSeconds": 2,
+    "Input": [
+      { "ItemId": "Ingredient_Leather_Light", "Quantity": 6 },
+      { "ResourceTypeId": "Wood_Trunk", "Quantity": 2 },
+      { "ItemId": "Ingredient_Bolt_Wool", "Quantity": 2 }
+    ],
+    "BenchRequirement": [{
+      "Id": "Armor_Bench",
+      "Type": "Crafting",
+      "Categories": ["Armor_Chest"]
+    }],
+    "KnowledgeRequired": false
+  },
+  "Armor": {
+    "ArmorSlot": "Chest",
+    "BaseDamageResistance": 0,
+    "CosmeticsToHide": ["Overtop"],
+    "StatModifiers": {
+      "Health": [{ "Amount": 17, "CalculationType": "Additive" }]
+    },
+    "DamageResistance": {
+      "Physical": [{ "Amount": 0.09, "CalculationType": "Multiplicative" }],
+      "Projectile": [{ "Amount": 0.09, "CalculationType": "Multiplicative" }]
+    }
+  },
+  "Tags": { "Type": ["Armor"], "Family": ["Leather"] },
+  "MaxDurability": 120,
+  "ItemSoundSetId": "ISS_Armor_Leather"
+}
+```
+
+## Cosmetics Hidden by Armor
+
+Armor hides certain cosmetic slots when equipped:
+
+| Armor Slot | Hidden Cosmetics |
+|------------|------------------|
+| Head | `EarAccessory`, `Ear`, `Haircut`, `HeadAccessory` |
+| Chest | `Overtop`, `Cape` |
+| Hands | (None) |
+| Legs | `Pants`, `Shoes` |
+
+## Damage Class Enhancement
+
+Higher-tier armor can enhance specific damage types:
+
+```json title="Light damage enhancement"
+{
+  "DamageClassEnhancement": {
+    "Light": [
+      { "Amount": 0.06, "CalculationType": "Multiplicative" }
+    ]
+  }
+}
+```
+
+This provides a 6% bonus to Light-type damage dealt while wearing the armor.
+
+## Sound Sets
+
+Armor uses weight-specific sound sets:
+
+| Sound Set | Armor Types |
+|-----------|-------------|
+| `ISS_Armor_Heavy` | Metal armors (Iron, Steel, Adamantite) |
+| `ISS_Armor_Leather` | Leather armors |
+| `ISS_Armor_Cloth` | Cloth armors |
+
+## Crafting Requirements
+
+Armor is crafted at the `Armor_Bench` station:
+
+| Category | Produces |
+|----------|----------|
+| `Armor_Head` | Helmets |
+| `Armor_Chest` | Chestplates |
+| `Armor_Hands` | Gauntlets |
+| `Armor_Legs` | Leggings |
+
+Higher-tier materials require higher bench tiers:
+
+| Material Tier | Required Bench Tier |
+|---------------|---------------------|
+| Copper-Iron | Tier 1 |
+| Steel-Mithril | Tier 2 |
+| Adamantite+ | Tier 3 |
+
+## Accessing Armor in Code
+
+```java title="ArmorExample.java"
+import com.hypixel.hytale.server.core.asset.type.item.config.Item;
+import com.hypixel.hytale.server.core.asset.type.item.config.ItemArmor;
+
+public class ArmorExample {
+    public void accessArmor() {
+        Item chestplate = Item.getAssetMap().get("Armor_Iron_Chest");
+
+        if (chestplate != null) {
+            // Get armor configuration
+            ItemArmor armorConfig = chestplate.getArmor();
+
+            if (armorConfig != null) {
+                // Get slot
+                String slot = armorConfig.getArmorSlot();  // "Chest"
+
+                // Get damage resistance
+                Map<String, List<Modifier>> resistance = armorConfig.getDamageResistance();
+
+                // Get stat modifiers
+                Map<String, List<Modifier>> stats = armorConfig.getStatModifiers();
+
+                // Get cosmetics to hide
+                String[] hiddenCosmetics = armorConfig.getCosmeticsToHide();
+            }
+
+            // Get durability
+            double maxDurability = chestplate.getMaxDurability();
+        }
+    }
+}
+```
+
+## Creating Custom Armor
+
+### Using Parent Inheritance
+
+```json title="MyPlugin_Armor_Custom_Chest.json"
+{
+  "Parent": "Armor_Iron_Chest",
+  "TranslationProperties": {
+    "Name": "server.items.MyPlugin_Armor_Custom_Chest.name"
+  },
+  "Quality": "Epic",
+  "ItemLevel": 45,
+  "Icon": "Icons/ItemsGenerated/MyPlugin_Armor_Custom_Chest.png",
+  "Model": "MyPlugin/Armors/Custom/Chest.blockymodel",
+  "Texture": "MyPlugin/Armors/Custom/Chest_Texture.png",
+  "Recipe": {
+    "Input": [
+      { "ItemId": "MyPlugin_Custom_Ingot", "Quantity": 20 },
+      { "ItemId": "Ingredient_Leather_Heavy", "Quantity": 8 }
+    ],
+    "BenchRequirement": [{
+      "Id": "Armor_Bench",
+      "Type": "Crafting",
+      "Categories": ["Armor_Chest"],
+      "RequiredTierLevel": 2
+    }],
+    "TimeSeconds": 4
+  },
+  "Armor": {
+    "ArmorSlot": "Chest",
+    "BaseDamageResistance": 0,
+    "CosmeticsToHide": ["Overtop", "Cape"],
+    "DamageResistance": {
+      "Physical": [{ "Amount": 0.12, "CalculationType": "Multiplicative" }],
+      "Projectile": [{ "Amount": 0.12, "CalculationType": "Multiplicative" }]
+    },
+    "StatModifiers": {
+      "Health": [{ "Amount": 22, "CalculationType": "Additive" }],
+      "Stamina": [{ "Amount": 10, "CalculationType": "Additive" }]
+    }
+  },
+  "MaxDurability": 140,
+  "DurabilityLossOnHit": 0.4,
+  "Tags": { "Type": ["Armor"], "Family": ["MyPlugin_Custom"] },
+  "ItemSoundSetId": "ISS_Armor_Heavy"
+}
+```
+
+### Creating a Full Custom Set
+
+For a complete armor set, create four pieces with consistent naming:
+
+```
+MyPlugin_Armor_[Material]_Head.json
+MyPlugin_Armor_[Material]_Chest.json
+MyPlugin_Armor_[Material]_Hands.json
+MyPlugin_Armor_[Material]_Legs.json
+```
+
+Each piece should use the same `Family` tag to group them as a set.
+
+## Best Practices
+
+1. **Use parent inheritance**: Base custom armor on `Armor_Iron_*` pieces
+2. **Balance resistance values**: Follow the slot protection weights (Head 20%, Chest 36%, etc.)
+3. **Scale stats with tier**: Higher tiers should provide better resistance and health
+4. **Include all slots**: Create complete 4-piece sets for consistency
+5. **Match sound sets**: Use appropriate `ISS_Armor_*` sounds for armor weight
+6. **Set cosmetic hiding**: Specify which cosmetics are hidden appropriately
+7. **Prefix IDs**: Use plugin name prefix for all custom armor
+8. **Test durability**: Balance `MaxDurability` and `DurabilityLossOnHit` for gameplay feel
+
+## Related
+
+- [Item System Overview](/api-reference/assets/items/overview/) - General item documentation
+- [Weapons](/api-reference/assets/items/weapons/) - Combat item documentation
+- [Blockbench Setup](/tutorials/blockbench/setup/) - Creating armor models
+- [Plugin Manifest](/getting-started/plugin-manifest/) - Including assets in plugins

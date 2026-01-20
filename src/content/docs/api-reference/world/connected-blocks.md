@@ -369,9 +369,235 @@ public class MyConnectedBlockRuleSet extends ConnectedBlockRuleSet {
 }
 ```
 
+## Custom Connected Block Templates
+
+Custom connected block templates are defined as JSON assets that specify how blocks connect.
+
+### Asset Location
+
+```
+Assets/Server/Item/CustomConnectedBlockTemplates/
+├── BookshelfConnectedBlockTemplate.json
+├── BranchConnectedBlockTemplate.json
+├── ChestConnectedBlockTemplate.json
+├── CobbleCornerConnectedBlockTemplate.json
+├── DoorConnectedBlockTemplate.json
+├── DoorLargeConnectedBlockTemplate.json
+├── PillarConnectedBlockTemplate.json
+├── RailsConnectedBlockTemplate.json
+├── RoofConnectedBlockTemplate.json
+├── VillageConnectedBlockTemplate.json
+└── WallConnectedBlockTemplate.json
+```
+
+### Template Schema
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ConnectsToOtherMaterials` | `bool` | Whether to connect to different block types |
+| `DefaultShape` | `string` | Default shape when no pattern matches |
+| `DontUpdateAfterInitialPlacement` | `bool` | Only calculate on placement |
+| `Shapes` | `object` | Map of shape names to shape definitions |
+
+### Shape Definition
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `FaceTags` | `object` | Face connection tags by direction |
+| `PatternsToMatchAnyOf` | `array` | Patterns where any match selects this shape |
+
+### Pattern Rule
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Type` | `string` | Rule type (usually `"Custom"`) |
+| `AllowedPatternTransformations` | `object` | Rotation settings |
+| `TransformRulesToOrientation` | `bool` | Apply block rotation to rules |
+| `YawToApplyAddReplacedBlockType` | `string` | Yaw adjustment |
+| `RulesToMatch` | `array` | Position rules to check |
+
+### Position Rule
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Position` | `object` | Relative position `{X, Y, Z}` |
+| `IncludeOrExclude` | `string` | `"Include"` or `"Exclude"` |
+| `Shapes` | `array` | Shape names that match |
+| `FaceTags` | `object` | Required face tags |
+
+### Wall Template Example
+
+```json title="WallConnectedBlockTemplate.json"
+{
+  "ConnectsToOtherMaterials": true,
+  "DefaultShape": "Straight",
+  "Shapes": {
+    "Gate": {
+      "FaceTags": {
+        "East": ["FenceConnection"],
+        "West": ["FenceConnection"]
+      },
+      "PatternsToMatchAnyOf": []
+    },
+    "Straight": {
+      "FaceTags": {
+        "East": ["FenceConnection"],
+        "West": ["FenceConnection"]
+      },
+      "PatternsToMatchAnyOf": []
+    },
+    "Corner": {
+      "FaceTags": {
+        "West": ["FenceConnection"],
+        "South": ["FenceConnection"]
+      },
+      "PatternsToMatchAnyOf": [
+        {
+          "Type": "Custom",
+          "AllowedPatternTransformations": {
+            "IsCardinallyRotatable": true
+          },
+          "RulesToMatch": [
+            {
+              "Position": { "X": -1, "Y": 0, "Z": 0 },
+              "IncludeOrExclude": "Include",
+              "FaceTags": { "East": ["FenceConnection"] }
+            },
+            {
+              "Position": { "X": 0, "Y": 0, "Z": 1 },
+              "IncludeOrExclude": "Include",
+              "FaceTags": { "North": ["FenceConnection"] }
+            }
+          ]
+        }
+      ]
+    },
+    "T_Junction": {
+      "FaceTags": {
+        "East": ["FenceConnection"],
+        "West": ["FenceConnection"],
+        "South": ["FenceConnection"]
+      },
+      "PatternsToMatchAnyOf": [...]
+    },
+    "Cross_Junction": {
+      "FaceTags": {
+        "East": ["FenceConnection"],
+        "West": ["FenceConnection"],
+        "South": ["FenceConnection"],
+        "North": ["FenceConnection"]
+      },
+      "PatternsToMatchAnyOf": [...]
+    }
+  }
+}
+```
+
+### Pillar Template Example
+
+```json title="PillarConnectedBlockTemplate.json"
+{
+  "ConnectsToOtherMaterials": true,
+  "DefaultShape": "Base",
+  "Shapes": {
+    "Base": {
+      "FaceTags": {
+        "Up": ["PillarConnection"],
+        "Down": ["PillarConnection"]
+      },
+      "PatternsToMatchAnyOf": [
+        {
+          "Type": "Custom",
+          "RulesToMatch": [
+            {
+              "Position": { "X": 0, "Y": 1, "Z": 0 },
+              "IncludeOrExclude": "Include",
+              "FaceTags": { "Down": ["PillarConnection"] }
+            },
+            {
+              "Position": { "X": 0, "Y": -1, "Z": 0 },
+              "IncludeOrExclude": "Exclude",
+              "FaceTags": { "Up": ["PillarConnection"] }
+            }
+          ]
+        }
+      ]
+    },
+    "Base_Inverted": {
+      "FaceTags": {
+        "Up": ["PillarConnection"],
+        "Down": ["PillarConnection"]
+      },
+      "PatternsToMatchAnyOf": [...]
+    },
+    "Middle": {
+      "FaceTags": {
+        "Up": ["PillarConnection"],
+        "Down": ["PillarConnection"]
+      },
+      "PatternsToMatchAnyOf": [...]
+    }
+  }
+}
+```
+
+### Door Template Example
+
+```json title="DoorConnectedBlockTemplate.json"
+{
+  "ConnectsToOtherMaterials": true,
+  "DontUpdateAfterInitialPlacement": true,
+  "DefaultShape": "Default",
+  "Shapes": {
+    "Default": {
+      "PatternsToMatchAnyOf": [
+        {
+          "Type": "Custom",
+          "TransformRulesToOrientation": true,
+          "YawToApplyAddReplacedBlockType": "OneEighty",
+          "RulesToMatch": [
+            {
+              "Position": { "X": -1, "Y": 0, "Z": 0 },
+              "IncludeOrExclude": "Include",
+              "Shapes": ["Default"]
+            },
+            {
+              "Position": { "X": 1, "Y": 0, "Z": 0 },
+              "IncludeOrExclude": "Exclude",
+              "Shapes": ["Default|Yaw=180"]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+```
+
+### Common Face Tags
+
+| Tag | Used For |
+|-----|----------|
+| `FenceConnection` | Walls, fences, gates |
+| `PillarConnection` | Vertical pillars, columns |
+
+### Template Types
+
+| Template | Shapes | Use Case |
+|----------|--------|----------|
+| Wall | Straight, Corner, T_Junction, Cross_Junction, Gate | Fences, walls |
+| Pillar | Base, Base_Inverted, Middle | Columns, pillars |
+| Door | Default | Single/double doors |
+| Roof | Various | Roof pieces |
+| Rails | Various | Minecart rails |
+| Chest | Various | Connected storage |
+| Bookshelf | Various | Library shelves |
+| Branch | Various | Tree connections |
+
 ## Related
 
 - [Block System](/api-reference/blocks/overview/) - Block types and states
-- [World System](/api-reference/entities/overview/) - World and chunk management
+- [Block Types](/api-reference/assets/blocks/block-types/) - Block type definitions
+- [World System](/api-reference/world/overview/) - World and chunk management
 - [Light Propagation](/api-reference/world/lighting/) - Lighting system
 

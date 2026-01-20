@@ -1,0 +1,516 @@
+---
+title: "Weather Systems"
+---
+
+{/* [VERIFIED: 2026-01-20] */}
+
+import { Aside, Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="AI-Generated Content">
+This documentation was generated from analysis of decompiled source code and game assets. Some details may be incomplete or subject to change.
+</Aside>
+
+Weather definitions control sky appearance, celestial bodies, clouds, fog, lighting, and particle effects. They are referenced by environment configurations to create dynamic weather conditions.
+
+## Asset Location
+
+<FileTree>
+- Assets/Server/Weathers/
+  - Blood_Moon.json
+  - Creative_Hub.json
+  - Forgotten_Temple.json
+  - Void.json
+  - Zone1/
+    - Zone1_Sunny.json
+    - Zone1_Rain.json
+    - Zone1_Rain_Light.json
+    - Zone1_Storm.json
+    - Zone1_Foggy_Light.json
+    - Zone1_Swamp.json
+    - Cave_Shallow.json
+    - Cave_Deep.json
+    - Cave_Goblin.json
+    - Cave_Volcanic.json
+    - Dungeon_Cursed_Crypt.json
+  - Zone2/
+    - Zone2_Sunny.json
+    - Zone2_Sand_Storm.json
+    - Zone2_Thunder_Storm.json
+    - Zone2_Desert_Haze.json
+  - Zone3/
+    - Zone3_Snow.json
+    - Zone3_Snow_Heavy.json
+    - Zone3_Snow_Storm.json
+    - Zone3_Northern_Lights.json
+    - Zone3_Rain.json
+    - Zone3_Cave_Shallow.json
+  - Zone4/
+    - Zone4_Wastes.json
+    - Zone4_Lava_Fields.json
+    - Zone4_GhostForest.json
+    - Zone4_Storm.json
+  - Skylands/
+  - Poisonlands/
+  - Minigames/
+</FileTree>
+
+## Weather Schema
+
+### Core Properties
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Tags` | `object` | Weather classification tags |
+| `Stars` | `string` | Star texture path |
+| `Moons` | `array` | Moon phase textures |
+| `Clouds` | `array` | Cloud layer configurations |
+| `Particle` | `object` | Weather particle system |
+| `FogDistance` | `[min, max]` | Fog start and end distances |
+
+### Time-Based Properties
+
+Most visual properties use hour-based keyframes (0-23) for time-of-day transitions:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `SkyTopColors` | `array` | Upper sky gradient colors |
+| `SkyBottomColors` | `array` | Lower sky gradient colors |
+| `SkySunsetColors` | `array` | Sunset horizon colors |
+| `FogColors` | `array` | Fog tint colors |
+| `SunColors` | `array` | Sun disc colors |
+| `SunGlowColors` | `array` | Sun glow effect colors |
+| `SunScales` | `array` | Sun size per hour |
+| `SunlightColors` | `array` | Directional light colors |
+| `MoonColors` | `array` | Moon disc colors |
+| `MoonGlowColors` | `array` | Moon glow effect colors |
+| `MoonScales` | `array` | Moon size per hour |
+| `FogDensities` | `array` | Fog thickness per hour |
+| `FogHeightFalloffs` | `array` | Vertical fog falloff |
+
+### Hour Color Format
+
+```json
+{
+  "SkyTopColors": [
+    { "Hour": 5, "Color": "#2b69a8ff" },
+    { "Hour": 7, "Color": "rgba(#077ddd, 1)" },
+    { "Hour": 17, "Color": "rgba(#077ddd, 1)" },
+    { "Hour": 19, "Color": "#2b69a8ff" },
+    { "Hour": 21, "Color": "#00000000" }
+  ]
+}
+```
+
+Colors can use:
+- Hex format: `#RRGGBB` or `#RRGGBBAA`
+- RGBA format: `rgba(#RRGGBB, alpha)`
+
+## Cloud Configuration
+
+Clouds are defined as layered textures with time-based colors and speeds:
+
+```json title="Cloud layer example"
+{
+  "Clouds": [
+    {
+      "Texture": "Sky/Clouds/Light_Base.png",
+      "Colors": [
+        { "Hour": 3, "Color": "#1a1a1bc7" },
+        { "Hour": 5, "Color": "rgba(#ff5e43, 0.504)" },
+        { "Hour": 7, "Color": "#ffffffe6" },
+        { "Hour": 17, "Color": "#ffffffe6" },
+        { "Hour": 19, "Color": "#ff5e4347" },
+        { "Hour": 21, "Color": "#1a1a1bc7" }
+      ],
+      "Speeds": [
+        { "Hour": 0, "Value": 0.7 }
+      ]
+    },
+    {
+      "Texture": "Sky/Clouds/Light_Highlights.png",
+      "Colors": [
+        { "Hour": 7, "Color": "#ffffffe6" }
+      ],
+      "Speeds": [
+        { "Hour": 0, "Value": 0.7 }
+      ]
+    }
+  ]
+}
+```
+
+### Cloud Textures
+
+| Texture | Use Case |
+|---------|----------|
+| `Sky/Clouds/Light_Base.png` | Clear weather base |
+| `Sky/Clouds/Light_Highlights.png` | Clear weather highlights |
+| `Sky/Clouds/Rain_Light_Base.png` | Light rain |
+| `Sky/Clouds/Rain_Light_Highlights.png` | Light rain highlights |
+| `Sky/Clouds/Rain_Heavy_Base.png` | Heavy rain/storm |
+| `Sky/Clouds/Rain_Heavy_Highlights.png` | Storm highlights |
+| `Sky/Clouds/Fluffy_Base.png` | Fluffy clouds |
+| `Sky/Clouds/Storm_Plain.png` | Storm overlay |
+
+## Moon Phases
+
+Moon textures change based on game day:
+
+```json
+{
+  "Moons": [
+    { "Day": 0, "Texture": "Sky/MoonCycle/Moon_Full.png" },
+    { "Day": 1, "Texture": "Sky/MoonCycle/Moon_Gibbous.png" },
+    { "Day": 2, "Texture": "Sky/MoonCycle/Moon_Half.png" },
+    { "Day": 3, "Texture": "Sky/MoonCycle/Moon_Crescent.png" },
+    { "Day": 4, "Texture": "Sky/MoonCycle/Moon_New.png" }
+  ]
+}
+```
+
+## Weather Particles
+
+Weather effects use particle systems:
+
+```json
+{
+  "Particle": {
+    "SystemId": "Rain",
+    "OvergroundOnly": true
+  }
+}
+```
+
+### Available Particle Systems
+
+| SystemId | Effect |
+|----------|--------|
+| `Rain` | Moderate rain |
+| `Rain_Heavy` | Heavy rain/storm |
+| `Rain_Light` | Light drizzle |
+| `Snow_Light` | Light snowfall |
+| `Snow_Heavy` | Heavy snowfall |
+| `Snow_Storm` | Blizzard |
+| `Dust_Storm` | Desert sandstorm |
+
+## Examples
+
+### Sunny Weather (Zone 1)
+
+```json title="Zone1_Sunny.json" {2-7,102-103}
+{
+  "Tags": {
+    "Zone1": ["Sunny"]
+  },
+  "Stars": "Sky/Stars.png",
+  "Moons": [
+    { "Day": 0, "Texture": "Sky/MoonCycle/Moon_Full.png" },
+    { "Day": 1, "Texture": "Sky/MoonCycle/Moon_Gibbous.png" },
+    { "Day": 2, "Texture": "Sky/MoonCycle/Moon_Half.png" },
+    { "Day": 3, "Texture": "Sky/MoonCycle/Moon_Crescent.png" },
+    { "Day": 4, "Texture": "Sky/MoonCycle/Moon_New.png" }
+  ],
+  "SkyTopColors": [
+    { "Hour": 3, "Color": "#00000000" },
+    { "Hour": 5, "Color": "#2b69a8ff" },
+    { "Hour": 7, "Color": "rgba(#077ddd, 1)" },
+    { "Hour": 17, "Color": "rgba(#077ddd, 1)" },
+    { "Hour": 19, "Color": "#2b69a8ff" },
+    { "Hour": 21, "Color": "#00000000" }
+  ],
+  "SkyBottomColors": [
+    { "Hour": 4, "Color": "#050e23ff" },
+    { "Hour": 5, "Color": "#85aff3ff" },
+    { "Hour": 7, "Color": "#8fd8f8ff" },
+    { "Hour": 17, "Color": "#8fd8f8ff" },
+    { "Hour": 19, "Color": "#598de1ff" },
+    { "Hour": 21, "Color": "#050e23ff" }
+  ],
+  "SkySunsetColors": [
+    { "Hour": 3, "Color": "#e32c4e00" },
+    { "Hour": 5, "Color": "#ff5e43ff" },
+    { "Hour": 7, "Color": "#ffb95100" },
+    { "Hour": 17, "Color": "#ffb95100" },
+    { "Hour": 19, "Color": "#ff5e43ff" },
+    { "Hour": 21, "Color": "#e32c4e00" }
+  ],
+  "FogDistance": [-96, 1024]
+}
+```
+
+Key characteristics:
+- **Tags** identify weather type for environment matching
+- **Clear skies** with blue gradients during day
+- **Sunset colors** at dawn (5-7) and dusk (17-21)
+- **Long fog distance** (1024) for good visibility
+
+### Rain Weather
+
+```json title="Zone1_Rain.json" {2-8,28-32}
+{
+  "Tags": {
+    "Zone1": [],
+    "Rain": ["Moderate"]
+  },
+  "Particle": {
+    "SystemId": "Rain",
+    "OvergroundOnly": true
+  },
+  "Clouds": [
+    {
+      "Texture": "Sky/Clouds/Rain_Light_Highlights.png",
+      "Colors": [
+        { "Hour": 7, "Color": "rgba(#bad8e1, 0.401)" },
+        { "Hour": 17, "Color": "rgba(#bad8e1, 0.65)" }
+      ],
+      "Speeds": [{ "Hour": 0, "Value": 0.7 }]
+    },
+    {
+      "Texture": "Sky/Clouds/Rain_Light_Base.png",
+      "Colors": [
+        { "Hour": 7, "Color": "rgba(#385164, 0.776)" }
+      ],
+      "Speeds": [{ "Hour": 0, "Value": 0.7 }]
+    }
+  ],
+  "FogDensities": [
+    { "Hour": 0, "Value": 0.2 }
+  ],
+  "FogHeightFalloffs": [
+    { "Hour": 0, "Value": 4 }
+  ]
+}
+```
+
+Key characteristics:
+- **Rain particle system** attached
+- **Darker cloud textures** for overcast look
+- **Increased fog density** (0.2) for atmosphere
+- **OvergroundOnly** prevents rain underground
+
+### Storm Weather
+
+```json title="Zone1_Storm.json" {2-8,12-13}
+{
+  "Tags": {
+    "Zone1": [],
+    "Rain": ["Storm"]
+  },
+  "Particle": {
+    "SystemId": "Rain_Heavy",
+    "OvergroundOnly": true
+  },
+  "Clouds": [
+    {
+      "Texture": "Sky/Clouds/Rain_Heavy_Base.png",
+      "Colors": [
+        { "Hour": 7, "Color": "rgba(#020000, 1)" }
+      ],
+      "Speeds": [{ "Hour": 0, "Value": 1 }]
+    }
+  ],
+  "FogDensities": [
+    { "Hour": 0, "Value": 0.75 }
+  ],
+  "SunlightColors": [
+    { "Hour": 3, "Color": "#3c3c3c" },
+    { "Hour": 5, "Color": "#e1e1e1" },
+    { "Hour": 19, "Color": "#e1e1e1" },
+    { "Hour": 21, "Color": "#4c4c4c" }
+  ]
+}
+```
+
+Key characteristics:
+- **Heavy rain particles** for storm effect
+- **Dark clouds** blocking most light
+- **High fog density** (0.75) for reduced visibility
+- **Faster cloud speed** (1.0) for wind effect
+- **Muted sunlight colors** for overcast lighting
+
+### Snow Weather (Zone 3)
+
+```json title="Zone3_Snow.json" {2-7,14-15}
+{
+  "Tags": {
+    "Zone3": [],
+    "Snow": ["Moderate"]
+  },
+  "Particle": {
+    "SystemId": "Snow_Light",
+    "OvergroundOnly": true
+  },
+  "Clouds": [
+    {
+      "Texture": "Sky/Clouds/Fluffy_Base.png",
+      "Colors": [
+        { "Hour": 7, "Color": "rgba(#e9edf1, 1)" },
+        { "Hour": 17, "Color": "rgba(#e9edf1, 1)" }
+      ],
+      "Speeds": [{ "Hour": 0, "Value": 1 }]
+    }
+  ],
+  "FogColors": [
+    { "Hour": 7, "Color": "#cad8f4" },
+    { "Hour": 17, "Color": "#cad8f4" }
+  ],
+  "FogDensities": [
+    { "Hour": 0, "Value": 0.4 }
+  ]
+}
+```
+
+Key characteristics:
+- **Snow particle system** for snowfall
+- **Cool-toned fog colors** for cold atmosphere
+- **Fluffy clouds** texture for winter sky
+- **Moderate fog density** for snowy haze
+
+### Cave Weather
+
+```json title="Cave_Shallow.json" {8-9}
+{
+  "Stars": "Sky/Stars.png",
+  "SkyTopColors": [
+    { "Hour": 7, "Color": "rgba(#4291bd, 1)" },
+    { "Hour": 19, "Color": "rgba(#4291bd, 1)" },
+    { "Hour": 5, "Color": "rgba(#000000, 1)" },
+    { "Hour": 21, "Color": "rgba(#030000, 1)" }
+  ],
+  "FogDistance": [-128, 128],
+  "FogColors": [
+    { "Hour": 7, "Color": "#8e917b" }
+  ],
+  "Clouds": [
+    {
+      "Texture": "Sky/Clouds/Light_Base.png",
+      "Speeds": [{ "Hour": 0, "Value": 0 }]
+    }
+  ]
+}
+```
+
+Key characteristics:
+- **No particle effects** (no rain/snow underground)
+- **Short fog distance** (128) for enclosed feeling
+- **Static clouds** (speed 0) - no wind movement
+- **Consistent lighting** regardless of time
+
+## Weather Categories
+
+### Zone 1 (Plains/Emerald Grove)
+
+| Weather | Description |
+|---------|-------------|
+| `Zone1_Sunny` | Clear blue skies |
+| `Zone1_Cloudy_Medium` | Overcast conditions |
+| `Zone1_Foggy_Light` | Morning fog |
+| `Zone1_Rain_Light` | Light drizzle |
+| `Zone1_Rain` | Moderate rain |
+| `Zone1_Storm` | Heavy thunderstorm |
+| `Zone1_Swamp` | Murky swamp atmosphere |
+| `Zone1_Swamp_Foggy` | Dense swamp fog |
+| `Zone1_Azurewood_Fireflies` | Magical forest at night |
+| `Zone1_Sunny_Fireflies` | Night with fireflies |
+
+### Zone 2 (Desert/Howling Sands)
+
+| Weather | Description |
+|---------|-------------|
+| `Zone2_Sunny` | Hot desert sun |
+| `Zone2_Blazing_Light` | Intense heat |
+| `Zone2_Cloudy_Light` | Light cloud cover |
+| `Zone2_Desert_Haze` | Heat shimmer |
+| `Zone2_Sand_Storm` | Sandstorm conditions |
+| `Zone2_Thunder_Storm` | Desert thunderstorm |
+| `Zone2_Corrupted_Oasis` | Corrupted water area |
+
+### Zone 3 (Taiga/Borea)
+
+| Weather | Description |
+|---------|-------------|
+| `Zone3_Cloudy_Light` | Overcast cold |
+| `Zone3_Cloudy_Medium` | Heavy clouds |
+| `Zone3_Cloudy_Boreal` | Northern atmosphere |
+| `Zone3_Snow` | Moderate snowfall |
+| `Zone3_Snow_Heavy` | Heavy snowfall |
+| `Zone3_Snow_Storm` | Blizzard |
+| `Zone3_Rain` | Cold rain |
+| `Zone3_Northern_Lights` | Aurora borealis |
+| `Zone3_Hedera` | Hedera biome weather |
+
+### Zone 4 (Devastated Lands)
+
+| Weather | Description |
+|---------|-------------|
+| `Zone4_Light` | Basic visibility |
+| `Zone4_Wastes` | Wasteland atmosphere |
+| `Zone4_Wastes_Rain` | Acid rain |
+| `Zone4_AshWastes` | Ash-filled air |
+| `Zone4_AshWastes_Storm` | Ash storm |
+| `Zone4_Lava_Fields` | Volcanic area |
+| `Zone4_GhostForest` | Haunted forest |
+| `Zone4_Spooky` | Eerie atmosphere |
+| `Zone4_Storm` | Corrupted storm |
+
+### Special Weather
+
+| Weather | Description |
+|---------|-------------|
+| `Blood_Moon` | Red moon event |
+| `Void` | Void dimension |
+| `Forgotten_Temple` | Temple interior |
+| `Portals_Void_Event_Light` | Portal event (light) |
+| `Portals_Void_Event_Intense` | Portal event (intense) |
+
+## Creating Custom Weather
+
+```json title="MyPlugin_Weather_Custom.json"
+{
+  "Tags": {
+    "MyPlugin": ["Custom"],
+    "Zone1": ["Special"]
+  },
+  "Stars": "Sky/Stars.png",
+  "Moons": [
+    { "Day": 0, "Texture": "Sky/MoonCycle/Moon_Full.png" }
+  ],
+  "Clouds": [
+    {
+      "Texture": "Sky/Clouds/Light_Base.png",
+      "Colors": [
+        { "Hour": 7, "Color": "#d0e8ffff" },
+        { "Hour": 17, "Color": "#d0e8ffff" }
+      ],
+      "Speeds": [{ "Hour": 0, "Value": 0.5 }]
+    }
+  ],
+  "SkyTopColors": [
+    { "Hour": 7, "Color": "#4488ccff" },
+    { "Hour": 21, "Color": "#000022ff" }
+  ],
+  "FogColors": [
+    { "Hour": 7, "Color": "#aaccff" }
+  ],
+  "FogDistance": [-96, 512],
+  "Particle": {
+    "SystemId": "Rain_Light",
+    "OvergroundOnly": true
+  }
+}
+```
+
+## Best Practices
+
+1. **Use consistent hour keyframes** - Dawn (5-7), day (7-17), dusk (17-21), night (21-5)
+2. **Layer clouds properly** - Base layer first, highlights on top
+3. **Match fog to sky** - Fog color should complement sky bottom
+4. **Consider gameplay** - Heavy fog reduces visibility significantly
+5. **Test time transitions** - Ensure smooth color interpolation
+6. **Use appropriate particles** - Match particle intensity to weather type
+
+## Related
+
+- [Environments](/api-reference/assets/world/environments/) - Environment configuration
+- [Particle Systems](/api-reference/assets/vfx/particles/) - Particle effects
+- [Audio Effects](/api-reference/assets/audio/effects/) - Weather audio (reverb)

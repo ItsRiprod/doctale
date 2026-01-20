@@ -1,0 +1,338 @@
+---
+title: "Item System Overview"
+---
+
+{/* [VERIFIED: 2026-01-20] */}
+
+import { Aside, Card, CardGrid, LinkCard, Tabs, TabItem, FileTree, Badge } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="AI-Generated Content">
+This documentation was generated from analysis of extracted game assets and decompiled source code.
+Verify all information against actual asset files before use in production.
+</Aside>
+
+The Item System is the core framework for defining all holdable objects in Hytale, including weapons, tools, armor, consumables, and placeable blocks. Items are defined in JSON files and can include custom models, textures, interactions, and crafting recipes.
+
+## Package Location
+
+`com.hypixel.hytale.server.core.asset.type.item.config.Item`
+
+## Asset Directory Structure
+
+<FileTree>
+- Assets/
+  - Server/
+    - Item/
+      - Items/              # Item definitions organized by category
+        - Armor/            # Armor pieces (helmets, chestplates, etc.)
+        - Bench/            # Crafting stations
+        - Consumables/      # Food and potions (implied)
+        - Tool/             # Pickaxes, shovels, hoes
+        - Weapon/           # Combat weapons (23 categories)
+          - Sword/
+          - Shortbow/
+          - Axe/
+          - ...
+      - Interactions/       # Behavior definitions (1,316 files)
+      - RootInteractions/   # Top-level interaction trees
+      - Categories/         # Category metadata
+      - Qualities/          # Quality tier definitions
+  - Common/
+    - Items/                # Client-side models and textures
+      - Weapons/
+        - Sword/
+        - Bow/
+        - ...
+    - Icons/
+      - ItemsGenerated/     # Auto-generated item icons
+</FileTree>
+
+## Item Categories
+
+Hytale organizes items into 39 distinct categories:
+
+<CardGrid>
+  <Card title="Weapons" icon="warning">
+    23 weapon types including swords, bows, staves, and more. Combat-focused items with attack interactions.
+  </Card>
+  <Card title="Tools" icon="seti:config">
+    Mining and utility tools: pickaxes, shovels, hoes, shears. Used for resource gathering.
+  </Card>
+  <Card title="Armor" icon="seti:less">
+    Protective equipment: helmets, chestplates, leggings, boots. Provides defense stats.
+  </Card>
+  <Card title="Consumables" icon="heart">
+    Food, potions, and other items that are consumed on use. Provides buffs or restores stats.
+  </Card>
+</CardGrid>
+
+### Complete Category List
+
+| Category | Description | Example |
+|----------|-------------|---------|
+| `Armor` | Protective equipment | Helmets, chestplates |
+| `Bench` | Crafting stations | Weapon_Bench, Forge |
+| `Bone` | Bone materials | Bone fragments |
+| `Container` | Storage items | Chests, bags |
+| `Deco` | Decorative items | Furniture, ornaments |
+| `Fish` | Caught fish | Various fish types |
+| `Food` | Edible items | Cooked meat, vegetables |
+| `Furniture` | Placeable furniture | Chairs, tables |
+| `Glider` | Flying equipment | Gliders |
+| `Ingredient` | Crafting materials | Bars, leather, fabric |
+| `Ore` | Raw minerals | Iron ore, copper ore |
+| `Plant` | Harvestable plants | Crops, flowers |
+| `Potion` | Consumable buffs | Health potions |
+| `Tool` | Utility tools | Pickaxe, shovel |
+| `Weapon` | Combat items | Swords, bows, staves |
+
+## JSON Schema Reference
+
+### Required Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| *No required fields* | - | Items can inherit everything from `Parent` |
+
+### Core Properties
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `Parent` | `string` | - | Template to inherit from |
+| `TranslationProperties` | `object` | - | Localization keys |
+| `Model` | `string` | - | Path to `.blockymodel` file |
+| `Texture` | `string` | `"Items/Unknown.png"` | Path to texture file |
+| `Icon` | `string` | - | Path to icon image |
+| `Quality` | `string` | - | Quality tier (Common, Uncommon, etc.) |
+| `ItemLevel` | `integer` | `0` | Level requirement |
+| `MaxStack` | `integer` | `100` or `1` | Maximum stack size |
+| `Categories` | `string[]` | - | Item categories for library menu |
+| `Tags` | `object` | - | Type and family classification |
+
+### Rendering Properties
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `PlayerAnimationsId` | `string` | `"Default"` | Animation set for player |
+| `DroppedItemAnimation` | `string` | - | Animation when item is dropped |
+| `Scale` | `number` | `1.0` | Model scale factor |
+| `Particles` | `array` | - | Particle effects on item |
+| `Trails` | `array` | - | Trail effects |
+| `Light` | `object` | - | Emitted light color/intensity |
+| `Reticle` | `string` | - | Crosshair type when held |
+
+### Durability Properties
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `MaxDurability` | `number` | `0` | Maximum durability (0 = unbreakable) |
+| `DurabilityLossOnHit` | `number` | `0` | Durability lost per hit |
+
+### Interaction Properties
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Interactions` | `object` | Maps interaction types (Primary, Secondary, Ability1) to root interactions |
+| `InteractionVars` | `object` | Variables for damage, effects, and behaviors |
+| `InteractionConfig` | `object` | Additional interaction configuration |
+
+### Special Item Types
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Weapon` | `object` | Weapon-specific configuration |
+| `Tool` | `object` | Tool-specific configuration |
+| `Armor` | `object` | Armor stats and slots |
+| `Glider` | `object` | Glider configuration |
+| `Utility` | `object` | Utility item settings |
+| `Consumable` | `boolean` | Whether item is consumed on use |
+
+## Quality Tiers
+
+Items have quality tiers that affect their visual presentation and stats:
+
+| Quality | Color | Description |
+|---------|-------|-------------|
+| `Template` | - | Base template (not for players) |
+| `Common` | White | Basic items |
+| `Uncommon` | Green | Slightly better items |
+| `Rare` | Blue | Valuable items |
+| `Epic` | Purple | High-tier items |
+| `Legendary` | Orange | Best-in-class items |
+
+## Template Inheritance
+
+Items use a parent-child inheritance system via the `Parent` field:
+
+```json title="Weapon_Sword_Iron.json" {2}
+{
+  "Parent": "Template_Weapon_Sword",
+  "TranslationProperties": {
+    "Name": "server.items.Weapon_Sword_Iron.name"
+  },
+  "Model": "Items/Weapons/Sword/Iron.blockymodel",
+  "Texture": "Items/Weapons/Sword/Iron_Texture.png",
+  "Quality": "Uncommon",
+  "ItemLevel": 20,
+  "MaxDurability": 120
+}
+```
+
+The child item inherits all properties from the template and only needs to override specific values.
+
+### Template Files
+
+Templates are located alongside regular items with the naming convention `Template_*.json`:
+
+| Template | Location | Purpose |
+|----------|----------|---------|
+| `Template_Weapon_Sword` | `Weapon/Sword/` | Base sword with attack patterns |
+| `Template_Weapon_Shortbow` | `Weapon/Shortbow/` | Base bow with charge mechanics |
+| `Template_Weapon_Mace` | `Weapon/Mace/` | Base mace with stun effects |
+| `Template_Weapon_Daggers` | `Weapon/Daggers/` | Base daggers with quick attacks |
+| `Template_Weapon_Shield` | `Weapon/Shield/` | Base shield with blocking |
+| `Template_Weapon_Crossbow` | `Weapon/Crossbow/` | Base crossbow mechanics |
+| `Template_Weapon_Battleaxe` | `Weapon/Battleaxe/` | Base battleaxe with heavy attacks |
+
+## Basic Item Example
+
+<Tabs>
+  <TabItem label="Minimal Item">
+```json title="MyPlugin_Simple_Item.json"
+{
+  "TranslationProperties": {
+    "Name": "server.items.MyPlugin_Simple_Item.name"
+  },
+  "Model": "Items/Misc/Simple_Item.blockymodel",
+  "Texture": "Items/Misc/Simple_Texture.png",
+  "Icon": "Icons/ItemsGenerated/MyPlugin_Simple_Item.png",
+  "Quality": "Common",
+  "MaxStack": 64,
+  "Categories": ["Items.Misc"]
+}
+```
+  </TabItem>
+  <TabItem label="With Recipe">
+```json title="MyPlugin_Crafted_Item.json"
+{
+  "TranslationProperties": {
+    "Name": "server.items.MyPlugin_Crafted_Item.name"
+  },
+  "Model": "Items/Misc/Crafted_Item.blockymodel",
+  "Texture": "Items/Misc/Crafted_Texture.png",
+  "Icon": "Icons/ItemsGenerated/MyPlugin_Crafted_Item.png",
+  "Quality": "Uncommon",
+  "MaxStack": 32,
+  "Categories": ["Items.Misc"],
+  "Recipe": {
+    "TimeSeconds": 2.0,
+    "KnowledgeRequired": false,
+    "Input": [
+      { "ItemId": "Ingredient_Bar_Iron", "Quantity": 2 },
+      { "ItemId": "Ingredient_Wood", "Quantity": 4 }
+    ],
+    "BenchRequirement": [
+      {
+        "Type": "Crafting",
+        "Categories": ["Basic"],
+        "Id": "Crafting_Table"
+      }
+    ]
+  }
+}
+```
+  </TabItem>
+</Tabs>
+
+## Accessing Items in Code
+
+```java title="ItemExample.java"
+import com.hypixel.hytale.server.core.asset.type.item.config.Item;
+import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
+
+public class ItemExample {
+    public void accessItems() {
+        // Get the item asset map
+        DefaultAssetMap<String, Item> itemMap = Item.getAssetMap();
+
+        // Get a specific item by ID
+        Item ironSword = itemMap.get("Weapon_Sword_Iron");
+
+        // Check if item exists
+        boolean exists = itemMap.containsKey("MyPlugin_Custom_Item");
+
+        // Get all item IDs
+        Set<String> allItems = itemMap.keySet();
+
+        // Get item properties
+        if (ironSword != null) {
+            String model = ironSword.getModel();
+            double durability = ironSword.getMaxDurability();
+            int maxStack = ironSword.getMaxStack();
+            String[] categories = ironSword.getCategories();
+        }
+    }
+}
+```
+
+## Icon Properties
+
+Control how items appear in the inventory UI:
+
+```json title="IconProperties example"
+{
+  "IconProperties": {
+    "Scale": 0.35,
+    "Translation": [-22, -22],
+    "Rotation": [45, 90, 0]
+  }
+}
+```
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Scale` | `number` | Icon size multiplier |
+| `Translation` | `[x, y]` | Pixel offset in UI |
+| `Rotation` | `[x, y, z]` | Euler rotation angles |
+
+## Item Appearance Conditions
+
+Items can change appearance based on entity stats:
+
+```json title="Appearance conditions for durability"
+{
+  "ItemAppearanceConditions": {
+    "Health": [
+      {
+        "Condition": [0, 20],
+        "Model": "Items/Weapons/Axe/Iron.blockymodel",
+        "Texture": "Items/Weapons/Axe/Iron_Texture.png",
+        "Particles": [{ "SystemId": "Torch_Fire" }]
+      },
+      {
+        "Condition": [21, 40],
+        "Texture": "Items/Weapons/Axe/Iron_Rusty_Texture.png",
+        "Particles": [{ "SystemId": "Torch_Fire" }]
+      }
+    ]
+  }
+}
+```
+
+This allows visual degradation as items lose durability, or special effects when signature abilities are charged.
+
+## Best Practices
+
+1. **Use plugin prefix**: Always prefix custom item IDs with your plugin name (e.g., `MyPlugin_Sword`)
+2. **Inherit from templates**: Use the `Parent` field to reduce duplication
+3. **Provide icons**: Always include an `Icon` path for inventory display
+4. **Set appropriate MaxStack**: Weapons/tools should be `1`, materials can be `100`
+5. **Use quality tiers**: Match quality to item power for consistent progression
+6. **Test durability**: Verify `MaxDurability` and `DurabilityLossOnHit` values feel balanced
+
+## Related
+
+- [Weapons](/api-reference/assets/items/weapons/) - Detailed weapon documentation
+- [Registries](/core-concepts/registries/) - How items are registered
+- [Plugin Manifest](/getting-started/plugin-manifest/) - Including assets in plugins
+- [Blockbench Setup](/tutorials/blockbench/setup/) - Creating item models

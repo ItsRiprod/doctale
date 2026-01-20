@@ -1,0 +1,351 @@
+---
+title: "Particle Systems"
+---
+
+{/* [VERIFIED: 2026-01-20] */}
+
+import { Aside, Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="AI-Generated Content">
+This documentation was generated from analysis of decompiled source code and game assets. Some details may be incomplete or subject to change.
+</Aside>
+
+Particle systems create visual effects like dust, smoke, fire, and weather. They consist of spawner configurations (`.particlespawner`) that define particle behavior, and system files (`.particlesystem`) that combine multiple spawners.
+
+## Asset Location
+
+<FileTree>
+- Assets/Server/Particles/
+  - Block/
+  - Combat/
+  - Deployables/
+  - Drop/
+  - Explosion/
+  - Item/
+  - Memories/
+  - NPC/
+  - Projectile/
+  - Spell/
+  - Status_Effect/
+  - Weapon/
+  - Weather/
+    - Dust_Sparkles/
+    - Fog/
+    - Rain/
+    - Snow/
+  - Dust_Sparkles_Fine.particlespawner
+  - Dust_Sparkles_Fine.particlesystem
+</FileTree>
+
+Particle textures are in `Assets/Common/Particles/Textures/`.
+
+## File Types
+
+| Extension | Purpose |
+|-----------|---------|
+| `.particlespawner` | Individual particle emitter configuration |
+| `.particlesystem` | Combines multiple spawners into one effect |
+
+## Particle Spawner Schema
+
+### Core Properties
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `RenderMode` | `string` | Rendering type (`Erosion`, `Additive`, etc.) |
+| `Particle` | `object` | Particle appearance configuration |
+| `SpawnRate` | `MinMax` | Particles per second |
+| `ParticleLifeSpan` | `MinMax` | Particle duration (seconds) |
+| `MaxConcurrentParticles` | `int` | Maximum active particles (0 = unlimited) |
+
+### Spawn Properties
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `EmitOffset` | `XYZ MinMax` | Spawn position offset range |
+| `InitialVelocity` | `object` | Starting velocity (Yaw, Pitch, Speed) |
+| `ParticleRotateWithSpawner` | `bool` | Inherit spawner rotation |
+
+### Visual Properties
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ParticleRotationInfluence` | `string` | Rotation mode (`Billboard`, `None`) |
+| `LinearFiltering` | `bool` | Smooth texture filtering |
+| `LightInfluence` | `float` | World lighting effect (0-1) |
+
+### Physics Properties
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Attractors` | `array` | Force attractors affecting particles |
+| `ParticleCollision` | `object` | Collision behavior |
+
+## Particle Object
+
+The `Particle` object defines appearance:
+
+### Base Properties
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Texture` | `string` | Path to particle texture |
+| `FrameSize` | `object` | Texture frame dimensions |
+| `ScaleRatioConstraint` | `string` | Aspect ratio (`OneToOne`, etc.) |
+
+### Animation Keyframes
+
+The `Animation` object uses percentage keys (0-100) to animate:
+
+```json
+{
+  "Animation": {
+    "0": {
+      "Scale": { "X": { "Min": 0, "Max": 0 }, "Y": { "Min": 0, "Max": 0 } },
+      "Opacity": 0,
+      "Color": "#222222",
+      "Rotation": { "X": { "Min": 0, "Max": 0 }, "Y": { "Min": 0, "Max": 0 }, "Z": { "Min": 0, "Max": 0 } }
+    },
+    "50": {
+      "Scale": { "X": { "Min": 1, "Max": 1 }, "Y": { "Min": 1, "Max": 1 } },
+      "Opacity": 0.66,
+      "Color": "#9e9e9e"
+    },
+    "100": {
+      "Scale": { "X": { "Min": 0, "Max": 0 }, "Y": { "Min": 0, "Max": 0 } },
+      "Opacity": 0,
+      "Color": "#1a1a1a"
+    }
+  }
+}
+```
+
+### Animation Properties per Keyframe
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Scale` | `XY MinMax` | Particle size |
+| `Opacity` | `float` | Transparency (0-1) |
+| `Color` | `string` | Hex color tint |
+| `Rotation` | `XYZ MinMax` | Rotation angles |
+| `FrameIndex` | `MinMax` | Texture frame (for spritesheets) |
+
+## Example: Dust Sparkles
+
+```json title="Dust_Sparkles_Fine.particlespawner"
+{
+  "RenderMode": "Erosion",
+  "EmitOffset": {
+    "X": { "Min": 2, "Max": 8 },
+    "Y": { "Min": 2, "Max": 8 },
+    "Z": { "Min": 2, "Max": 8 }
+  },
+  "ParticleRotationInfluence": "Billboard",
+  "LinearFiltering": true,
+  "LightInfluence": 1.0,
+  "MaxConcurrentParticles": 0,
+  "ParticleLifeSpan": { "Min": 1.5, "Max": 5.0 },
+  "SpawnRate": { "Min": 4000, "Max": 5000 },
+  "InitialVelocity": {
+    "Yaw": { "Min": 90, "Max": 180 },
+    "Pitch": { "Min": 0, "Max": 80 },
+    "Speed": { "Min": 0.015, "Max": 0.02 }
+  },
+  "Attractors": [
+    {
+      "Position": { "X": 0, "Y": 0, "Z": 0 },
+      "RadialAxis": { "X": 1, "Y": 1, "Z": 0 },
+      "Radius": 0,
+      "RadialAcceleration": -0.036,
+      "RadialTangentAcceleration": 0,
+      "LinearAcceleration": { "X": 0, "Y": 0, "Z": 0 }
+    }
+  ],
+  "Particle": {
+    "Texture": "Particles/Textures/Weather/Dust.png",
+    "FrameSize": { "Width": 32, "Height": 32 },
+    "ScaleRatioConstraint": "OneToOne",
+    "Animation": {
+      "0": {
+        "Scale": { "X": { "Min": 0, "Max": 0 } },
+        "Opacity": 0,
+        "Color": "#222222"
+      },
+      "50": {
+        "Scale": { "X": { "Min": 1, "Max": 1 } },
+        "Opacity": 0.66,
+        "Color": "#9e9e9e"
+      },
+      "100": {
+        "Scale": { "X": { "Min": 0, "Max": 0 } },
+        "Opacity": 0,
+        "Color": "#1a1a1a"
+      }
+    },
+    "InitialAnimationFrame": {
+      "Rotation": {
+        "X": { "Min": 0, "Max": 360 },
+        "Z": { "Min": 0, "Max": 360 }
+      },
+      "Scale": { "X": { "Min": 0.02, "Max": 0.04 } },
+      "Opacity": 1
+    }
+  }
+}
+```
+
+## Particle System Schema
+
+Systems combine multiple spawners:
+
+```json title="Dust_Sparkles_Fine.particlesystem"
+{
+  "Spawners": [
+    {
+      "SpawnerId": "Dust_Sparkles_Fine",
+      "FixedRotation": true,
+      "WaveDelay": { "Min": 4, "Max": 36 }
+    },
+    { "SpawnerId": "Dust_Sparkles_Fine" },
+    { "SpawnerId": "Dust_Sparkles_Fine" }
+  ],
+  "CullDistance": 30
+}
+```
+
+### System Properties
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Spawners` | `array` | List of spawner references |
+| `CullDistance` | `float` | Distance to stop rendering |
+
+### Spawner Reference Properties
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `SpawnerId` | `string` | Spawner file name (without extension) |
+| `FixedRotation` | `bool` | Lock rotation |
+| `WaveDelay` | `MinMax` | Delay between spawn waves |
+
+## Particle Categories
+
+### Combat Particles
+
+Located in `Combat/`:
+- Impact effects
+- Hit sparks
+- Blood effects
+
+### Weapon Particles
+
+Located in `Weapon/`:
+- Swing trails
+- Charge effects
+- Special attack visuals
+
+### Weather Particles
+
+Located in `Weather/`:
+
+| Category | Effects |
+|----------|---------|
+| `Rain/` | Raindrops, splashes |
+| `Snow/` | Snowflakes, blizzard |
+| `Fog/` | Fog banks |
+| `Dust_Sparkles/` | Floating dust, flies |
+
+### Block Particles
+
+Located in `Block/`:
+- Break particles
+- Placement effects
+- Interaction particles
+
+## Using Particles
+
+### In Block Definitions
+
+```json
+{
+  "BlockType": {
+    "BlockParticleSetId": "Stone",
+    "Particles": [
+      {
+        "SystemId": "Candle_Fire",
+        "Color": "#ffcd10",
+        "TargetNodeName": "Flame-Emitter",
+        "Scale": 0.75
+      }
+    ]
+  }
+}
+```
+
+### In Interactions
+
+```json
+{
+  "DamageEffects": {
+    "WorldParticles": [
+      { "SystemId": "Impact_Blade_01" }
+    ]
+  }
+}
+```
+
+## Attractor Types
+
+Attractors apply forces to particles:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Position` | `XYZ` | Attractor center |
+| `RadialAxis` | `XYZ` | Axis for radial forces |
+| `Radius` | `float` | Effect radius |
+| `RadialAcceleration` | `float` | Inward/outward force |
+| `RadialTangentAcceleration` | `float` | Swirl force |
+| `LinearAcceleration` | `XYZ` | Directional force (gravity) |
+
+## Render Modes
+
+| Mode | Description |
+|------|-------------|
+| `Erosion` | Standard blending |
+| `Additive` | Light emission effect |
+| `Multiply` | Darkening effect |
+
+## Creating Custom Particles
+
+```json title="MyPlugin_CustomEffect.particlespawner"
+{
+  "RenderMode": "Additive",
+  "EmitOffset": {
+    "X": { "Min": -0.5, "Max": 0.5 },
+    "Y": { "Min": 0, "Max": 1 },
+    "Z": { "Min": -0.5, "Max": 0.5 }
+  },
+  "ParticleRotationInfluence": "Billboard",
+  "ParticleLifeSpan": { "Min": 0.5, "Max": 1.5 },
+  "SpawnRate": { "Min": 10, "Max": 20 },
+  "InitialVelocity": {
+    "Yaw": { "Min": 0, "Max": 360 },
+    "Pitch": { "Min": 60, "Max": 90 },
+    "Speed": { "Min": 1, "Max": 2 }
+  },
+  "Particle": {
+    "Texture": "MyPlugin/Particles/Glow.png",
+    "FrameSize": { "Width": 32, "Height": 32 },
+    "Animation": {
+      "0": { "Scale": { "X": { "Min": 0.5, "Max": 0.5 } }, "Opacity": 1 },
+      "100": { "Scale": { "X": { "Min": 0, "Max": 0 } }, "Opacity": 0 }
+    }
+  }
+}
+```
+
+## Related
+
+- [Audio Effects](/api-reference/assets/audio/effects/) - Environmental audio
+- [Environments](/api-reference/assets/world/environments/) - Environment configuration
+- [Block Types](/api-reference/assets/blocks/block-types/) - Block particle references

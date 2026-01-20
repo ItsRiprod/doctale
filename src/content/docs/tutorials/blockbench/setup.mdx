@@ -1,0 +1,269 @@
+---
+title: "Blockbench Setup"
+---
+
+{/* [VERIFIED: 2026-01-20] */}
+
+import { Aside, Card, CardGrid, LinkCard, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="AI-Generated Content">
+This documentation was compiled from official Hytale resources and community guides.
+Always refer to official sources for the latest information.
+</Aside>
+
+Blockbench is the official tool for creating 3D models and animations for Hytale. This guide walks you through installing Blockbench and the Hytale plugin to start creating custom assets.
+
+## Prerequisites
+
+- A computer running Windows, macOS, or Linux
+- Internet connection for downloads
+- Basic understanding of 3D modeling concepts
+
+## Installation
+
+<Steps>
+
+1. **Download Blockbench**
+
+   Visit [blockbench.net](https://blockbench.net) and download the installer for your operating system.
+
+   <Tabs>
+     <TabItem label="Windows">
+       Download the `.exe` installer and run it. Follow the installation prompts.
+     </TabItem>
+     <TabItem label="macOS">
+       Download the `.dmg` file. Open it and drag Blockbench to your Applications folder.
+     </TabItem>
+     <TabItem label="Linux">
+       Download the `.AppImage` file. Make it executable with `chmod +x` and run it.
+     </TabItem>
+   </Tabs>
+
+2. **Install the Hytale Plugin**
+
+   The Hytale Blockbench plugin adds support for Hytale's model format and constraints.
+
+   **Option A: From Blockbench (Recommended)**
+   - Open Blockbench
+   - Go to **File** > **Plugins**
+   - Search for "Hytale"
+   - Click **Install** on the Hytale Model plugin
+
+   **Option B: Manual Installation**
+   - Download from [GitHub](https://github.com/JannisX11/hytale-blockbench-plugin)
+   - In Blockbench, go to **File** > **Plugins** > **Load Plugin from File**
+   - Select the downloaded `.js` file
+
+3. **Verify Installation**
+
+   After installing the plugin, verify it's working:
+   - Go to **File** > **New**
+   - You should see **Hytale Model** as an option in the model type list
+
+   <Aside type="tip">
+   If you don't see "Hytale Model", restart Blockbench and check that the plugin is enabled in **File** > **Plugins**.
+   </Aside>
+
+4. **Configure Settings (Optional)**
+
+   For the best experience, configure these Blockbench settings:
+   - **Settings** > **Grid** > Set snap to `1` for precise alignment
+   - **Settings** > **Preview** > Enable "Show Axes" for orientation reference
+   - Consider setting up your preferred keybindings
+
+</Steps>
+
+## Creating Your First Model
+
+<Steps>
+
+1. **Create a New Hytale Model**
+
+   - Go to **File** > **New** > **Hytale Model**
+   - Enter a model name (e.g., `My_Custom_Sword`)
+   - Choose the appropriate scale:
+     - **Props/Blocks**: 32px = 1 block
+     - **Characters/NPCs**: 64px = 1 block
+
+2. **Add Geometry**
+
+   - Use the **Add Cube** tool to create basic shapes
+   - Only cubes and flat quads are supported
+   - Maximum 255 nodes per model
+
+3. **Apply Textures**
+
+   - Create or import a texture (must be multiples of 32px)
+   - Use the **Paint** tab to apply textures to faces
+   - UV map faces for precise texture alignment
+
+4. **Export Your Model**
+
+   - Go to **File** > **Export** > **Export Hytale Model**
+   - Save as `.blockymodel` file
+   - Export texture as `.png` separately
+
+</Steps>
+
+## Technical Requirements
+
+Hytale models have specific technical constraints:
+
+| Constraint | Value | Notes |
+|------------|-------|-------|
+| **Max Nodes** | 255 | Includes cubes, groups, and bones |
+| **Geometry Types** | Cubes, Flat Quads | No triangles or complex meshes |
+| **Texture Sizes** | Multiples of 32px | 32, 64, 96, 128, 256, etc. |
+| **Grid Scale (Props)** | 32px = 1 block | Standard items and blocks |
+| **Grid Scale (Characters)** | 64px = 1 block | Player models and NPCs |
+| **Geometry Stretching** | 0.7x - 1.3x | Limited scaling per axis |
+
+<Aside type="danger">
+Exceeding the 255 node limit or using non-compliant geometry will cause export failures.
+Monitor your node count in the Outliner panel.
+</Aside>
+
+## File Types
+
+Blockbench with the Hytale plugin exports these file types:
+
+| Extension | Description | Usage |
+|-----------|-------------|-------|
+| `.blockymodel` | 3D model data | Model geometry and UV mapping |
+| `.blockyanim` | Animation data | Keyframe animations |
+| `.png` | Texture files | Model textures (32px multiples) |
+
+## Project Structure
+
+When creating assets for a plugin, organize files like this:
+
+```
+my-plugin/
+├── assets/
+│   ├── item/
+│   │   └── MyPlugin_Custom_Sword.json    # Item definition
+│   └── model/
+│       └── MyPlugin/
+│           └── Weapons/
+│               └── Sword/
+│                   ├── Custom.blockymodel
+│                   └── Custom_Texture.png
+└── plugin.json
+```
+
+## Common Issues
+
+### Plugin Not Showing
+
+<Aside type="tip" title="Solution">
+1. Check **File** > **Plugins** to ensure it's installed and enabled
+2. Restart Blockbench
+3. Try reinstalling the plugin
+4. Check for Blockbench updates
+</Aside>
+
+### Export Fails
+
+<Aside type="tip" title="Solution">
+1. Verify node count is under 255
+2. Check all geometry is cubes or flat quads
+3. Ensure textures are multiples of 32px
+4. Remove any invalid geometry types
+</Aside>
+
+### Textures Look Wrong In-Game
+
+<Aside type="tip" title="Solution">
+1. Verify texture dimensions are 32px multiples
+2. Check UV mapping is correct
+3. Ensure texture path in JSON matches file location
+4. Use PNG format without transparency issues
+</Aside>
+
+## Best Practices
+
+1. **Plan your model** before starting - sketch out the design
+2. **Keep node count low** - combine cubes where possible
+3. **Use consistent scale** - follow the 32px or 64px grid
+4. **Name nodes clearly** - helps with animation and debugging
+5. **Test frequently** - export and check in-game often
+6. **Back up your work** - save `.bbmodel` files as backups
+7. **Match Hytale's art style** - study existing assets for reference
+
+## Animation Basics
+
+To create animations:
+
+<Steps>
+
+1. **Set up bones**
+   - Create a bone hierarchy in the Outliner
+   - Name bones descriptively (e.g., `Handle`, `Blade`, `Guard`)
+
+2. **Open the Animation tab**
+   - Click the **Animate** tab in Blockbench
+   - Create a new animation
+
+3. **Add keyframes**
+   - Move the timeline to a position
+   - Transform bones (rotate, move, scale)
+   - Keyframes are created automatically
+
+4. **Export animation**
+   - Go to **File** > **Export** > **Export Hytale Animation**
+   - Save as `.blockyanim` file
+
+</Steps>
+
+### Animation Naming Conventions
+
+For weapons, use these naming patterns:
+
+| Animation | Purpose |
+|-----------|---------|
+| `Idle` | Default held position |
+| `Swing_Left` | Left swing attack |
+| `Swing_Right` | Right swing attack |
+| `Swing_Down` | Overhead attack |
+| `Thrust` | Stabbing motion |
+| `Guard` | Blocking stance |
+| `Dropped` | Dropped on ground |
+
+## Resources
+
+### Official Resources
+
+- [Blockbench Website](https://blockbench.net) - Download and documentation
+- [Hytale Model Guide](https://hytale.com/news/2025/12/an-introduction-to-making-models-for-hytale) - Official modeling guide
+- [Hytale Asset Guide](https://hytale.game/en/blockbench-and-asset-creation/) - Asset creation overview
+
+### Community Resources
+
+- [Hytale Blockbench Plugin (GitHub)](https://github.com/JannisX11/hytale-blockbench-plugin) - Plugin source code
+- [Blockbench Wiki](https://www.blockbench.net/wiki/) - General Blockbench documentation
+
+## Next Steps
+
+<CardGrid>
+  <LinkCard
+    title="Custom Weapon Tutorial"
+    description="Create a complete weapon from scratch"
+    href="/tutorials/examples/custom-weapon/"
+  />
+  <LinkCard
+    title="Item System"
+    description="Understand how to define items in JSON"
+    href="/api-reference/assets/items/overview/"
+  />
+  <LinkCard
+    title="Weapons Reference"
+    description="Complete weapon documentation"
+    href="/api-reference/assets/items/weapons/"
+  />
+</CardGrid>
+
+## Related
+
+- [Plugin Manifest](/getting-started/plugin-manifest/) - Including assets in plugins
+- [Item System Overview](/api-reference/assets/items/overview/) - Item JSON structure
+- [Weapons](/api-reference/assets/items/weapons/) - Weapon documentation

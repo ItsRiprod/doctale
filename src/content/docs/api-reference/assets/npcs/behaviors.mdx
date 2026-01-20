@@ -1,0 +1,947 @@
+---
+title: "NPC Behaviors"
+---
+
+{/* [VERIFIED: 2026-01-20] */}
+
+import { Aside, Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="AI-Generated Content">
+This documentation was generated from analysis of decompiled source code and game assets. Some details may be incomplete or subject to change.
+</Aside>
+
+NPC behaviors are defined through **Role** files that specify AI states, sensors, actions, and motion controllers. The behavior system uses a hierarchical template/variant architecture for reusability.
+
+## Asset Location
+
+<FileTree>
+- Assets/Server/NPC/Roles/
+  - _Core/
+    - Templates/
+      - Template_Predator.json
+      - Template_Animal_Neutral.json
+      - Template_Birds_Passive.json
+      - Template_Swimming_Aggressive.json
+    - Components/
+      - Flock/
+      - (Reusable instruction components)
+  - Creature/
+    - Livestock/
+      - Sheep.json
+      - Cow.json
+      - Horse.json
+    - Mammal/
+      - Wolf_Black.json
+      - Bear_Grizzly.json
+      - Fox.json
+    - Critter/
+      - Mouse.json
+      - Squirrel.json
+    - Vermin/
+      - Spider.json
+      - Snake_Cobra.json
+    - Mythic/
+      - Yeti.json
+      - Fen_Stalker.json
+  - Undead/
+    - Zombie/
+      - Zombie.json
+      - Templates/
+      - Components/
+    - Skeleton/
+      - Skeleton.json
+  - Intelligent/
+    - Aggressive/
+      - Goblin/
+      - Trork/
+      - Outlander/
+      - Scarak/
+    - Neutral/
+      - Feran/
+      - Kweebec/
+  - Void/
+</FileTree>
+
+## Role Types
+
+### Abstract (Template)
+
+Base templates that define reusable behavior patterns. Cannot be used directly.
+
+```json title="Template_Predator.json (excerpt)"
+{
+  "Type": "Abstract",
+  "Parameters": {
+    "Appearance": {
+      "Value": "Fox",
+      "Description": "Model to be used."
+    },
+    "MaxHealth": {
+      "Value": 100,
+      "Description": "Max health for the NPC."
+    },
+    "ViewRange": {
+      "Value": 24,
+      "Description": "The range from which the target will be seen."
+    }
+  },
+  "StartState": "Idle",
+  "DefaultNPCAttitude": "Ignore",
+  "DefaultPlayerAttitude": "Neutral"
+}
+```
+
+### Variant
+
+Specific NPCs that inherit from templates and override specific parameters.
+
+```json title="Wolf_Black.json"
+{
+  "Type": "Variant",
+  "Reference": "Template_Predator",
+  "Parameters": {
+    "Appearance": {
+      "Value": "Wolf_Black",
+      "Description": "Model to be used."
+    },
+    "DropList": {
+      "Value": "Drop_Wolf_Black",
+      "Description": "Drop Items."
+    },
+    "MaxHealth": {
+      "Value": 70,
+      "Description": "Max health for the NPC"
+    }
+  },
+  "Modify": {
+    "Appearance": { "Compute": "Appearance" },
+    "MaxHealth": 103,
+    "MaxSpeed": 10,
+    "AttitudeGroup": "PredatorsBig",
+    "Attack": "Root_NPC_Wolf_Attack",
+    "AttackDistance": 2.5
+  }
+}
+```
+
+### Component
+
+Reusable instruction blocks that can be referenced from multiple roles.
+
+```json title="Component_Instruction_Attack_Sequence_Zombie.json"
+{
+  "Class": "Instruction",
+  "Interface": "Hytale.Instruction.AttackSequence",
+  "Type": "Component",
+  "Parameters": {
+    "AttackDistance": {
+      "Value": 3.25,
+      "Description": "The distance at which an NPC will execute attacks"
+    }
+  },
+  "Content": {
+    "Sensor": {
+      "Type": "Target",
+      "Range": { "Compute": "AttackDistance" },
+      "Filters": [{ "Type": "LineOfSight" }]
+    },
+    "Actions": [
+      { "Type": "Attack", "Attack": "Zombie_Swing_Left" },
+      { "Type": "Attack", "Attack": "Zombie_Swing_Right" },
+      { "Type": "Attack", "Attack": "Zombie_Bite" }
+    ]
+  }
+}
+```
+
+## Core Role Properties
+
+### Basic Properties
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Type` | `string` | Role type: `Abstract`, `Variant`, or `Component` |
+| `Reference` | `string` | Parent template to inherit from (Variant only) |
+| `Parameters` | `object` | Configurable parameters with defaults |
+| `Modify` | `object` | Property overrides |
+| `StartState` | `string` | Initial AI state (e.g., `"Idle"`) |
+| `Appearance` | `string` | Model definition ID |
+| `DropList` | `string` | Drop table ID |
+| `MaxHealth` | `int` | Maximum health points |
+
+### Attitude Configuration
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `DefaultNPCAttitude` | `string` | `"Ignore"` | Default attitude toward NPCs |
+| `DefaultPlayerAttitude` | `string` | `"Neutral"` | Default attitude toward players |
+| `AttitudeGroup` | `string` | — | Group for attitude calculations |
+| `DisableDamageGroups` | `array` | `["Self"]` | Groups this NPC won't damage |
+
+**Attitude Values**:
+- `Hostile` - Will attack on sight
+- `Neutral` - Will attack if provoked
+- `Friendly` - Won't attack, may follow
+- `Ignore` - Completely ignores
+
+### Movement Configuration
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `MaxSpeed` | `float` | `8` | Maximum walking speed |
+| `RunThreshold` | `float` | `0.55` | Speed ratio for run animation |
+| `WanderRadius` | `float` | `8` | Idle wander area radius |
+| `ClimbHeight` | `int` | `1` | Max block height to climb |
+
+### Detection Configuration
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `ViewRange` | `float` | `24` | Sight detection range (blocks) |
+| `ViewSector` | `float` | `120` | Field of view (degrees) |
+| `HearingRange` | `float` | `12` | Sound detection range |
+| `AbsoluteDetectionRange` | `float` | `4` | Guaranteed detection range |
+| `AlertedRange` | `float` | `28` | Extended range when alerted |
+
+### Combat Configuration
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `Attack` | `string` | — | Root interaction ID for attacks |
+| `AttackDistance` | `float` | `2.5` | Range to initiate attacks |
+| `AttackPauseRange` | `array` | `[2, 3]` | Min delay between attacks |
+| `ChaseRelativeSpeed` | `float` | `1` | Speed multiplier when chasing |
+| `CombatBehaviorDistance` | `float` | `5` | Range for combat movement |
+| `CombatStrafeWeight` | `int` | `10` | Probability of strafing |
+| `CombatDirectWeight` | `int` | `10` | Probability of direct charge |
+| `CombatBackOffAfterAttack` | `bool` | `true` | Back away after attacking |
+
+### Leash Configuration
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `LeashDistance` | `float` | `20` | Soft leash radius |
+| `HardLeashDistance` | `float` | `60` | Absolute max distance |
+| `LeashMinPlayerDistance` | `float` | `4` | Min distance before giving up |
+| `LeashTimer` | `array` | `[3, 5]` | Time before returning home |
+| `LeashRelativeSpeed` | `float` | `0.6` | Speed when returning |
+
+## State Machine
+
+NPCs use a state machine for behavior control.
+
+### Common States
+
+| State | Description |
+|-------|-------------|
+| `Idle` | Default wandering/resting behavior |
+| `Sleep` | Sleeping (reduced detection) |
+| `Sleep.Nap` | Short daytime nap |
+| `Alerted` | Detected potential threat |
+| `Combat` | Active combat engagement |
+| `Combat.Chase` | Pursuing target |
+| `Combat.Maybe` | Deciding whether to fight |
+| `Combat.Message` | Broadcasting attack to flock |
+| `Search` | Looking for lost target |
+| `Search.Confused` | Just lost target |
+| `Search.Prowl` | Actively searching |
+| `Search.Investigate` | Checking disturbance |
+| `ReturnHome` | Returning to spawn point |
+| `Flee` | Running away from threat |
+| `Panic` | Fleeing unknown damage source |
+
+### State Transitions
+
+```json title="State transition example"
+{
+  "StateTransitions": [
+    {
+      "States": [
+        { "From": ["Idle"], "To": ["Sleep"] }
+      ],
+      "Actions": {
+        "Reference": "Component_ActionList_Sleep"
+      }
+    },
+    {
+      "States": [
+        { "From": ["Sleep"], "To": ["Alerted", "Idle"] }
+      ],
+      "Actions": {
+        "Reference": "Component_ActionList_Wake"
+      }
+    },
+    {
+      "States": [
+        { "To": ["Idle"], "From": [] }
+      ],
+      "Actions": [
+        { "Type": "ReleaseTarget" },
+        { "Type": "ResetInstructions" }
+      ]
+    }
+  ]
+}
+```
+
+## Instructions System
+
+Instructions define behavior logic using sensors, actions, and motion controllers.
+
+### Instruction Structure
+
+```json
+{
+  "Instructions": [
+    {
+      "Sensor": { "Type": "State", "State": "Idle" },
+      "Instructions": [
+        {
+          "Sensor": { "Type": "Damage", "Combat": true },
+          "Actions": [
+            { "Type": "State", "State": "Combat" }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Instruction Properties
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Sensor` | `object` | Condition to trigger this instruction |
+| `Instructions` | `array` | Nested instructions |
+| `Actions` | `array` | Actions to execute |
+| `ActionsBlocking` | `bool` | Wait for actions to complete |
+| `ActionsAtomic` | `bool` | Execute all actions together |
+| `BodyMotion` | `object` | Movement behavior |
+| `HeadMotion` | `object` | Head/look behavior |
+| `Continue` | `bool` | Continue to next instruction |
+| `Reference` | `string` | Include component by ID |
+| `Modify` | `object` | Override component parameters |
+| `Weight` | `int` | Random selection weight |
+| `Enabled` | `string/bool` | Enable condition |
+
+## Sensors
+
+Sensors detect conditions to trigger behaviors.
+
+### Sensor Types
+
+<Tabs>
+<TabItem label="Detection">
+
+```json
+{
+  "Sensor": {
+    "Type": "Mob",
+    "GetPlayers": true,
+    "GetNPCs": false,
+    "Range": 15,
+    "LockOnTarget": true,
+    "Filters": [
+      { "Type": "LineOfSight" },
+      { "Type": "ViewSector", "ViewSector": 120 }
+    ],
+    "Prioritiser": {
+      "Type": "Attitude",
+      "AttitudesByPriority": ["Hostile"]
+    }
+  }
+}
+```
+
+</TabItem>
+<TabItem label="State">
+
+```json
+{
+  "Sensor": {
+    "Type": "State",
+    "State": "Idle"
+  }
+}
+```
+
+```json
+{
+  "Sensor": {
+    "Type": "State",
+    "State": ".Nap"
+  }
+}
+```
+
+Sub-states use `.` prefix.
+
+</TabItem>
+<TabItem label="Logic">
+
+```json
+{
+  "Sensor": {
+    "Type": "And",
+    "Sensors": [
+      { "Type": "Target", "Range": 5 },
+      { "Type": "LineOfSight" }
+    ]
+  }
+}
+```
+
+```json
+{
+  "Sensor": {
+    "Type": "Or",
+    "Sensors": [
+      { "Type": "Damage", "Combat": true },
+      { "Type": "Beacon", "Message": "Flock_Attack" }
+    ]
+  }
+}
+```
+
+```json
+{
+  "Sensor": {
+    "Type": "Not",
+    "Sensor": { "Type": "Target", "Range": 20 }
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+### Common Sensor Types
+
+| Type | Description |
+|------|-------------|
+| `Any` | Always triggers |
+| `State` | Check current AI state |
+| `Target` | Check locked target properties |
+| `Mob` | Detect NPCs or players |
+| `Player` | Detect players specifically |
+| `Damage` | React to incoming damage |
+| `Beacon` | Receive flock communication |
+| `Leash` | Check distance from spawn |
+| `Time` | Check time of day |
+| `Flag` | Check boolean flag |
+| `Timer` | Check named timer |
+| `Eval` | Evaluate expression |
+| `Nav` | Check navigation state |
+| `FlockLeader` | Check if flock leader exists |
+| `ReadPosition` | Check stored position |
+
+### Sensor Filters
+
+| Filter | Description |
+|--------|-------------|
+| `LineOfSight` | Unobstructed view to target |
+| `ViewSector` | Target within field of view |
+| `NPCGroup` | Filter by NPC group membership |
+| `Attitude` | Filter by attitude |
+| `MovementState` | Target movement state |
+| `StandingOnBlock` | Target standing on block type |
+| `HeightDifference` | Vertical distance check |
+| `Flock` | Check flock membership |
+| `SpotsMe` | Target can see this NPC |
+
+## Actions
+
+Actions execute behaviors when sensors trigger.
+
+### Action Types
+
+<Tabs>
+<TabItem label="State">
+
+```json
+{ "Type": "State", "State": "Combat" }
+```
+
+```json
+{ "Type": "ResetInstructions" }
+```
+
+```json
+{ "Type": "ReleaseTarget" }
+```
+
+</TabItem>
+<TabItem label="Combat">
+
+```json
+{
+  "Type": "Attack",
+  "Attack": "Root_NPC_Wolf_Attack",
+  "AttackPauseRange": [2, 3]
+}
+```
+
+```json
+{
+  "Type": "FlockBeacon",
+  "Message": "Flock_Attack",
+  "SendTargetSlot": "LockedTarget"
+}
+```
+
+</TabItem>
+<TabItem label="Animation">
+
+```json
+{
+  "Type": "PlayAnimation",
+  "Slot": "Status",
+  "Animation": "Alerted"
+}
+```
+
+```json
+{
+  "Type": "SpawnParticles",
+  "Offset": [0, 2.1, 0],
+  "ParticleSystem": "Alerted"
+}
+```
+
+</TabItem>
+<TabItem label="Timing">
+
+```json
+{
+  "Type": "Timeout",
+  "Delay": [1, 3],
+  "Action": {
+    "Type": "State",
+    "State": "Combat"
+  }
+}
+```
+
+```json
+{
+  "Type": "TimerStart",
+  "Name": "NapTimer",
+  "StartValueRange": [10, 12]
+}
+```
+
+</TabItem>
+</Tabs>
+
+### Common Action Types
+
+| Type | Description |
+|------|-------------|
+| `State` | Change AI state |
+| `Attack` | Execute attack interaction |
+| `PlayAnimation` | Play animation on slot |
+| `SpawnParticles` | Spawn particle effect |
+| `Timeout` | Delayed action execution |
+| `TimerStart` | Start named timer |
+| `TimerRestart` | Restart named timer |
+| `SetFlag` | Set boolean flag |
+| `Beacon` | Send message to NPCs |
+| `FlockBeacon` | Send message to flock |
+| `JoinFlock` | Join target's flock |
+| `SetLeashPosition` | Update spawn position |
+| `StorePosition` | Store position in slot |
+| `Crouch` | Toggle crouching |
+| `SetStat` | Modify NPC stat |
+| `Sequence` | Execute actions in order |
+
+## Motion Controllers
+
+Motion controllers define how NPCs move.
+
+### Motion Controller List
+
+```json
+{
+  "MotionControllerList": [
+    {
+      "Type": "Walk",
+      "MaxWalkSpeed": 9,
+      "Gravity": 10,
+      "MaxFallSpeed": 15,
+      "MaxRotationSpeed": 360,
+      "Acceleration": 15,
+      "RunThreshold": 0.55
+    }
+  ]
+}
+```
+
+### Body Motions
+
+<Tabs>
+<TabItem label="Movement">
+
+```json
+{
+  "BodyMotion": {
+    "Type": "Seek",
+    "SlowDownDistance": 2,
+    "StopDistance": 1.2,
+    "RelativeSpeed": 0.5,
+    "AbortDistance": 80,
+    "UsePathfinder": true
+  }
+}
+```
+
+```json
+{
+  "BodyMotion": {
+    "Type": "Flee",
+    "SlowDownDistance": 15,
+    "StopDistance": 16,
+    "RelativeSpeed": 0.68
+  }
+}
+```
+
+</TabItem>
+<TabItem label="Wander">
+
+```json
+{
+  "BodyMotion": {
+    "Type": "Wander",
+    "MaxHeadingChange": 45,
+    "RelativeSpeed": 0.2
+  }
+}
+```
+
+```json
+{
+  "BodyMotion": {
+    "Type": "WanderInCircle",
+    "Radius": 40,
+    "MaxHeadingChange": 80,
+    "RelativeSpeed": 0.1
+  }
+}
+```
+
+</TabItem>
+<TabItem label="Combat">
+
+```json
+{
+  "BodyMotion": {
+    "Type": "MaintainDistance",
+    "DesiredDistanceRange": [3, 5],
+    "RelativeForwardsSpeed": 0.6,
+    "RelativeBackwardsSpeed": 0.6,
+    "StrafingDurationRange": [1, 2],
+    "StrafingFrequencyRange": [2, 3]
+  }
+}
+```
+
+</TabItem>
+<TabItem label="Sequence">
+
+```json
+{
+  "BodyMotion": {
+    "Type": "Sequence",
+    "Looped": true,
+    "Motions": [
+      {
+        "Type": "Timer",
+        "Time": [1, 5],
+        "Motion": {
+          "Type": "WanderInCircle",
+          "Radius": 8,
+          "RelativeSpeed": 0.18
+        }
+      },
+      {
+        "Type": "Timer",
+        "Time": [3, 8],
+        "Motion": { "Type": "Nothing" }
+      }
+    ]
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+### Head Motions
+
+```json
+{
+  "HeadMotion": {
+    "Type": "Watch"
+  }
+}
+```
+
+```json
+{
+  "HeadMotion": {
+    "Type": "Aim",
+    "Spread": 0,
+    "HitProbability": 1,
+    "RelativeTurnSpeed": 1.5
+  }
+}
+```
+
+## InteractionVars (Combat)
+
+Define damage and effects for NPC attacks.
+
+```json title="Wolf_Black.json InteractionVars"
+{
+  "_InteractionVars": {
+    "Melee_Start": {
+      "Interactions": [
+        {
+          "Parent": "Wolf_Bite",
+          "Effects": {
+            "ItemPlayerAnimationsId": "Wolf_Black_Default",
+            "ItemAnimationId": "Bite"
+          },
+          "RunTime": 0.167
+        }
+      ]
+    },
+    "Bite_Damage": {
+      "Interactions": [
+        {
+          "Parent": "Wolf_Bite_Damage",
+          "DamageCalculator": {
+            "Type": "Absolute",
+            "BaseDamage": { "Physical": 27 },
+            "RandomPercentageModifier": 0.1
+          },
+          "DamageEffects": {
+            "Knockback": { "Force": 1 }
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+## Livestock/Neutral Behavior Properties
+
+For friendly/tameable NPCs:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `AttractiveItems` | `array` | Items that attract this NPC |
+| `LovedItems` | `array` | Items that guarantee following |
+| `ChanceToTurnFriendly` | `int` | Base befriend chance (%) |
+| `ChanceToTurnFriendlyWithAttractiveItem` | `int` | Befriend chance with item (%) |
+| `FriendlyOverrideTime` | `int` | Friendly duration (seconds) |
+| `GrazingBlockSet` | `string` | Block type to graze on |
+| `FoodBlockSet` | `string` | Block type to eat |
+| `FoodItemSet` | `array` | Dropped items to eat |
+| `GreetAnimation` | `string` | Animation when greeting |
+| `WeightGreet` | `int` | Chance to greet |
+| `WeightFollow` | `int` | Chance to follow |
+| `WeightFollowItem` | `int` | Chance to follow item |
+| `WeightIgnore` | `int` | Chance to ignore |
+
+### Harvestable NPCs
+
+```json title="Sheep.json (excerpt)"
+{
+  "Modify": {
+    "IsHarvestable": true,
+    "HarvestDropList": "Drop_Sheep_Harvest",
+    "HarvestInteractionContext": "Shear",
+    "HarvestModelSlot": "Fleece",
+    "HarvestModelAttachmentHarvestable": "Wool",
+    "HarvestModelAttachmentHarvested": "",
+    "HarvestTimeout": ["PT11H", "PT14H"],
+    "HarvestParticles": "Sheep_Wool_Shear",
+    "HarvestSound": "SFX_Sheep_Sheared",
+    "ProduceItem": "Ingredient_Poop"
+  }
+}
+```
+
+## Flock System
+
+NPCs can form flocks for coordinated behavior.
+
+```json
+{
+  "FlockArray": ["Wolf_Black"],
+  "FlockSpawnTypes": { "Compute": "FlockArray" },
+  "FlockAllowedNPC": { "Compute": "FlockArray" },
+  "ApplySeparation": true,
+  "SeparationDistance": 2.5,
+  "SeparationWeight": 1.2
+}
+```
+
+### Flock Communication
+
+```json
+{
+  "Sensor": {
+    "Type": "Beacon",
+    "Message": "Flock_Attack",
+    "TargetSlot": "LockedTarget",
+    "Range": 80
+  },
+  "Actions": [
+    { "Type": "State", "State": "Combat.Maybe" }
+  ]
+}
+```
+
+```json
+{
+  "Actions": [
+    {
+      "Type": "FlockBeacon",
+      "Message": "Flock_Attack",
+      "SendTargetSlot": "LockedTarget"
+    }
+  ]
+}
+```
+
+## Day/Night Behavior
+
+```json
+{
+  "Parameters": {
+    "DayTimePeriod": {
+      "Value": [6.01, 17.99],
+      "Description": "The hour range considered daytime"
+    },
+    "AlwaysSleepAtNight": {
+      "Value": true,
+      "Description": "Whether to sleep through the night"
+    },
+    "TimidDuringDay": {
+      "Value": false,
+      "Description": "More cautious during day"
+    },
+    "NightFlavorAnimation": {
+      "Value": "Howl",
+      "Description": "Animation to play at night"
+    }
+  }
+}
+```
+
+## Examples
+
+### Hostile Undead (Zombie)
+
+```json title="Zombie.json"
+{
+  "Type": "Variant",
+  "Reference": "Template_Aggressive_Zombies",
+  "Modify": {
+    "DropList": "Drop_Zombie",
+    "Appearance": "Zombie",
+    "MaxHealth": 49,
+    "IsMemory": true,
+    "MemoriesCategory": "Undead",
+    "_InteractionVars": {
+      "Melee_Damage": {
+        "Interactions": [
+          {
+            "Parent": "NPC_Attack_Melee_Damage",
+            "DamageCalculator": {
+              "BaseDamage": { "Physical": 18 }
+            }
+          }
+        ]
+      }
+    },
+    "NameTranslationKey": { "Compute": "NameTranslationKey" }
+  },
+  "Parameters": {
+    "NameTranslationKey": {
+      "Value": "server.npcRoles.Zombie.name"
+    }
+  }
+}
+```
+
+### Passive Livestock (Sheep)
+
+```json title="Sheep.json"
+{
+  "Type": "Variant",
+  "Reference": "Template_Animal_Neutral",
+  "Modify": {
+    "Appearance": "Sheep",
+    "FlockArray": ["Sheep", "Sheep_Lamb"],
+    "LovedItems": ["Plant_Crop_Lettuce_Item"],
+    "DropList": "Drop_Sheep",
+    "MaxHealth": 81,
+    "MaxSpeed": 6,
+    "ViewRange": 15,
+    "GreetAnimation": "Bleat",
+    "ChanceToTurnFriendly": 20,
+    "ChanceToTurnFriendlyWithAttractiveItem": 60,
+    "IsHarvestable": true,
+    "HarvestDropList": "Drop_Sheep_Harvest",
+    "HarvestInteractionContext": "Shear"
+  }
+}
+```
+
+### Neutral Predator (Wolf)
+
+```json title="Wolf_Black.json (excerpt)"
+{
+  "Type": "Variant",
+  "Reference": "Template_Predator",
+  "Modify": {
+    "Appearance": "Wolf_Black",
+    "AttitudeGroup": "PredatorsBig",
+    "MaxHealth": 103,
+    "MaxSpeed": 10,
+    "ViewRange": 10,
+    "AlertedRange": 18,
+    "Attack": "Root_NPC_Wolf_Attack",
+    "AttackDistance": 2.5,
+    "CombatBackOffAfterAttack": true,
+    "CombatBackOffDistanceRange": [3, 5],
+    "ThreatenAnimation": "Howl",
+    "NightFlavorAnimation": "Howl",
+    "AlwaysSleepAtNight": false,
+    "TimidDuringDay": false
+  }
+}
+```
+
+## Best Practices
+
+1. **Use templates** - Inherit from core templates rather than duplicating behavior
+2. **Use components** - Extract reusable instruction blocks as components
+3. **Test state transitions** - Ensure all states have valid exit paths
+4. **Balance detection ranges** - ViewRange > AlertedRange > AbsoluteDetectionRange
+5. **Configure leashing** - Prevent NPCs from wandering too far
+6. **Set appropriate attitudes** - Match NPC faction and personality
+7. **Use flock communication** - Coordinate group responses to threats
+
+## Related
+
+- [NPC Overview](/api-reference/assets/npcs/overview/) - NPC system overview
+- [NPC Models](/api-reference/assets/npcs/models/) - Model definitions
+- [NPC Groups](/api-reference/assets/npcs/groups/) - Group membership
+- [Entities Overview](/api-reference/entities/overview/) - Entity system
+- [Event System](/core-concepts/event-system/) - Event handling
