@@ -1,7 +1,7 @@
 {
   "name": "doctale",
   "type": "module",
-  "version": "1.4.4",
+  "version": "1.4.3",
   "description": "Comprehensive documentation for Hytale server plugin development",
   "scripts": {
     "dev": "astro dev",
@@ -13,6 +13,7 @@
     "cf:login": "wrangler login"
   },
   "dependencies": {
+    "@astrojs/cloudflare": "^12.6.12",
     "@astrojs/starlight": "^0.37.3",
     "astro": "^5.6.1",
     "remark-mermaidjs": "^7.0.0"
