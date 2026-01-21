@@ -1,48 +1,19 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
-import cloudflare from '@astrojs/cloudflare';
-// Note: remark-mermaidjs requires Playwright which is incompatible with Cloudflare Workers
-// Mermaid diagrams will use client-side rendering instead
 
 // https://astro.build/config
 export default defineConfig({
 	// Custom domain
 	site: 'https://doctale.dev',
 
-	// Server output for Cloudflare Workers
-	output: 'server',
-
-	// Cloudflare Workers adapter
-	adapter: cloudflare({
-		imageService: 'passthrough',
-		platformProxy: {
-			enabled: true,
-		},
-	}),
+	// Static output - pre-renders all pages at build time
+	// Deployed to Cloudflare Pages (static assets only, no worker bundle)
+	output: 'static',
 
 	// Build configuration
 	build: {
 		assets: '_astro',
-	},
-
-	// Vite configuration for Cloudflare compatibility
-	vite: {
-		build: {
-			target: 'esnext',
-			cssTarget: 'chrome100',
-		},
-		ssr: {
-			external: ['node:async_hooks'],
-		},
-	},
-
-	// Limit Shiki languages to reduce bundle size for Cloudflare Workers (3MB limit)
-	markdown: {
-		shikiConfig: {
-			// @ts-ignore - string array works at runtime for built-in languages
-			langs: ['java', 'json', 'groovy', 'bash', 'xml'],
-		},
 	},
 
 	integrations: [
@@ -108,8 +79,6 @@ export default defineConfig({
 			customCss: [
 				'./src/styles/custom.css',
 			],
-			// Disable pagefind for SSR (not compatible with Workers)
-			pagefind: false,
 			sidebar: [
 				{
 					label: 'Getting Started',

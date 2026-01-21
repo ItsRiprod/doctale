@@ -1,17 +1,10 @@
-# Cloudflare Workers Configuration
-# https://developers.cloudflare.com/workers/wrangler/configuration/
+# Cloudflare Workers Static Assets Configuration
+# https://developers.cloudflare.com/workers/static-assets/
 
 name = "doctale"
-main = "dist/_worker.js/index.js"
 compatibility_date = "2024-01-01"
-compatibility_flags = ["nodejs_compat"]
 
-# Static assets configuration
-assets = { directory = "dist", binding = "ASSETS" }
-
-# Custom domain (configure in Cloudflare Dashboard)
-# routes = [{ pattern = "doctale.dev/*", custom_domain = true }]
-
-# Environment variables
-[vars]
-ENVIRONMENT = "production"
+# Static assets only - no worker script needed
+# Astro builds static HTML files that are served directly
+[assets]
+directory = "dist"
