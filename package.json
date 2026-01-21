@@ -1,7 +1,7 @@
 {
   "name": "doctale",
   "type": "module",
-  "version": "1.4.4",
+  "version": "1.4.5",
   "description": "Comprehensive documentation for Hytale server plugin development",
   "scripts": {
     "dev": "astro dev",
@@ -9,7 +9,7 @@
     "build": "astro build",
     "preview": "wrangler dev",
     "astro": "astro",
-    "deploy": "wrangler deploy",
+    "deploy": "wrangler pages deploy dist",
     "cf:login": "wrangler login"
   },
   "dependencies": {
