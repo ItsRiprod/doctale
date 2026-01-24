@@ -20,12 +20,12 @@ The client synchronization system replicates server state to connected clients. 
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                  Synchronization Pipeline                        │
-│                                                                  │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────────┐  │
-│  │ State Change │───►│ Visibility   │───►│ Queue Updates    │  │
-│  │ (Component)  │    │ Detection    │    │ (Delta Encoding) │  │
-│  └──────────────┘    └──────────────┘    └────────┬─────────┘  │
+│                  Synchronization Pipeline                       │
+│                                                                 │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────────┐   │
+│  │ State Change │───►│ Visibility   │───►│ Queue Updates    │   │
+│  │ (Component)  │    │ Detection    │    │ (Delta Encoding) │   │
+│  └──────────────┘    └──────────────┘    └────────┬─────────┘   │
 │                                                    │            │
 │                                          ┌─────────▼─────────┐  │
 │                                          │   SendPackets     │  │

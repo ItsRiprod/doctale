@@ -18,25 +18,24 @@ This document covers creating custom interactions through both **asset-based JSO
 The most common way to create custom interactions is through JSON asset files. This allows you to define interaction chains, damage calculations, animations, and effects without writing Java code.
 
 ### Asset Locations
-
-```
-Assets/Server/Item/
-├── Interactions/              # Interaction definitions
-│   └── Weapons/
-│       ├── DamageEntityParent.json    # Shared parent for damage
-│       └── Sword/
-│           └── Attacks/
-│               ├── Primary/           # Primary attack chain
-│               └── Signature/         # Signature abilities
-├── RootInteractions/          # Entry point definitions
-│   └── Weapons/
-│       └── Sword/
-│           ├── Root_Weapon_Sword_Primary.json
-│           └── Root_Weapon_Sword_Signature_Vortexstrike.json
-└── Items/                     # Item definitions referencing interactions
-    └── Weapon/
-        └── Sword/
-```
+<FileTree>
+- Assets/Server/Item/
+  - Interactions/
+    - Weapons/
+      - DamageEntityParent.json
+      - Sword/
+        - Attacks/
+          - Primary/
+          - Signature/
+  - RootInteractions/
+    - Weapons/
+      - Sword/
+        - Root_Weapon_Sword_Primary.json
+        - Root_Weapon_Sword_Signature_Vortexstrike.json
+  - Items/
+    - Weapon/
+      - Sword/
+</FileTree>
 
 ### Interaction System Architecture
 
@@ -44,7 +43,7 @@ Assets/Server/Item/
 Item Definition                 Root Interaction              Interaction Chain
 ┌─────────────────┐            ┌──────────────────┐          ┌─────────────────┐
 │ Interactions:   │            │ Interactions: [  │          │ Type: Charging  │
-│   Primary:      │───────────▶│   "Weapon_Sword  │─────────▶│ Next: Chain     │
+│   Primary:      │───────────▶   "Weapon_Sword  │─────────▶ Next: Chain     │
 │     Root_...    │            │    _Primary"     │          │                 │
 │   Ability1:     │            │ ]                │          └────────┬────────┘
 │     Root_...    │            └──────────────────┘                   │

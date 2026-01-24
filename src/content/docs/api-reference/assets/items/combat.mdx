@@ -15,14 +15,14 @@ The combat system defines weapon attacks, damage calculations, and effects throu
 ## System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                       Item Definition                        │
+┌────────────────────────────────────────────────────────────┐
+│                       Item Definition                      │
 │  ┌─────────────────┐    ┌──────────────────────────────┐   │
 │  │   Interactions  │    │        InteractionVars       │   │
 │  │  Primary: Root  │    │  Swing_Left_Damage: {...}    │   │
 │  │  Secondary: Root│    │  Swing_Right_Damage: {...}   │   │
-│  └────────┬────────┘    └──────────────┬───────────────┘   │
-└───────────┼─────────────────────────────┼───────────────────┘
+│  └────────┬────────┘    └───────────────┬──────────────┘   │
+└───────────┼─────────────────────────────┼──────────────────┘
             │                             │
             ▼                             ▼
 ┌───────────────────────┐    ┌───────────────────────────────┐
@@ -32,7 +32,7 @@ The combat system defines weapon attacks, damage calculations, and effects throu
             │
             ▼
 ┌───────────────────────────────────────────────────────────┐
-│                  Interaction Chain                         │
+│                  Interaction Chain                        │
 │  Charging → Chaining → Attack → Selector → Damage         │
 └───────────────────────────────────────────────────────────┘
 ```
