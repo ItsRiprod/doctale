@@ -3,8 +3,12 @@
 ## Project Overview
 
 This is an Astro-based documentation site for Hytale server modding. The site documents:
-- **Plugin API** (Java code in `/extracted/`) - Server-side plugin development
+- **Plugin API** (Java code in `/hytaleServer-extracted-v2/`) - Server-side plugin development
 - **Assets System** (in `/Assets/`) - Game content definitions (models, textures, sounds, configs)
+
+**Note**: Two decompiled extractions exist:
+- `hyaleServer-extracted-v1` - Update 1 (5,284 files)
+- `hytaleServer-extracted-v2` - **Update 2** (5,300 files) - Use this for documentation
 
 **Site URL**: https://doctale.dev
 **Framework**: Astro 5.6.1 with Starlight 0.37.3
@@ -34,7 +38,8 @@ docs/
 │   └── styles/
 │       └── custom.css        # Theme customization
 ├── public/                   # Static files (logo, favicon, images)
-├── extracted/                # Decompiled Java source (~5,218 files)
+├── hyaleServer-extracted-v1/ # Decompiled Java source v1 (5,284 files) - OLD
+├── hytaleServer-extracted-v2/# Decompiled Java source v2 (5,300 files) - CURRENT
 └── Assets/                   # Game assets (source of truth)
 ```
 

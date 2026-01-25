@@ -1,0 +1,222 @@
+---
+title: "Block Physics"
+---
+
+{/* [VERIFIED: 2026-01-19] */}
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+# Block Physics
+
+The block physics system handles support requirements and physical behavior of blocks in the world.
+
+## Package Location
+
+`com.hypixel.hytale.builtin.blockphysics.*`
+
+## Support System Overview
+
+Blocks can require support from neighboring blocks and provide support to others. When support requirements aren't met, blocks react according to their `SupportDropType`.
+
+## Support Configuration
+
+```json title="Block with support requirements"
+{
+  "Id": "MyPlugin_HangingLantern",
+  "Support": {
+    "Up": [{ "Type": "Full" }]
+  },
+  "SupportDropType": "DROP"
+}
+```
+
+This lantern requires full support from above and drops as an item if that support is removed.
+
+## Support Properties
+
+### Support (Required Support)
+
+Defines what support this block needs from neighbors:
+
+```json title="Support requirements"
+{
+  "Support": {
+    "Down": [{ "Type": "Full" }],
+    "Up": [{ "Type": "Full" }],
+    "North": [{ "Type": "Partial" }],
+    "South": [{ "Type": "Partial" }],
+    "East": [{ "Type": "Partial" }],
+    "West": [{ "Type": "Partial" }]
+  }
+}
+```
+
+| Face | Description |
+|------|-------------|
+| `Down` | Block below |
+| `Up` | Block above |
+| `North` | Block to the north |
+| `South` | Block to the south |
+| `East` | Block to the east |
+| `West` | Block to the west |
+
+### Supporting (Provided Support)
+
+Defines what support this block provides to neighbors:
+
+```json title="Support provided to neighbors"
+{
+  "Supporting": {
+    "Up": [{ "Type": "Full" }],
+    "North": [{ "Type": "Full" }],
+    "South": [{ "Type": "Full" }],
+    "East": [{ "Type": "Full" }],
+    "West": [{ "Type": "Full" }]
+  }
+}
+```
+
+<Aside type="note">
+A solid block typically provides `Full` support to all adjacent faces except `Down` (blocks don't support blocks above them by pushing up).
+</Aside>
+
+### Support Types
+
+| Type | Description |
+|------|-------------|
+| `Full` | Complete support (solid blocks) |
+| `Partial` | Partial support (fences, walls) |
+| `None` | No support provided |
+
+## SupportDropType
+
+Determines what happens when a block loses required support:
+
+| Type | Description |
+|------|-------------|
+| `BREAK` | Block breaks (destroyed, no drop) |
+| `DROP` | Block drops as item |
+| `NONE` | Block stays (no physics, floating) |
+
+<Tabs>
+  <TabItem label="DROP">
+```json title="Drops as item"
+{
+  "Id": "Torch",
+  "Support": {
+    "Down": [{ "Type": "Full" }]
+  },
+  "SupportDropType": "DROP"
+}
+```
+  </TabItem>
+  <TabItem label="BREAK">
+```json title="Breaks on support loss"
+{
+  "Id": "IceBlock",
+  "Support": {
+    "Down": [{ "Type": "Full" }]
+  },
+  "SupportDropType": "BREAK"
+}
+```
+  </TabItem>
+  <TabItem label="NONE">
+```json title="Floats (no physics)"
+{
+  "Id": "MagicOrb",
+  "SupportDropType": "NONE"
+}
+```
+  </TabItem>
+</Tabs>
+
+## Advanced Support Properties
+
+### MaxSupportDistance
+
+Maximum distance support can travel (for chains, vines, etc.):
+
+```json title="Support distance"
+{
+  "MaxSupportDistance": 5
+}
+```
+
+Range: 0-14 blocks. Use for blocks that can hang from a ceiling but only up to a certain length.
+
+### SupportsRequiredFor
+
+When support is validated:
+
+```json title="Support check timing"
+{
+  "SupportsRequiredFor": "PLACEMENT_AND_EXISTENCE"
+}
+```
+
+| Value | Description |
+|-------|-------------|
+| `PLACEMENT_ONLY` | Only check on placement |
+| `EXISTENCE_ONLY` | Only check during world updates |
+| `PLACEMENT_AND_EXISTENCE` | Check both times |
+
+### IgnoreSupportWhenPlaced
+
+Bypass support validation on initial placement:
+
+```json title="Ignore support on placement"
+{
+  "IgnoreSupportWhenPlaced": true
+}
+```
+
+Useful for decorative blocks placed by world generation.
+
+## BlockFaceSupport
+
+Fine-grained support configuration per face:
+
+```json title="Detailed face support"
+{
+  "BlockFaceSupport": {
+    "Up": {
+      "SupportType": "Full",
+      "RequiredArea": 0.5
+    }
+  }
+}
+```
+
+## Complete Example
+
+```json title="Wall-mounted shelf block"
+{
+  "Id": "MyPlugin_WallShelf",
+  "DrawType": "Model",
+  "CustomModel": "models/shelf.blockymodel",
+  "Material": "Wood",
+  "Support": {
+    "North": [{ "Type": "Full" }],
+    "South": [{ "Type": "Full" }],
+    "East": [{ "Type": "Full" }],
+    "West": [{ "Type": "Full" }]
+  },
+  "Supporting": {
+    "Up": [{ "Type": "Partial" }]
+  },
+  "SupportDropType": "DROP",
+  "SupportsRequiredFor": "PLACEMENT_AND_EXISTENCE"
+}
+```
+
+This shelf:
+- Must be placed against a wall (any horizontal direction)
+- Provides partial support for items placed on top
+- Drops as an item if the wall is removed
+
+## Related
+
+- [Block Types](/plugin-development/blocks/block-types/) - BlockType properties
+- [Block Events](/plugin-development/blocks/block-events/) - React to physics changes
+- [Physics Overview](/plugin-development/physics/overview/) - General physics system

@@ -1,0 +1,278 @@
+---
+title: "Block Animations"
+---
+
+{/* [VERIFIED: 2026-01-20] */}
+
+import { Aside, Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="AI-Generated Content">
+This documentation was generated from analysis of decompiled source code and game assets. Some details may be incomplete or subject to change.
+</Aside>
+
+Block animations bring interactive blocks to life with movement sequences for doors, chests, and other functional blocks. Animations are created in Blockbench and exported as `.blockyanim` files.
+
+## Asset Location
+
+Block animations are stored in the Common assets:
+
+<FileTree>
+- Assets/Common/Blocks/Animations/
+  - Candle/
+    - Candle_Burn.blockyanim
+  - Chest/
+    - Chest_Open.blockyanim
+    - Chest_Close.blockyanim
+  - Coffin/
+    - Coffin_Open.blockyanim
+    - Coffin_Close.blockyanim
+  - Door/
+    - Door_Open_In.blockyanim
+    - Door_Open_Out.blockyanim
+    - Door_Close_In.blockyanim
+    - Door_Close_Out.blockyanim
+    - Door_Open_Slide_In.blockyanim
+    - Door_Open_Slide_Out.blockyanim
+  - Fire/
+    - Fire_Burn.blockyanim
+    - Fire_Small_Burn.blockyanim
+  - Light/
+    - Light_On.blockyanim
+    - Light_Off.blockyanim
+  - Trapdoor/
+    - Trapdoor_Open.blockyanim
+    - Trapdoor_Close.blockyanim
+  - Wardrobe/
+    - Wardrobe_Open.blockyanim
+    - Wardrobe_Close.blockyanim
+</FileTree>
+
+## Animation Categories
+
+### Interactive Block Animations
+
+| Category | Animations | Usage |
+|----------|------------|-------|
+| Door | Open/Close In/Out, Slide variants | Doors opening towards/away from player |
+| Chest | Open, Close | Container lid animations |
+| Wardrobe | Open, Close | Tall container door animations |
+| Trapdoor | Open, Close | Horizontal door animations |
+| Coffin | Open, Close | Special container animations |
+
+### Ambient Animations
+
+| Category | Animations | Usage |
+|----------|------------|-------|
+| Candle | Burn | Looping flame flicker |
+| Fire | Burn, Small_Burn | Campfire/torch flame |
+| Light | On, Off | Light state transitions |
+
+## Using Animations in Block Definitions
+
+Animations are referenced in the `State.Definitions` section of block types:
+
+### Door Animation Example
+
+```json title="Door State Definitions" {5-6,11-14,18-21}
+{
+  "BlockType": {
+    "State": {
+      "Definitions": {
+        "OpenDoorIn": {
+          "HitboxType": "Door_Open_In",
+          "InteractionHitboxType": "Door_Open_In_Interaction",
+          "InteractionSoundEventId": "SFX_Door_Crude_Open",
+          "CustomModelAnimation": "Blocks/Animations/Door/Door_Open_In.blockyanim"
+        },
+        "OpenDoorOut": {
+          "HitboxType": "Door_Open_Out",
+          "InteractionHitboxType": "Door_Open_Out_Interaction",
+          "InteractionSoundEventId": "SFX_Door_Crude_Open",
+          "CustomModelAnimation": "Blocks/Animations/Door/Door_Open_Out.blockyanim"
+        },
+        "CloseDoorIn": {
+          "InteractionSoundEventId": "SFX_Door_Crude_Close",
+          "CustomModelAnimation": "Blocks/Animations/Door/Door_Close_In.blockyanim"
+        },
+        "CloseDoorOut": {
+          "InteractionSoundEventId": "SFX_Door_Crude_Close",
+          "CustomModelAnimation": "Blocks/Animations/Door/Door_Close_Out.blockyanim"
+        },
+        "DoorBlocked": {}
+      }
+    },
+    "IsDoor": true,
+    "Interactions": {
+      "Use": "Door"
+    }
+  }
+}
+```
+
+### Container Animation Example
+
+```json title="Chest State Definitions" {4,9-12,13-16}
+{
+  "BlockType": {
+    "State": {
+      "Id": "container",
+      "Capacity": 18,
+      "Definitions": {
+        "OpenWindow": {
+          "InteractionSoundEventId": "SFX_Chest_Wooden_Open",
+          "CustomModelAnimation": "Blocks/Animations/Chest/Chest_Open.blockyanim"
+        },
+        "CloseWindow": {
+          "InteractionSoundEventId": "SFX_Chest_Wooden_Close",
+          "CustomModelAnimation": "Blocks/Animations/Chest/Chest_Close.blockyanim"
+        }
+      }
+    },
+    "Interactions": {
+      "Primary": "Break_Container",
+      "Use": "Open_Container"
+    }
+  }
+}
+```
+
+## Animation Properties
+
+### State Definition Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `CustomModelAnimation` | `string` | Path to `.blockyanim` file |
+| `InteractionSoundEventId` | `string` | Sound to play during animation |
+| `HitboxType` | `string` | Hitbox when in this state |
+| `InteractionHitboxType` | `string` | Hitbox for interaction detection |
+
+### Default Animation
+
+For blocks with a default idle animation:
+
+```json
+{
+  "BlockType": {
+    "CustomModelAnimation": "Blocks/Animations/Candle/Candle_Burn.blockyanim"
+  }
+}
+```
+
+## Door Animation Variants
+
+Doors support multiple animation directions:
+
+| Animation | Description |
+|-----------|-------------|
+| `Door_Open_In` | Door swings towards player |
+| `Door_Open_Out` | Door swings away from player |
+| `Door_Close_In` | Close from inward position |
+| `Door_Close_Out` | Close from outward position |
+| `Door_Open_Slide_In` | Sliding door variant |
+| `Door_Open_Slide_Out` | Sliding door variant |
+
+<Aside type="tip">
+The door system automatically chooses the appropriate animation based on the player's position relative to the door.
+</Aside>
+
+## Creating Custom Animations
+
+### In Blockbench
+
+1. Open or create a Hytale Model project
+2. Switch to the Animation tab
+3. Create keyframes for bone transformations
+4. Export as `.blockyanim`
+
+### Animation Requirements
+
+| Requirement | Details |
+|-------------|---------|
+| Format | Hytale-specific `.blockyanim` |
+| Bones | Must match model bone hierarchy |
+| Keyframes | Position, rotation, scale transforms |
+| Duration | Varies by animation type |
+
+### Bone Naming
+
+Animations reference bones in the model:
+
+```
+Root
+├── Body
+│   ├── Lid (for chests)
+│   ├── Door_Panel (for doors)
+│   └── ...
+```
+
+## Looping Animations
+
+For ambient effects like flames, use looping animations:
+
+```json
+{
+  "BlockType": {
+    "CustomModelAnimation": "Blocks/Animations/Fire/Fire_Burn.blockyanim",
+    "Looping": true
+  }
+}
+```
+
+## State Transitions
+
+Animation playback is triggered by state changes:
+
+```json title="Light Toggle States"
+{
+  "State": {
+    "Definitions": {
+      "On": {
+        "CustomModelAnimation": "Blocks/Animations/Light/Light_On.blockyanim",
+        "Light": { "Color": "#ffa", "Radius": 8 }
+      },
+      "Off": {
+        "CustomModelAnimation": "Blocks/Animations/Light/Light_Off.blockyanim",
+        "Light": null
+      }
+    }
+  },
+  "Interactions": {
+    "Use": {
+      "Interactions": [
+        {
+          "Type": "ChangeState",
+          "Changes": {
+            "On": "Off",
+            "Off": "On"
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+## File Format
+
+The `.blockyanim` format is a binary format created by Blockbench's Hytale plugin. Key characteristics:
+
+- Created in Blockbench's Animation tab
+- References bone names from the model
+- Supports position, rotation, and scale keyframes
+- Can be looping or one-shot
+
+## Best Practices
+
+1. **Match bone names** - Animation bones must exactly match model bone names
+2. **Keep animations short** - Interactive animations should be snappy
+3. **Pair with sounds** - Always include `InteractionSoundEventId`
+4. **Update hitboxes** - Change `HitboxType` for open/closed states
+5. **Test transitions** - Ensure smooth state changes
+
+## Related
+
+- [Block Type Assets](/asset-development/blocks/block-types/) - Block definition schema
+- [Decorative Sets](/asset-development/blocks/decorative-sets/) - Themed block collections
+- [Blockbench Setup](/tutorials/blockbench/setup/) - Animation creation tool
+- [Audio Overview](/asset-development/audio/overview/) - Sound event system

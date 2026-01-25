@@ -1,0 +1,628 @@
+---
+title: "NPC Assets"
+---
+
+{/* [VERIFIED: 2026-01-20] */}
+
+import { Aside, Card, CardGrid, LinkCard, Tabs, TabItem, FileTree, Badge } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="AI-Generated Content">
+This documentation was generated from analysis of NPC assets in `/Assets/Server/Models/`, `/Assets/Server/NPC/`, and `/Assets/Common/NPC/`.
+Verify all information against actual asset files before use in production.
+</Aside>
+
+NPC assets define the visual appearance, animations, behavior, and spawning rules for non-player characters. This page covers the asset files that configure NPCs, while [NPC System Overview](/plugin-development/npc/overview/) covers the programming API.
+
+## Asset Locations
+
+| Directory | Purpose |
+|-----------|---------|
+| `Assets/Server/Models/[Category]/` | NPC model definitions (hitbox, animations) |
+| `Assets/Server/NPC/Roles/[Category]/` | NPC behavior roles |
+| `Assets/Server/NPC/Groups/` | NPC group memberships |
+| `Assets/Server/NPC/Spawn/` | Spawning configurations |
+| `Assets/Server/NPC/Attitude/` | Attitude relationships |
+| `Assets/Common/NPC/[Category]/` | Visual models and textures |
+
+## NPC Categories
+
+Hytale organizes NPCs into 22 categories:
+
+<CardGrid>
+  <Card title="Beast" icon="star">
+    45+ hostile/neutral creatures (Wolf, Bear, Spider, etc.)
+  </Card>
+  <Card title="Livestock" icon="heart">
+    34+ farm animals (Cow, Sheep, Pig, Chicken, etc.)
+  </Card>
+  <Card title="Wildlife" icon="leaf">
+    Ambient wild animals (Deer, Rabbit, etc.)
+  </Card>
+  <Card title="Intelligent" icon="setting">
+    24+ humanoid NPCs (Kweebec, Trork, Outlander, etc.)
+  </Card>
+</CardGrid>
+
+### Full Category List
+
+| Category | Type | Description |
+|----------|------|-------------|
+| `Beast` | Hostile | Large predatory creatures |
+| `Boss` | Hostile | Boss encounters |
+| `Critter` | Neutral | Small ambient creatures |
+| `Elemental` | Hostile | Elemental beings |
+| `Flying_Beast` | Hostile | Airborne predators |
+| `Flying_Critter` | Neutral | Birds, bats |
+| `Flying_Wildlife` | Neutral | Ambient flying creatures |
+| `Human` | Varies | Human NPCs |
+| `Intelligent` | Varies | Humanoid species |
+| `Livestock` | Neutral | Farm animals |
+| `Pets` | Friendly | Tameable companions |
+| `Scifi` | Varies | Science fiction creatures |
+| `Statues` | Neutral | Animated statues |
+| `Swimming_Beast` | Hostile | Aquatic predators |
+| `Swimming_Critter` | Neutral | Small aquatic creatures |
+| `Swimming_Wildlife` | Neutral | Fish, etc. |
+| `Undead` | Hostile | Undead creatures |
+| `Void` | Hostile | Void creatures |
+| `Wildlife` | Neutral | Forest animals |
+
+## Model Definition Schema
+
+Model definitions in `Assets/Server/Models/` configure the server-side representation of NPCs.
+
+### Core Properties
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Model` | `string` | Path to `.blockymodel` file |
+| `Texture` | `string` | Path to texture file |
+| `EyeHeight` | `number` | Height of eye position |
+| `CrouchOffset` | `number` | Crouch height offset |
+| `MinScale` | `number` | Minimum random scale |
+| `MaxScale` | `number` | Maximum random scale |
+| `HitBox` | `object` | Collision hitbox |
+| `AnimationSets` | `object` | Animation configurations |
+| `Camera` | `object` | Camera tracking settings |
+| `IconProperties` | `object` | UI icon rendering |
+
+### HitBox Definition
+
+```json title="HitBox structure"
+{
+  "HitBox": {
+    "Min": { "X": -0.45, "Y": 0, "Z": -0.45 },
+    "Max": { "X": 0.45, "Y": 1.6, "Z": 0.45 }
+  }
+}
+```
+
+### Complete Model Example (Wolf)
+
+```json title="Wolf_Black.json" {1-17,19-53}
+{
+  "Model": "NPC/Beast/Wolf/Models/Model.blockymodel",
+  "Texture": "NPC/Beast/Wolf/Models/Model_Textures/Black.png",
+  "EyeHeight": 1,
+  "HitBox": {
+    "Max": { "X": 0.45, "Y": 1.6, "Z": 0.45 },
+    "Min": { "X": -0.45, "Y": 0, "Z": -0.45 }
+  },
+  "MinScale": 0.8,
+  "MaxScale": 0.9,
+  "AnimationSets": {
+    "Idle": {
+      "Animations": [{
+        "Animation": "NPC/Beast/Wolf/Animations/Default/Idle.blockyanim",
+        "Speed": 0.5
+      }]
+    },
+    "Walk": {
+      "Animations": [{
+        "Animation": "NPC/Beast/Wolf/Animations/Default/Walk.blockyanim",
+        "Speed": 1
+      }]
+    },
+    "Run": {
+      "Animations": [{
+        "Animation": "NPC/Beast/Wolf/Animations/Default/Run.blockyanim",
+        "SoundEventId": "SFX_Wolf_Run",
+        "Speed": 0.8
+      }]
+    },
+    "Jump": {
+      "Animations": [{
+        "Animation": "NPC/Beast/Wolf/Animations/Default/Jump.blockyanim",
+        "BlendingDuration": 0.1,
+        "Looping": false,
+        "Speed": 0.8
+      }]
+    },
+    "Hurt": {
+      "Animations": [
+        {
+          "Animation": "NPC/Beast/Wolf/Animations/Damage/Hurt.blockyanim",
+          "BlendingDuration": 0.1,
+          "Looping": false,
+          "SoundEventId": "SFX_Wolf_Hurt"
+        },
+        {
+          "Animation": "NPC/Beast/Wolf/Animations/Damage/Hurt2.blockyanim",
+          "BlendingDuration": 0.1,
+          "Looping": false,
+          "SoundEventId": "SFX_Wolf_Hurt"
+        }
+      ]
+    },
+    "Death": {
+      "Animations": [{
+        "Animation": "NPC/Beast/Wolf/Animations/Damage/Death.blockyanim",
+        "Looping": false,
+        "SoundEventId": "SFX_Wolf_Death"
+      }]
+    },
+    "Sleep": {
+      "Animations": [{
+        "Animation": "NPC/Beast/Wolf/Animations/Default/Sleep.blockyanim",
+        "SoundEventId": "SFX_Wolf_Sleep"
+      }]
+    },
+    "Howl": {
+      "Animations": [{
+        "Animation": "NPC/Beast/Wolf/Animations/Flavor/Howl.blockyanim",
+        "Looping": false
+      }]
+    },
+    "Swim": {
+      "Animations": [{
+        "Animation": "NPC/Beast/Wolf/Animations/Swim/Swim.blockyanim"
+      }]
+    }
+  }
+}
+```
+
+## Animation Sets
+
+Animation sets define which animations play for different NPC states.
+
+### Standard Animation States
+
+| State | Description | Required |
+|-------|-------------|----------|
+| `Idle` | Standing still | Yes |
+| `Walk` | Normal movement | Yes |
+| `WalkBackward` | Backward movement | No |
+| `Run` | Fast movement | Yes |
+| `Jump` | Jump initiation | Yes |
+| `JumpWalk` | Jump while walking | No |
+| `JumpRun` | Jump while running | No |
+| `Fall` | Falling | Yes |
+| `Hurt` | Damage received | Yes |
+| `Death` | Death animation | Yes |
+| `Spawn` | Spawn animation | No |
+
+### Behavior Animations
+
+| State | Description |
+|-------|-------------|
+| `Alerted` | Noticed threat |
+| `Threaten` | Warning posture |
+| `Sleep` | Sleeping |
+| `Laydown` | Lie down transition |
+| `Wake` | Wake up transition |
+| `Crouch` | Crouching idle |
+| `CrouchWalk` | Crouching movement |
+
+### Flavor Animations
+
+| State | Description |
+|-------|-------------|
+| `Howl` | Howling/calling |
+| `Sit` | Sitting |
+| `Greet` | Greeting |
+| `Track` | Tracking/sniffing |
+| `TiltHead` | Head tilt |
+| `Dig` | Digging |
+| `SniffAir` | Sniffing air |
+
+### Swimming Animations
+
+| State | Description |
+|-------|-------------|
+| `SwimIdle` | Floating idle |
+| `Swim` | Normal swimming |
+| `SwimFast` | Fast swimming |
+| `SwimBackward` | Backward swimming |
+| `SwimFloat` | Floating on surface |
+| `SwimSink` | Sinking |
+| `SwimDive` | Diving underwater |
+
+### Flying Animations
+
+| State | Description |
+|-------|-------------|
+| `FlyIdle` | Hovering |
+| `Fly` | Normal flight |
+| `FlyFast` | Fast flight |
+| `FlyBackward` | Backward flight |
+
+### Animation Entry Properties
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `Animation` | `string` | Required | Path to `.blockyanim` file |
+| `Speed` | `number` | `1.0` | Playback speed multiplier |
+| `Looping` | `boolean` | `true` | Whether animation loops |
+| `BlendingDuration` | `number` | `0.2` | Blend transition time |
+| `SoundEventId` | `string` | - | Sound to play with animation |
+
+## Role Schema
+
+Roles in `Assets/Server/NPC/Roles/` define NPC behavior, stats, and AI.
+
+### Role Types
+
+| Type | Description |
+|------|-------------|
+| `Generic` | Base role with full configuration |
+| `Variant` | Inherits from another role via `Reference` |
+
+### Core Role Properties
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Type` | `string` | `"Generic"` or `"Variant"` |
+| `Reference` | `string` | Parent role (for Variant type) |
+| `Appearance` | `string` | Model definition ID |
+| `MaxHealth` | `number/object` | Health value or compute |
+| `MotionControllerList` | `array` | Movement controllers |
+| `Instructions` | `array` | Behavior tree instructions |
+| `Parameters` | `object` | Configurable parameters |
+| `NameTranslationKey` | `string` | Localization key |
+
+### Variant Role Example
+
+```json title="Wolf_Black.json (Role)"
+{
+  "Type": "Variant",
+  "Reference": "Template_Predator",
+  "Parameters": {
+    "Appearance": {
+      "Value": "Wolf_Black",
+      "Description": "Model to be used."
+    },
+    "DropList": {
+      "Value": "Drop_Wolf_Black",
+      "Description": "Drop Items."
+    },
+    "MaxHealth": {
+      "Value": 70,
+      "Description": "Max health for the NPC"
+    },
+    "FlockArray": {
+      "Value": ["Wolf_Black"],
+      "Description": "The NPC's flock array"
+    }
+  },
+  "Modify": {
+    "Appearance": { "Compute": "Appearance" },
+    "AttitudeGroup": "PredatorsBig",
+    "MaxHealth": 103,
+    "MaxSpeed": 10,
+    "WanderRadius": 15,
+    "ViewRange": 10,
+    "HearingRange": 12,
+    "AbsoluteDetectionRange": 2,
+    "AlertedRange": 18,
+    "Attack": "Root_NPC_Wolf_Attack",
+    "AttackDistance": 2.5,
+    "IsMemory": true,
+    "MemoriesCategory": "Predator",
+    "_InteractionVars": {
+      "Bite_Damage": {
+        "Interactions": [{
+          "Parent": "Wolf_Bite_Damage",
+          "DamageCalculator": {
+            "Type": "Absolute",
+            "BaseDamage": { "Physical": 27 },
+            "RandomPercentageModifier": 0.1
+          },
+          "DamageEffects": {
+            "Knockback": { "Force": 1 }
+          }
+        }]
+      }
+    }
+  }
+}
+```
+
+### Behavior Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `WanderRadius` | `number` | Wandering distance from spawn |
+| `ViewRange` | `number` | Visual detection range |
+| `HearingRange` | `number` | Sound detection range |
+| `AbsoluteDetectionRange` | `number` | Always-detect range |
+| `AlertedRange` | `number` | Alert trigger range |
+| `ChaseRelativeSpeed` | `number` | Speed multiplier when chasing |
+| `LeashDistance` | `number` | Max distance from spawn point |
+| `HardLeashDistance` | `number` | Absolute max distance |
+
+### Combat Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Attack` | `string` | Attack interaction ID |
+| `AttackDistance` | `number` | Attack range |
+| `CombatBehaviorDistance` | `number` | Engage combat range |
+| `CombatDirectWeight` | `number` | Direct approach weight |
+| `CombatStrafeWeight` | `number` | Strafing weight |
+| `CombatBackOffAfterAttack` | `boolean` | Retreat after attacking |
+| `CombatBackOffDistanceRange` | `array` | Retreat distance [min, max] |
+
+### Alert Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `AlertedTime` | `array` | Alert duration [min, max] |
+| `ChanceToBeAlertedWhenFlockAlerted` | `number` | Group alert chance (0-100) |
+| `MaintainDistanceWhileAlerted` | `boolean` | Keep distance when alerted |
+| `ThreatenDelayRange` | `array` | Threaten delay [min, max] |
+| `ThreatenAnimation` | `string` | Animation during threat |
+| `FleeIfNotThreatened` | `boolean` | Flee when not directly threatened |
+| `FleeRange` | `number` | Distance to flee |
+
+## NPC Groups
+
+Groups in `Assets/Server/NPC/Groups/` categorize NPCs for AI interactions.
+
+### Group Structure
+
+```json title="Prey.json"
+{
+  "IncludeRoles": [
+    "Chicken",
+    "Chicken_Chick",
+    "Rabbit",
+    "Mouse",
+    "Penguin"
+  ]
+}
+```
+
+### Predators Group
+
+```json title="Predators.json"
+{
+  "IncludeRoles": [
+    "Fox*",
+    "Hyena*",
+    "Spark*",
+    "Toad*"
+  ]
+}
+```
+
+Note: Asterisk (`*`) acts as wildcard for role variants.
+
+### Standard Groups
+
+| Group | Purpose |
+|-------|---------|
+| `Prey` | Prey animals |
+| `PreyBig` | Large prey |
+| `Predators` | Small predators |
+| `PredatorsBig` | Large predators |
+| `Critters` | Small critters |
+| `Livestock` | Farm animals |
+| `Birds` | Flying birds |
+| `Aquatic` | Swimming creatures |
+| `Undead` | Undead NPCs |
+| `Void` | Void creatures |
+| `Player` | Player group |
+| `Self` | Self reference |
+
+## Attitude System
+
+Attitudes in `Assets/Server/NPC/Attitude/` define how NPCs react to each other.
+
+### Attitude Types
+
+| Attitude | Description |
+|----------|-------------|
+| `Friendly` | Will not attack |
+| `Neutral` | Ignores unless provoked |
+| `Hostile` | Attacks on sight |
+| `Fearful` | Flees from target |
+
+### Attitude Configuration
+
+Attitudes are configured per group-to-group relationship.
+
+## Spawn Configuration
+
+Spawn files in `Assets/Server/NPC/Spawn/` control where and when NPCs spawn.
+
+### Spawn Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Roles` | `string[]` | Roles that can spawn |
+| `MinCount` | `number` | Minimum spawn count |
+| `MaxCount` | `number` | Maximum spawn count |
+| `SpawnChance` | `number` | Spawn probability (0-1) |
+| `TimeOfDay` | `string` | Time restriction |
+| `Biomes` | `string[]` | Allowed biomes |
+| `LightLevel` | `object` | Light level requirements |
+
+## Camera Configuration
+
+NPCs can have camera tracking for player control:
+
+```json title="Camera configuration"
+{
+  "Camera": {
+    "Pitch": {
+      "AngleRange": { "Max": 45, "Min": -45 },
+      "TargetNodes": ["Head"]
+    },
+    "Yaw": {
+      "AngleRange": { "Max": 45, "Min": -45 },
+      "TargetNodes": ["Head"]
+    }
+  }
+}
+```
+
+## Creating Custom NPCs
+
+### Step 1: Create Model Definition
+
+```json title="MyPlugin_Wolf_Custom.json"
+{
+  "Model": "MyPlugin/NPC/Wolf/Model.blockymodel",
+  "Texture": "MyPlugin/NPC/Wolf/Texture.png",
+  "EyeHeight": 1.0,
+  "HitBox": {
+    "Min": { "X": -0.5, "Y": 0, "Z": -0.5 },
+    "Max": { "X": 0.5, "Y": 1.5, "Z": 0.5 }
+  },
+  "MinScale": 0.9,
+  "MaxScale": 1.1,
+  "AnimationSets": {
+    "Idle": {
+      "Animations": [{
+        "Animation": "MyPlugin/NPC/Wolf/Animations/Idle.blockyanim",
+        "Speed": 0.6
+      }]
+    },
+    "Walk": {
+      "Animations": [{
+        "Animation": "MyPlugin/NPC/Wolf/Animations/Walk.blockyanim",
+        "Speed": 1.0
+      }]
+    },
+    "Run": {
+      "Animations": [{
+        "Animation": "MyPlugin/NPC/Wolf/Animations/Run.blockyanim",
+        "Speed": 0.9
+      }]
+    },
+    "Hurt": {
+      "Animations": [{
+        "Animation": "MyPlugin/NPC/Wolf/Animations/Hurt.blockyanim",
+        "Looping": false,
+        "BlendingDuration": 0.1
+      }]
+    },
+    "Death": {
+      "Animations": [{
+        "Animation": "MyPlugin/NPC/Wolf/Animations/Death.blockyanim",
+        "Looping": false
+      }]
+    }
+  }
+}
+```
+
+### Step 2: Create Role Definition
+
+```json title="MyPlugin_Wolf_Custom_Role.json"
+{
+  "Type": "Variant",
+  "Reference": "Template_Predator",
+  "Parameters": {
+    "Appearance": {
+      "Value": "MyPlugin_Wolf_Custom",
+      "Description": "Custom wolf model"
+    },
+    "MaxHealth": {
+      "Value": 80,
+      "Description": "Max health"
+    },
+    "DropList": {
+      "Value": "MyPlugin_Wolf_Drops",
+      "Description": "Loot drops"
+    }
+  },
+  "Modify": {
+    "Appearance": { "Compute": "Appearance" },
+    "AttitudeGroup": "Predators",
+    "MaxHealth": { "Compute": "MaxHealth" },
+    "MaxSpeed": 9,
+    "WanderRadius": 20,
+    "ViewRange": 12,
+    "Attack": "MyPlugin_Wolf_Attack",
+    "AttackDistance": 2.0,
+    "_InteractionVars": {
+      "Bite_Damage": {
+        "Interactions": [{
+          "DamageCalculator": {
+            "Type": "Absolute",
+            "BaseDamage": { "Physical": 15 }
+          }
+        }]
+      }
+    },
+    "NameTranslationKey": "myplugin.npc.wolf_custom.name"
+  }
+}
+```
+
+### Step 3: Add to NPC Group (Optional)
+
+```json title="MyPlugin_Predators.json"
+{
+  "IncludeRoles": [
+    "MyPlugin_Wolf_Custom"
+  ]
+}
+```
+
+## File Structure
+
+<FileTree>
+- my-plugin/
+  - assets/
+    - server/
+      - models/
+        - beast/
+          - MyPlugin_Wolf_Custom.json
+      - npc/
+        - roles/
+          - creature/
+            - MyPlugin_Wolf_Custom.json
+        - groups/
+          - MyPlugin_Predators.json
+    - common/
+      - npc/
+        - beast/
+          - my_wolf/
+            - Model.blockymodel
+            - Texture.png
+            - animations/
+              - Idle.blockyanim
+              - Walk.blockyanim
+              - Run.blockyanim
+</FileTree>
+
+## Best Practices
+
+1. **Use role variants**: Inherit from templates like `Template_Predator` rather than creating from scratch
+2. **Group related NPCs**: Use groups for AI relationships
+3. **Configure appropriate ranges**: Balance view/hearing ranges for gameplay
+4. **Include all required animations**: At minimum: Idle, Walk, Run, Hurt, Death
+5. **Scale hitboxes appropriately**: Match hitbox to visual model size
+6. **Use descriptive Parameters**: Document values for maintainability
+7. **Prefix IDs**: Use plugin name prefix for all custom NPCs
+8. **Test combat values**: Playtest attack damage and ranges
+
+## Related
+
+- [NPC System Overview](/plugin-development/npc/overview/) - Programming API for NPCs
+- [Entity System](/plugin-development/entities/overview/) - Entity component system
+- [Blockbench Setup](/tutorials/blockbench/setup/) - Creating NPC models
+- [Plugin Manifest](/getting-started/plugin-manifest/) - Including NPC assets

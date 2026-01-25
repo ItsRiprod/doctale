@@ -1,0 +1,672 @@
+---
+title: "Custom Interactions"
+---
+
+import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
+
+{/* [VERIFIED: 2026-01-24] - Updated with Update 2 interaction types */}
+
+# Custom Interactions
+
+This document covers creating custom interactions through both **asset-based JSON definitions** and **Java code**.
+
+- **Asset-Based Interactions** - Define interaction chains via JSON files (most common approach)
+- **Java Code Interactions** - Implement custom Operation classes for new interaction types
+
+## Asset-Based Interactions
+
+The most common way to create custom interactions is through JSON asset files. This allows you to define interaction chains, damage calculations, animations, and effects without writing Java code.
+
+### Asset Locations
+<FileTree>
+- Assets/Server/Item/
+  - Interactions/
+    - Weapons/
+      - DamageEntityParent.json
+      - Sword/
+        - Attacks/
+          - Primary/
+          - Signature/
+  - RootInteractions/
+    - Weapons/
+      - Sword/
+        - Root_Weapon_Sword_Primary.json
+        - Root_Weapon_Sword_Signature_Vortexstrike.json
+  - Items/
+    - Weapon/
+      - Sword/
+</FileTree>
+
+### Interaction System Architecture
+
+```
+Item Definition                 Root Interaction              Interaction Chain
+┌─────────────────┐            ┌──────────────────┐          ┌─────────────────┐
+│ Interactions:   │            │ Interactions: [  │          │ Type: Charging  │
+│   Primary:      │───────────▶   "Weapon_Sword  │─────────▶ Next: Chain     │
+│     Root_...    │            │    _Primary"     │          │                 │
+│   Ability1:     │            │ ]                │          └────────┬────────┘
+│     Root_...    │            └──────────────────┘                   │
+└─────────────────┘                                                   ▼
+                                                             ┌─────────────────┐
+       InteractionVars                                       │ Type: Selector  │
+       (Override Vars)                                       │ HitEntity: ...  │
+       ┌─────────────┐                                       └────────┬────────┘
+       │ Swing_Damage│                                                │
+       │   Parent:   │◀──────────────────────────────────────────────┘
+       │   Custom    │         (Replace with custom damage)
+       └─────────────┘
+```
+
+### Interaction Types
+
+Each interaction JSON file specifies a `Type` that determines its behavior:
+
+| Type | Description | Key Fields |
+|------|-------------|------------|
+| `Simple` | Basic timed operation | `RunTime`, `Effects` |
+| `Charging` | Hold-to-charge mechanic | `DisplayProgress`, `Next` (time-based) |
+| `Chaining` | Combo system | `ChainId`, `ChainingAllowance`, `Next` (array) |
+| `Selector` | Hit detection sweep | `Selector`, `HitEntity`, `HitBlock` |
+| `DamageEntity` | Apply damage to entity | `DamageCalculator`, `DamageEffects` |
+| `Serial` | Run interactions in sequence | `Interactions` (array) |
+| `Parallel` | Run interactions simultaneously | `Interactions` (array) |
+| `Replace` | Var replacement for extensibility | `Var`, `DefaultValue` |
+| `StatsCondition` | Check/consume stats | `Costs`, `ValueType`, `Next` |
+| `ApplyEffect` | Apply entity effect | `EffectId`, `Entity` |
+| `ClearEntityEffect` | Remove entity effect | `EntityEffectId`, `Entity` |
+| `ChangeStat` | Modify entity stats | `StatModifiers`, `ValueType` |
+| `RunOnBlockTypes` | Search blocks and run interactions | `Range`, `BlockSets`, `MaxCount`, `Interactions` |
+
+### Creating a Custom Parent Interaction
+
+To create a reusable Parent that other interactions can inherit from, create a JSON file with the desired base properties:
+
+```json title="MyPlugin_DamageParent.json"
+{
+  "Type": "DamageEntity",
+  "DamageCalculator": {
+    "Class": "Heavy"
+  },
+  "DamageEffects": {
+    "Knockback": {
+      "Type": "Force",
+      "Force": 8.0,
+      "VelocityY": 3.0
+    },
+    "WorldParticles": [
+      {
+        "SystemId": "Impact_Blade_01"
+      }
+    ]
+  },
+  "Next": {
+    "Type": "Serial",
+    "Interactions": [
+      {
+        "Type": "ApplyEffect",
+        "EffectId": "Red_Flash",
+        "Entity": "Target"
+      }
+    ]
+  }
+}
+```
+
+Then reference it as a Parent in your item's `InteractionVars`:
+
+```json title="Weapon_Sword_Custom.json"
+{
+  "Parent": "Template_Weapon_Sword",
+  "InteractionVars": {
+    "Swing_Left_Damage": {
+      "Interactions": [
+        {
+          "Parent": "MyPlugin_DamageParent",
+          "DamageCalculator": {
+            "BaseDamage": { "Physical": 25 }
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+### DamageEntity Interaction Schema
+
+```json title="Complete DamageEntity Example"
+{
+  "Parent": "DamageEntityParent",
+  "DamageCalculator": {
+    "Class": "Light",
+    "BaseDamage": {
+      "Physical": 18,
+      "Fire": 5
+    },
+    "Type": "Absolute",
+    "RandomPercentageModifier": 0.15
+  },
+  "Effects": {
+    "CameraEffect": "Impact"
+  },
+  "DamageEffects": {
+    "Knockback": {
+      "Type": "Force",
+      "VelocityConfig": {
+        "AirResistance": 0.99,
+        "GroundResistance": 0.94,
+        "Threshold": 3.0,
+        "Style": "Linear"
+      },
+      "Direction": { "X": 0, "Y": 1, "Z": -2 },
+      "Force": 6.0,
+      "VelocityType": "Set"
+    },
+    "WorldSoundEventId": "SFX_Sword_T2_Impact",
+    "LocalSoundEventId": "SFX_Sword_T2_Impact",
+    "WorldParticles": [
+      { "SystemId": "Impact_Sword_Basic" }
+    ],
+    "CameraEffect": "Impact_Light"
+  },
+  "EntityStatsOnHit": [
+    { "EntityStatId": "SignatureEnergy", "Amount": 1 }
+  ]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Parent` | `string` | Parent interaction to inherit from |
+| `DamageCalculator.Class` | `string` | Damage class: `Light`, `Heavy`, `Signature` |
+| `DamageCalculator.BaseDamage` | `object` | Damage by type: `Physical`, `Fire`, `Ice`, etc. |
+| `DamageEffects.Knockback` | `object` | Knockback force and direction |
+| `DamageEffects.WorldParticles` | `array` | Particles spawned on hit |
+| `EntityStatsOnHit` | `array` | Stats modified on successful hit |
+
+### Simple Interaction with Animation
+
+```json title="MyPlugin_Swing_Left.json"
+{
+  "Type": "Simple",
+  "RunTime": 0.117,
+  "Effects": {
+    "ItemAnimationId": "SwingLeft",
+    "WorldSoundEventId": "SFX_Light_Melee_T2_Swing",
+    "LocalSoundEventId": "SFX_Sword_T2_Swing_RL_Local"
+  },
+  "Next": {
+    "Type": "Replace",
+    "Var": "Swing_Left_Selector",
+    "DefaultOk": true,
+    "DefaultValue": {
+      "Interactions": ["MyPlugin_Swing_Left_Selector"]
+    }
+  }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `RunTime` | `float` | Duration in seconds |
+| `Effects.ItemAnimationId` | `string` | Animation ID from the item's animation set |
+| `Effects.WorldSoundEventId` | `string` | Sound played for all players |
+| `Effects.LocalSoundEventId` | `string` | Sound played only for the player |
+| `Effects.Trails` | `array` | Trail effects during swing |
+| `Effects.CameraEffect` | `string` | Camera shake/effect ID |
+
+### Selector Interaction (Hit Detection)
+
+```json title="MyPlugin_Swing_Selector.json"
+{
+  "Type": "Selector",
+  "RunTime": 0.05,
+  "Effects": {
+    "ItemAnimationId": "SwingLeftCharged",
+    "Trails": [
+      {
+        "TrailId": "Sword_Trail",
+        "StartDistance": 0.1,
+        "EndDistance": 1.3
+      }
+    ],
+    "CameraEffect": "Sword_Swing_Diagonal_Right"
+  },
+  "Selector": {
+    "Id": "Horizontal",
+    "Direction": "ToLeft",
+    "TestLineOfSight": false,
+    "StartDistance": 0.1,
+    "EndDistance": 2.75,
+    "Length": 90,
+    "ExtendTop": 0.5,
+    "ExtendBottom": 1.0,
+    "YawStartOffset": -45
+  },
+  "HitBlock": {
+    "Interactions": ["Block_Damage"]
+  },
+  "HitEntity": {
+    "Interactions": [
+      {
+        "Type": "Replace",
+        "Var": "Swing_Left_Damage",
+        "DefaultOk": true,
+        "DefaultValue": {
+          "Interactions": ["MyPlugin_Swing_Left_Damage"]
+        }
+      }
+    ]
+  }
+}
+```
+
+| Selector Field | Type | Description |
+|----------------|------|-------------|
+| `Id` | `string` | Selector shape: `Horizontal`, `Vertical`, `Thrust` |
+| `Direction` | `string` | Sweep direction: `ToLeft`, `ToRight` |
+| `StartDistance` | `float` | Inner sweep radius |
+| `EndDistance` | `float` | Outer sweep radius |
+| `Length` | `float` | Arc angle in degrees (360 = full circle) |
+| `ExtendTop/Bottom` | `float` | Vertical extension of hitbox |
+| `YawStartOffset` | `float` | Starting angle offset |
+| `TestLineOfSight` | `bool` | Require line of sight to target |
+
+### Chaining Interaction (Combos)
+
+```json title="MyPlugin_Primary_Chain.json"
+{
+  "Type": "Chaining",
+  "ChainingAllowance": 2,
+  "ChainId": "Sword_Swings",
+  "Next": [
+    {
+      "Type": "Replace",
+      "Var": "Swing_Left",
+      "DefaultOk": true,
+      "DefaultValue": {
+        "Interactions": ["MyPlugin_Swing_Left"]
+      }
+    },
+    {
+      "Type": "Replace",
+      "Var": "Swing_Right",
+      "DefaultOk": true,
+      "DefaultValue": {
+        "Interactions": ["MyPlugin_Swing_Right"]
+      }
+    },
+    {
+      "Type": "Replace",
+      "Var": "Swing_Down",
+      "DefaultOk": true,
+      "DefaultValue": {
+        "Interactions": ["MyPlugin_Swing_Down"]
+      }
+    }
+  ]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ChainId` | `string` | Unique identifier for this combo chain |
+| `ChainingAllowance` | `float` | Time window to continue combo (seconds) |
+| `Next` | `array` | Sequence of interactions in the combo |
+
+### Var/Replace System
+
+The `Replace` type enables extensibility by defining variable points that items can override:
+
+```json title="Interaction with Replace point"
+{
+  "Type": "Simple",
+  "RunTime": 0.1,
+  "Next": {
+    "Type": "Replace",
+    "Var": "Custom_Damage",
+    "DefaultOk": true,
+    "DefaultValue": {
+      "Interactions": ["Default_Damage_Interaction"]
+    }
+  }
+}
+```
+
+Items override these via `InteractionVars`:
+
+```json title="Item overriding the Replace var"
+{
+  "Parent": "Template_Weapon_Sword",
+  "InteractionVars": {
+    "Custom_Damage": {
+      "Interactions": [
+        {
+          "Parent": "DamageEntityParent",
+          "DamageCalculator": {
+            "BaseDamage": { "Physical": 30, "Fire": 10 }
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+### Creating a Root Interaction
+
+Root interactions are entry points that items reference:
+
+```json title="Root_MyPlugin_Custom_Primary.json"
+{
+  "RequireNewClick": true,
+  "ClickQueuingTimeout": 0.2,
+  "Cooldown": {
+    "Cooldown": 0.25
+  },
+  "Interactions": [
+    "MyPlugin_Custom_Primary"
+  ]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `RequireNewClick` | `bool` | Require new mouse click (not hold) |
+| `ClickQueuingTimeout` | `float` | Time to queue next click |
+| `Cooldown.Cooldown` | `float` | Cooldown duration in seconds |
+| `Interactions` | `array` | Interaction IDs to execute |
+
+### Signature Ability Example
+
+Complete signature ability with stat cost:
+
+```json title="MyPlugin_Signature_Ability.json"
+{
+  "Type": "StatsCondition",
+  "Costs": {
+    "SignatureEnergy": 100
+  },
+  "ValueType": "Percent",
+  "Next": {
+    "Type": "Serial",
+    "Interactions": [
+      {
+        "Type": "Replace",
+        "Var": "Signature_Effect",
+        "DefaultOk": true,
+        "DefaultValue": {
+          "Interactions": ["MyPlugin_Signature_Spin"]
+        }
+      },
+      {
+        "Type": "Simple",
+        "RunTime": 0.15
+      },
+      {
+        "Type": "Replace",
+        "Var": "Signature_Finisher",
+        "DefaultOk": true,
+        "DefaultValue": {
+          "Interactions": ["MyPlugin_Signature_Stab"]
+        }
+      },
+      {
+        "Type": "ChangeStat",
+        "StatModifiers": {
+          "SignatureEnergy": -100
+        },
+        "ValueType": "Percent"
+      }
+    ]
+  }
+}
+```
+
+### Parallel Interactions
+
+Run multiple interactions simultaneously:
+
+```json title="Parallel execution example"
+{
+  "Type": "Parallel",
+  "Interactions": [
+    {
+      "Interactions": [
+        "MyPlugin_Force_Effect"
+      ]
+    },
+    {
+      "Interactions": [
+        "MyPlugin_Selector"
+      ]
+    },
+    {
+      "Interactions": [
+        "MyPlugin_Particle_Effect"
+      ]
+    }
+  ],
+  "Next": {
+    "Type": "Simple",
+    "RunTime": 0.25
+  }
+}
+```
+
+### RunOnBlockTypes Interaction
+
+<Aside type="note" title="New in Update 2">
+`RunOnBlockTypes` was added in Update 2. Use this for AOE effects that target specific block types.
+</Aside>
+
+Search for blocks matching a BlockSet within a radius and run interactions on each found block:
+
+```json title="AOE block destruction example"
+{
+  "Type": "RunOnBlockTypes",
+  "Range": 5.0,
+  "BlockSets": ["Destructible_Stone", "Destructible_Wood"],
+  "MaxCount": 20,
+  "Interactions": [
+    {
+      "Type": "Simple",
+      "RunTime": 0.1,
+      "Effects": {
+        "WorldParticles": [{ "SystemId": "Block_Break" }]
+      }
+    }
+  ]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Range` | `float` | Search radius in blocks (spherical) |
+| `BlockSets` | `string[]` | Array of BlockSet IDs to match |
+| `MaxCount` | `int` | Maximum blocks to affect (uses reservoir sampling) |
+| `Interactions` | `array` | Interaction chain to run on each found block |
+
+**Use Cases**:
+- AOE destruction abilities (break all nearby stone)
+- Terrain modification spells (convert grass to dirt)
+- Resource gathering sweeps (harvest all crops in range)
+- Environmental effects (ignite all wood blocks)
+
+```json title="Frost spell freezing water blocks"
+{
+  "Type": "RunOnBlockTypes",
+  "Range": 8.0,
+  "BlockSets": ["Water_Sources"],
+  "MaxCount": 50,
+  "Interactions": [
+    {
+      "Type": "Serial",
+      "Interactions": [
+        {
+          "Type": "Simple",
+          "RunTime": 0.05,
+          "Effects": {
+            "WorldParticles": [{ "SystemId": "Frost_Spread" }],
+            "WorldSoundEventId": "SFX_Ice_Form"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+<Aside type="tip">
+Use `MaxCount` to limit performance impact. Large `Range` values with no `MaxCount` can cause lag if many blocks match. The reservoir sampling ensures a random distribution when capped.
+</Aside>
+
+### Complete Custom Weapon Example
+
+Here's a complete example of a custom weapon with its own interaction chain:
+
+**1. Create the damage interaction (inherits from DamageEntityParent):**
+
+```json title="Assets/Server/Item/Interactions/MyPlugin/MyPlugin_Heavy_Damage.json"
+{
+  "Parent": "DamageEntityParent",
+  "DamageCalculator": {
+    "Class": "Heavy"
+  },
+  "Effects": {
+    "CameraEffect": "Impact"
+  },
+  "DamageEffects": {
+    "Knockback": {
+      "Type": "Force",
+      "Direction": { "X": 0, "Y": 2, "Z": -3 },
+      "Force": 10.0,
+      "VelocityType": "Set"
+    },
+    "WorldParticles": [
+      { "SystemId": "Impact_Blade_Heavy" }
+    ],
+    "CameraEffect": "Impact_Heavy"
+  },
+  "EntityStatsOnHit": [
+    { "EntityStatId": "SignatureEnergy", "Amount": 2 }
+  ]
+}
+```
+
+**2. Create the swing animation + selector:**
+
+```json title="Assets/Server/Item/Interactions/MyPlugin/MyPlugin_Swing.json"
+{
+  "Type": "Simple",
+  "RunTime": 0.2,
+  "Effects": {
+    "ItemAnimationId": "SwingDown",
+    "WorldSoundEventId": "SFX_Heavy_Melee_Swing"
+  },
+  "Next": {
+    "Type": "Selector",
+    "RunTime": 0.1,
+    "Effects": {
+      "Trails": [{ "TrailId": "Heavy_Blade_Trail" }],
+      "CameraEffect": "Heavy_Swing"
+    },
+    "Selector": {
+      "Id": "Vertical",
+      "Direction": "ToDown",
+      "StartDistance": 0.2,
+      "EndDistance": 3.0,
+      "Length": 120
+    },
+    "HitEntity": {
+      "Interactions": [
+        {
+          "Type": "Replace",
+          "Var": "Heavy_Damage",
+          "DefaultOk": true,
+          "DefaultValue": {
+            "Interactions": ["MyPlugin_Heavy_Damage"]
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+**3. Create the root interaction:**
+
+```json title="Assets/Server/Item/RootInteractions/MyPlugin/Root_MyPlugin_Primary.json"
+{
+  "RequireNewClick": true,
+  "Cooldown": {
+    "Cooldown": 0.5
+  },
+  "Interactions": ["MyPlugin_Swing"]
+}
+```
+
+**4. Create the weapon item:**
+
+```json title="Assets/Server/Item/Items/Weapon/MyPlugin/Weapon_Greatsword_Custom.json"
+{
+  "Parent": "Template_Weapon_Sword",
+  "TranslationProperties": {
+    "Name": "myplugin.items.greatsword_custom.name"
+  },
+  "Model": "MyPlugin/Weapons/Greatsword_Custom.blockymodel",
+  "Texture": "MyPlugin/Weapons/Greatsword_Custom_Texture.png",
+  "Quality": "Epic",
+  "ItemLevel": 40,
+  "MaxDurability": 200,
+  "DurabilityLossOnHit": 0.25,
+  "Interactions": {
+    "Primary": "Root_MyPlugin_Primary",
+    "Secondary": "Root_Weapon_Sword_Secondary_Guard"
+  },
+  "InteractionVars": {
+    "Heavy_Damage": {
+      "Interactions": [
+        {
+          "Parent": "MyPlugin_Heavy_Damage",
+          "DamageCalculator": {
+            "BaseDamage": { "Physical": 35 }
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+### Animation IDs
+
+Available animation IDs depend on the item's `PlayerAnimationsId`. For swords:
+
+| Animation ID | Description |
+|--------------|-------------|
+| `SwingLeft` | Horizontal left swing |
+| `SwingRight` | Horizontal right swing |
+| `SwingDown` | Vertical downward swing |
+| `Thrust` | Forward thrust |
+| `SpinRightCharging` | Spin charge-up |
+| `SpinRightCharged` | Spin attack |
+| `Guard` | Blocking stance |
+| `GuardHit` | Block impact reaction |
+
+### Best Practices
+
+1. **Use Parent inheritance** - Create base damage interactions and override specific values
+2. **Use Replace vars** - Make interactions extensible so items can customize behavior
+3. **Prefix custom files** - Use your plugin name prefix for all custom interactions
+4. **Chain interactions logically** - Animation → Selector → Damage is the standard pattern
+5. **Test with different targets** - Verify hit detection with blocks and entities
+6. **Balance cooldowns** - Match cooldown to animation length
+
+## Related
+
+- [Java Interaction Operations](/plugin-development/interactions/java-operations/) - Create custom Operation types in Java
+- [Interaction System](/plugin-development/interactions/overview/) - System overview
+- [Block Tracking](/plugin-development/interactions/block-tracking/) - Track block placements
+- [Serialization](/plugin-development/serialization/overview/) - Codec system

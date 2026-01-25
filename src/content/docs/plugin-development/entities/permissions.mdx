@@ -1,0 +1,293 @@
+---
+title: "Player Permissions"
+---
+
+import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
+
+{/* [VERIFIED: 2026-01-19] */}
+
+# Player Permissions
+
+This document covers how to check and manage permissions on player entities.
+
+## Package Location
+
+`com.hypixel.hytale.server.core.permissions`
+
+## Overview
+
+Players implement the `PermissionHolder` interface, allowing permission checks directly on player objects. The `PermissionsModule` singleton provides full permission management.
+
+## PermissionHolder Interface
+
+Interface implemented by entities that can have permissions:
+
+```java
+package com.hypixel.hytale.server.core.permissions;
+
+public interface PermissionHolder {
+    // Check if holder has permission (default: false)
+    boolean hasPermission(String permissionId);
+
+    // Check with custom default value
+    boolean hasPermission(String permissionId, boolean defaultValue);
+}
+```
+
+## Player Implementation
+
+The `Player` class implements `PermissionHolder`:
+
+```java
+package com.hypixel.hytale.server.core.entity.entities;
+
+public class Player implements PermissionHolder {
+    @Override
+    public boolean hasPermission(String id) {
+        return PermissionsModule.get().hasPermission(this.getUuid(), id);
+    }
+
+    @Override
+    public boolean hasPermission(String id, boolean def) {
+        return PermissionsModule.get().hasPermission(this.getUuid(), id, def);
+    }
+}
+```
+
+## PermissionsModule
+
+Central permission management singleton:
+
+```java
+package com.hypixel.hytale.server.core.permissions;
+
+public class PermissionsModule {
+    // Singleton access
+    public static PermissionsModule get();
+
+    // Permission checks
+    public boolean hasPermission(UUID uuid, String id);
+    public boolean hasPermission(UUID uuid, String id, boolean defaultValue);
+
+    // User permissions
+    public void addUserPermission(UUID uuid, Set<String> permissions);
+    public void removeUserPermission(UUID uuid, Set<String> permissions);
+
+    // Group management
+    public Set<String> getGroupsForUser(UUID uuid);
+    public void addUserToGroup(UUID uuid, String group);
+    public void removeUserFromGroup(UUID uuid, String group);
+}
+```
+
+## Usage Examples
+
+### Checking Permissions on Player
+
+```java
+import com.hypixel.hytale.server.core.entity.entities.Player;
+
+Player player = /* player reference */;
+
+// Basic permission check (false if not set)
+if (player.hasPermission("hytale.command.teleport")) {
+    // Player can use teleport command
+}
+
+// Check with custom default
+if (player.hasPermission("custom.feature", true)) {
+    // Feature enabled by default unless explicitly denied
+}
+
+// Common permission patterns
+if (player.hasPermission("hytale.admin")) {
+    // Player is admin
+}
+
+if (player.hasPermission("myplugin.use")) {
+    // Player can use your plugin
+}
+```
+
+### Using PermissionsModule
+
+```java
+import com.hypixel.hytale.server.core.permissions.PermissionsModule;
+import java.util.UUID;
+import java.util.Set;
+
+PermissionsModule perms = PermissionsModule.get();
+UUID playerUuid = player.getUuid();
+
+// Check permission via module
+if (perms.hasPermission(playerUuid, "hytale.command.fly")) {
+    // Player can fly
+}
+
+// Grant permission
+perms.addUserPermission(playerUuid, Set.of("custom.permission"));
+
+// Revoke permission
+perms.removeUserPermission(playerUuid, Set.of("custom.permission"));
+
+// Check multiple permissions
+Set<String> requiredPerms = Set.of("a.perm", "b.perm");
+boolean hasAll = requiredPerms.stream()
+    .allMatch(p -> perms.hasPermission(playerUuid, p));
+```
+
+### Group Management
+
+```java
+PermissionsModule perms = PermissionsModule.get();
+UUID playerUuid = player.getUuid();
+
+// Add player to group
+perms.addUserToGroup(playerUuid, "admin");
+perms.addUserToGroup(playerUuid, "moderator");
+
+// Remove from group
+perms.removeUserFromGroup(playerUuid, "moderator");
+
+// Get player's groups
+Set<String> groups = perms.getGroupsForUser(playerUuid);
+for (String group : groups) {
+    System.out.println("Player is in group: " + group);
+}
+
+// Check group membership
+if (groups.contains("admin")) {
+    // Player is an admin
+}
+```
+
+### Permission-Gated Command
+
+```java
+import com.hypixel.hytale.server.core.command.system.AbstractPlayerCommand;
+import com.hypixel.hytale.server.core.command.system.CommandContext;
+import com.hypixel.hytale.server.core.entity.entities.Player;
+
+public class AdminCommand extends AbstractPlayerCommand<AdminCommand> {
+    public AdminCommand() {
+        super("admin", "Admin-only command");
+    }
+
+    @Override
+    protected void execute(CommandContext context, Player player) {
+        // Check permission before executing
+        if (!player.hasPermission("myplugin.admin")) {
+            context.sendError("You don't have permission to use this command.");
+            return;
+        }
+
+        // Execute admin functionality
+        context.sendSuccess("Admin command executed!");
+    }
+}
+```
+
+### Permission in Event Handler
+
+```java
+getEventRegistry().register(PlayerChatEvent.class, event -> {
+    PlayerRef sender = event.getSender();
+
+    // Get player entity to check permissions
+    Player player = sender.getPlayer();
+    if (player == null) return;
+
+    // Check for chat bypass permission
+    if (player.hasPermission("chat.bypass.filter")) {
+        // Skip chat filter
+        return;
+    }
+
+    // Apply chat filter
+    String filtered = filterMessage(event.getContent());
+    event.setContent(filtered);
+});
+```
+
+## Permission Syntax
+
+### Wildcards
+
+| Pattern | Matches |
+|---------|---------|
+| `*` | All permissions |
+| `hytale.*` | All hytale permissions |
+| `hytale.command.*` | All hytale command permissions |
+
+### Negation
+
+| Pattern | Effect |
+|---------|--------|
+| `-*` | Deny all permissions |
+| `-hytale.admin` | Deny specific permission |
+| `-hytale.command.ban` | Deny ban command |
+
+### Resolution Order
+
+Permissions are resolved in order:
+
+1. User direct permissions (most specific)
+2. Group permissions
+3. Virtual groups (game mode, etc.)
+4. Default value
+
+Explicit grants/denies take precedence over wildcards.
+
+## Best Practices
+
+### Use Descriptive Permission Names
+
+```java
+// Good - hierarchical and descriptive
+"myplugin.command.spawn"
+"myplugin.feature.fly"
+"myplugin.admin.config"
+
+// Bad - unclear hierarchy
+"spawn"
+"fly"
+"config"
+```
+
+### Provide Sensible Defaults
+
+```java
+// Default to false for dangerous actions
+if (player.hasPermission("myplugin.dangerous", false)) { }
+
+// Default to true for basic features
+if (player.hasPermission("myplugin.basic", true)) { }
+```
+
+### Cache Permission Checks
+
+```java
+// For frequently checked permissions, cache the result
+private boolean canUseFeature;
+
+public void onPlayerJoin(Player player) {
+    canUseFeature = player.hasPermission("myplugin.feature");
+}
+```
+
+### Group Common Permissions
+
+```java
+// Define permission groups in config
+// Group "vip": myplugin.feature.a, myplugin.feature.b
+// Group "admin": myplugin.*, -myplugin.dangerous
+
+// Then assign groups to players
+perms.addUserToGroup(playerUuid, "vip");
+```
+
+## Related
+
+- [Permission System](/plugin-development/permissions/overview/) - Full permission API
+- [Commands](/plugin-development/core-concepts/commands/) - Command system
+- [Event System](/plugin-development/core-concepts/event-system/) - Event handling

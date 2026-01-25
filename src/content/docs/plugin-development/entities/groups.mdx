@@ -1,0 +1,353 @@
+---
+title: "Entity Groups"
+---
+
+import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
+
+{/* [VERIFIED: 2026-01-19] */}
+
+# Entity Groups
+
+The entity group system allows grouping multiple entities together for coordinated behavior like mounts, raids, or squads.
+
+## Package Location
+
+`com.hypixel.hytale.server.core.entity.group`
+
+## Overview
+
+Entity groups are managed via the `EntityGroup` component. A group has a leader and members, supports iteration and queries, and can be dissolved when no longer needed.
+
+## Core Class
+
+### EntityGroup
+
+Component that manages a group of entities:
+
+```java
+package com.hypixel.hytale.server.core.entity.group;
+
+public class EntityGroup implements Component<EntityStore> {
+    // Member management
+    public void add(Ref<EntityStore> reference);
+    public void remove(Ref<EntityStore> reference);
+    public void clear();
+    public boolean isMember(Ref<EntityStore> reference);
+    public int size();
+    public Ref<EntityStore> getFirst();
+
+    // Leadership
+    public Ref<EntityStore> getLeaderRef();
+    public void setLeaderRef(Ref<EntityStore> leaderRef);
+
+    // Status
+    public boolean isDissolved();
+    public void setDissolved(boolean dissolved);
+
+    // Iteration
+    public <T> void forEachMember(
+        TriConsumer<Ref<EntityStore>, Ref<EntityStore>, T> consumer,
+        Ref<EntityStore> sender,
+        T arg
+    );
+
+    public <T> void forEachMemberExcludingLeader(
+        TriConsumer<Ref<EntityStore>, Ref<EntityStore>, T> consumer,
+        Ref<EntityStore> sender,
+        T arg
+    );
+
+    public <T> void forEachMemberExcludingSelf(
+        TriConsumer<Ref<EntityStore>, Ref<EntityStore>, T> consumer,
+        Ref<EntityStore> sender,
+        T arg
+    );
+
+    public Ref<EntityStore> testMembers(
+        Predicate<Ref<EntityStore>> predicate,
+        boolean skipLeader
+    );
+
+    // Direct list access
+    public List<Ref<EntityStore>> getMemberList();
+
+    // Get component type
+    public static ComponentType<EntityStore, EntityGroup> getComponentType();
+}
+```
+
+## Usage Examples
+
+### Creating a Group
+
+```java
+import com.hypixel.hytale.server.core.entity.group.EntityGroup;
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+
+// Get or create group component on owner entity
+Ref<EntityStore> ownerRef = /* owner entity reference */;
+EntityGroup group = componentAccessor.getOrCreateComponent(
+    ownerRef,
+    EntityGroup.getComponentType()
+);
+
+// Set leader
+group.setLeaderRef(ownerRef);
+```
+
+### Adding Members
+
+```java
+// Add members to group
+Ref<EntityStore> member1 = /* entity reference */;
+Ref<EntityStore> member2 = /* entity reference */;
+Ref<EntityStore> member3 = /* entity reference */;
+
+group.add(member1);
+group.add(member2);
+group.add(member3);
+
+// Check membership
+if (group.isMember(member1)) {
+    System.out.println("Member 1 is in the group");
+}
+
+// Get group size
+int memberCount = group.size();  // Returns 3
+```
+
+### Removing Members
+
+```java
+// Remove specific member
+group.remove(member1);
+
+// Clear all members (disband group)
+group.clear();
+```
+
+### Iterating Members
+
+```java
+// Iterate all members
+group.forEachMember(
+    (memberRef, senderRef, data) -> {
+        System.out.println("Processing member: " + memberRef);
+    },
+    ownerRef,  // Sender reference
+    null       // Additional data
+);
+
+// Iterate excluding leader
+group.forEachMemberExcludingLeader(
+    (memberRef, senderRef, data) -> {
+        // Only non-leader members
+        sendMessageToMember(memberRef, data);
+    },
+    ownerRef,
+    "Hello team!"
+);
+
+// Iterate excluding sender
+group.forEachMemberExcludingSelf(
+    (memberRef, senderRef, context) -> {
+        // All members except the sender
+        notifyMember(memberRef);
+    },
+    senderEntityRef,
+    null
+);
+```
+
+### Finding Members
+
+```java
+// Find first member matching condition
+Ref<EntityStore> aliveMember = group.testMembers(
+    member -> {
+        // Check if member is alive
+        return member.isValid() && !isDead(member);
+    },
+    true  // Skip leader
+);
+
+if (aliveMember != null) {
+    // Found an alive non-leader member
+}
+
+// Find first member (any)
+Ref<EntityStore> firstMember = group.getFirst();
+```
+
+### Checking Group Status
+
+```java
+// Check if group is dissolved
+if (group.isDissolved()) {
+    // Group has been disbanded
+    return;
+}
+
+// Manually dissolve group
+group.setDissolved(true);
+
+// Get leader
+Ref<EntityStore> leader = group.getLeaderRef();
+if (leader != null && leader.isValid()) {
+    // Leader is still valid
+}
+```
+
+### Direct List Access
+
+```java
+// Get member list for more complex operations
+List<Ref<EntityStore>> members = group.getMemberList();
+
+// Filter members
+List<Ref<EntityStore>> validMembers = members.stream()
+    .filter(Ref::isValid)
+    .collect(Collectors.toList());
+
+// Count members
+long count = members.stream()
+    .filter(m -> m.isValid())
+    .count();
+```
+
+## Use Cases
+
+### Mount System
+
+```java
+// Mount group: rider + mount
+EntityGroup mountGroup = getOrCreateGroup(mountRef);
+mountGroup.setLeaderRef(riderRef);  // Rider is leader
+mountGroup.add(mountRef);           // Mount is member
+
+// Dismount
+mountGroup.remove(mountRef);
+mountGroup.setDissolved(true);
+```
+
+### Squad/Party
+
+```java
+// Party group: party leader + members
+EntityGroup party = getOrCreateGroup(leaderRef);
+party.setLeaderRef(leaderRef);
+
+// Invite player
+party.add(invitedPlayerRef);
+
+// Leave party
+party.remove(leavingPlayerRef);
+
+// Kick player
+party.remove(kickedPlayerRef);
+
+// Disband party
+party.clear();
+```
+
+### Raid Group
+
+```java
+// Raid: boss + minions
+EntityGroup raid = getOrCreateGroup(bossRef);
+raid.setLeaderRef(bossRef);
+
+// Spawn minions
+for (int i = 0; i < 5; i++) {
+    Ref<EntityStore> minionRef = spawnMinion();
+    raid.add(minionRef);
+}
+
+// Boss death - kill all minions
+raid.forEachMemberExcludingLeader(
+    (memberRef, leaderRef, unused) -> {
+        killEntity(memberRef);
+    },
+    bossRef,
+    null
+);
+raid.setDissolved(true);
+```
+
+### Synchronized Behavior
+
+```java
+// Make all group members face the same direction
+Vector3f leaderRotation = getRotation(group.getLeaderRef());
+
+group.forEachMemberExcludingLeader(
+    (memberRef, leaderRef, rotation) -> {
+        setRotation(memberRef, rotation);
+    },
+    group.getLeaderRef(),
+    leaderRotation
+);
+```
+
+## Group Lifecycle
+
+```
+1. Create EntityGroup on owner entity
+2. Set leader reference
+3. Add members as needed
+4. Iterate/query members during gameplay
+5. Remove members when they leave
+6. Clear and dissolve when group ends
+```
+
+## Best Practices
+
+### Validate References
+
+```java
+// Always check if member is still valid
+group.forEachMember(
+    (memberRef, senderRef, data) -> {
+        if (!memberRef.isValid()) {
+            return;  // Skip invalid members
+        }
+        // Process valid member
+    },
+    ownerRef,
+    null
+);
+```
+
+### Clean Up Disbanded Groups
+
+```java
+// Remove group component when dissolved
+if (group.isDissolved()) {
+    componentAccessor.removeComponent(
+        ownerRef,
+        EntityGroup.getComponentType()
+    );
+}
+```
+
+### Leader Death Handling
+
+```java
+// When leader dies, either:
+// 1. Promote new leader
+Ref<EntityStore> newLeader = group.getFirst();
+if (newLeader != null && newLeader.isValid()) {
+    group.setLeaderRef(newLeader);
+}
+
+// 2. Or dissolve group
+group.clear();
+group.setDissolved(true);
+```
+
+## Related
+
+- [Entity System](/plugin-development/entities/overview/) - Entity management
+- [ECS Overview](/plugin-development/core-concepts/ecs-overview/) - Component system
+- [Component Catalog](/plugin-development/ecs/component-catalog/) - All components

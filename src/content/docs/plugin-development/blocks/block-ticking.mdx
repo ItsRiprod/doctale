@@ -1,0 +1,193 @@
+---
+title: "Block Ticking"
+---
+
+{/* [VERIFIED: 2026-01-19] */}
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+# Block Ticking
+
+The block tick system enables time-based behavior for blocks, such as crop growth, decay, or state changes.
+
+## Package Location
+
+`com.hypixel.hytale.server.core.asset.type.blocktick.config.TickProcedure`
+
+## TickProcedure Class
+
+```java title="TickProcedure base class"
+public abstract class TickProcedure {
+    // Called when block should tick
+    public abstract BlockTickStrategy onTick(
+        World world,
+        WorldChunk chunk,
+        int x, int y, int z,
+        int blockId
+    );
+}
+```
+
+## BlockTickStrategy
+
+Return value indicating what happened during the tick:
+
+| Strategy | Description |
+|----------|-------------|
+| `NONE` | No change occurred |
+| `CHANGED` | Block was modified |
+| `REMOVED` | Block was removed |
+
+```java title="Returning tick strategies"
+@Override
+public BlockTickStrategy onTick(World world, WorldChunk chunk,
+                                 int x, int y, int z, int blockId) {
+    // No change
+    return BlockTickStrategy.NONE;
+
+    // Block modified (triggers updates)
+    return BlockTickStrategy.CHANGED;
+
+    // Block removed
+    return BlockTickStrategy.REMOVED;
+}
+```
+
+## Built-in Procedures
+
+### BasicChanceBlockGrowthProcedure
+
+Grows block to next stage with configurable chance:
+
+```json title="Basic growth procedure"
+{
+  "TickProcedure": {
+    "Type": "BasicChanceBlockGrowthProcedure",
+    "GrowChance": 0.1,
+    "GrowToBlock": "MyPlugin_MaturePlant"
+  }
+}
+```
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `GrowChance` | `float` | Chance per tick (0.0 - 1.0) |
+| `GrowToBlock` | `string` | Block ID to transform into |
+
+### SplitChanceBlockGrowthProcedure
+
+Different growth chances for each stage:
+
+```json title="Split chance growth"
+{
+  "TickProcedure": {
+    "Type": "SplitChanceBlockGrowthProcedure",
+    "Stages": [
+      { "GrowChance": 0.2, "GrowToBlock": "Crop_Stage2" },
+      { "GrowChance": 0.15, "GrowToBlock": "Crop_Stage3" },
+      { "GrowChance": 0.1, "GrowToBlock": "Crop_Mature" }
+    ]
+  }
+}
+```
+
+## JSON Configuration
+
+<Tabs>
+  <TabItem label="Simple Growth">
+```json title="MyPlugin_GrowingPlant.json"
+{
+  "Id": "MyPlugin_GrowingPlant",
+  "DrawType": "Model",
+  "CustomModel": "models/plant_stage1.blockymodel",
+  "TickProcedure": {
+    "Type": "BasicChanceBlockGrowthProcedure",
+    "GrowChance": 0.1,
+    "GrowToBlock": "MyPlugin_MaturePlant"
+  }
+}
+```
+  </TabItem>
+  <TabItem label="Multi-Stage">
+```json title="MyPlugin_Crop_Stage1.json"
+{
+  "Id": "MyPlugin_Crop_Stage1",
+  "DrawType": "Model",
+  "CustomModel": "models/crop_stage1.blockymodel",
+  "TickProcedure": {
+    "Type": "BasicChanceBlockGrowthProcedure",
+    "GrowChance": 0.15,
+    "GrowToBlock": "MyPlugin_Crop_Stage2"
+  }
+}
+```
+  </TabItem>
+  <TabItem label="Decay">
+```json title="MyPlugin_DecayingBlock.json"
+{
+  "Id": "MyPlugin_DecayingBlock",
+  "TickProcedure": {
+    "Type": "BasicChanceBlockGrowthProcedure",
+    "GrowChance": 0.05,
+    "GrowToBlock": "Air"
+  }
+}
+```
+  </TabItem>
+</Tabs>
+
+## Custom Tick Procedures
+
+Create custom tick procedures by extending `TickProcedure`:
+
+```java title="CustomTickProcedure.java"
+public class SpreadingMossTickProcedure extends TickProcedure {
+    private float spreadChance;
+    private int maxSpreadDistance;
+
+    @Override
+    public BlockTickStrategy onTick(World world, WorldChunk chunk,
+                                     int x, int y, int z, int blockId) {
+        if (Math.random() > spreadChance) {
+            return BlockTickStrategy.NONE;
+        }
+
+        // Find adjacent stone blocks and spread
+        for (Direction dir : Direction.HORIZONTAL) {
+            int nx = x + dir.getOffsetX();
+            int nz = z + dir.getOffsetZ();
+
+            BlockType neighbor = world.getBlockType(nx, y, nz);
+            if (neighbor.getId().equals("Rock_Stone")) {
+                world.setBlock(nx, y, nz,
+                    BlockType.getAssetMap().get("MossyStone"));
+                return BlockTickStrategy.CHANGED;
+            }
+        }
+
+        return BlockTickStrategy.NONE;
+    }
+}
+```
+
+## Tick Rate
+
+Block ticks occur at regular intervals determined by the server. The tick rate affects how quickly growth/decay happens.
+
+<Aside type="note">
+Tick procedures are called randomly, not every game tick. The `GrowChance` compounds with this randomness.
+</Aside>
+
+## Best Practices
+
+1. **Keep ticks lightweight**: Tick procedures run frequently; avoid heavy computation
+2. **Use appropriate chances**: Lower chances for rare events, higher for fast growth
+3. **Consider neighbors**: Check adjacent blocks for context-aware behavior
+4. **Return correct strategy**: Always return the appropriate `BlockTickStrategy`
+5. **Test thoroughly**: Tick timing can be unpredictable; test various scenarios
+
+## Related
+
+- [Block Types](/plugin-development/blocks/block-types/) - BlockType properties
+- [Block States](/plugin-development/blocks/block-states/) - Per-block data
+- [Farming (Assets)](/asset-development/world/prefabs/) - Farming system assets

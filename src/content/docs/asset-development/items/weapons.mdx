@@ -1,0 +1,789 @@
+---
+title: "Weapons"
+---
+
+{/* [VERIFIED: 2026-01-20] */}
+
+import { Aside, Card, CardGrid, LinkCard, Tabs, TabItem, FileTree, Badge } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="AI-Generated Content">
+This documentation was generated from analysis of 241 weapon definition files in `/Assets/Server/Item/Items/Weapon/`.
+Verify all information against actual asset files before use in production.
+</Aside>
+
+Weapons are combat items that define attack patterns, damage values, and special abilities. Hytale features 23 distinct weapon categories with sophisticated interaction systems for melee and ranged combat.
+
+## Asset Location
+
+**Server Definitions:** `Assets/Server/Item/Items/Weapon/[Category]/`
+**Client Models:** `Assets/Common/Items/Weapons/[Category]/`
+**Interactions:** `Assets/Server/Item/Interactions/Weapons/[Category]/`
+
+## Weapon Categories
+
+Hytale includes 23 weapon categories, each with unique mechanics:
+
+### Melee Weapons
+
+| Category | Files | Template | Description |
+|----------|-------|----------|-------------|
+| Sword | 24 | Yes | Balanced melee with signature "Vortexstrike" ability |
+| Axe | 13 | No | Heavy swings with ±20% damage variance |
+| Battleaxe | 8 | Yes | Two-handed with powerful charged attacks |
+| Club | 6 | No | Blunt weapons with stun potential |
+| Daggers | 10 | Yes | Fast dual-wield attacks |
+| Longsword | 7 | No | Extended reach melee |
+| Mace | 9 | Yes | Heavy blunt damage with knockback |
+| Spear | 17 | No | Stackable throwable with stab attacks |
+| Claws | 3 | No | Close-range rapid attacks |
+
+### Ranged Weapons
+
+| Category | Files | Template | Description |
+|----------|-------|----------|-------------|
+| Shortbow | 19 | Yes | Charge-based arrows with "Volley" signature |
+| Crossbow | 8 | Yes | High-damage single shots |
+| Blowgun | 2 | No | Dart projectiles |
+| Gun | 4 | No | Firearm projectiles |
+
+### Magic Weapons
+
+| Category | Files | Template | Description |
+|----------|-------|----------|-------------|
+| Staff | 25 | No | Magic projectile casters |
+| Wand | 5 | No | Light magic weapons |
+| Spellbook | 3 | No | Spell casting items |
+
+### Thrown Weapons
+
+| Category | Files | Template | Description |
+|----------|-------|----------|-------------|
+| Bomb | 4 | No | Explosive thrown items |
+| Dart | 2 | No | Small thrown projectiles |
+| Kunai | 2 | No | Ninja throwing weapons |
+| Arrow | 15 | No | Ammunition for bows |
+
+### Defensive
+
+| Category | Files | Template | Description |
+|----------|-------|----------|-------------|
+| Shield | 12 | Yes | Blocking and bash attacks |
+
+### Special
+
+| Category | Files | Template | Description |
+|----------|-------|----------|-------------|
+| Deployable | 3 | No | Placeable combat items |
+| _Debug | 5 | No | Development/testing weapons |
+
+## JSON Schema Reference
+
+### Core Weapon Properties
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Parent` | `string` | Template to inherit from |
+| `TranslationProperties` | `object` | Localization configuration |
+| `Model` | `string` | Path to `.blockymodel` file |
+| `Texture` | `string` | Path to texture file |
+| `Icon` | `string` | Path to inventory icon |
+| `Quality` | `string` | Quality tier |
+| `ItemLevel` | `integer` | Level requirement |
+| `Categories` | `string[]` | Always includes `"Items.Weapons"` |
+| `Tags` | `object` | Type and family classification |
+
+### Combat Properties
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `MaxDurability` | `number` | `80` | Maximum durability points |
+| `DurabilityLossOnHit` | `number` | `0.21` | Durability lost per attack |
+| `PlayerAnimationsId` | `string` | - | Animation set (Sword, Bow, Axe, etc.) |
+| `Reticle` | `string` | `"DefaultMelee"` | Crosshair type |
+| `ItemSoundSetId` | `string` | - | Sound effect collection |
+
+### Interaction System
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Interactions` | `object` | Maps Primary, Secondary, Ability1 to root interactions |
+| `InteractionVars` | `object` | Damage values, effects, and behaviors per attack |
+| `Weapon` | `object` | Weapon-specific configuration (stats, modifiers) |
+
+## Weapon Templates
+
+Seven weapon types have official templates that define base mechanics:
+
+<Tabs>
+  <TabItem label="Sword Template">
+```json title="Template_Weapon_Sword.json"
+{
+  "TranslationProperties": {
+    "Name": "server.items.Template_Weapon_Sword.name"
+  },
+  "DroppedItemAnimation": "Items/Animations/Dropped/Dropped_Diagonal_Left.blockyanim",
+  "Model": "Items/Weapons/Sword/Iron.blockymodel",
+  "Texture": "Items/Weapons/Sword/Iron_Texture.png",
+  "Icon": "Icons/ItemsGenerated/Weapon_Sword_Iron.png",
+  "PlayerAnimationsId": "Sword",
+  "Reticle": "DefaultMelee",
+  "Quality": "Template",
+  "ItemLevel": 15,
+  "Categories": ["Items.Weapons"],
+  "Interactions": {
+    "Primary": "Root_Weapon_Sword_Primary",
+    "Secondary": "Root_Weapon_Sword_Secondary_Guard",
+    "Ability1": "Root_Weapon_Sword_Signature_Vortexstrike"
+  },
+  "Tags": {
+    "Type": ["Weapon"],
+    "Family": ["Sword"]
+  },
+  "Weapon": {
+    "EntityStatsToClear": ["SignatureEnergy"],
+    "StatModifiers": {
+      "SignatureEnergy": [{ "Amount": 20, "CalculationType": "Additive" }]
+    }
+  },
+  "ItemSoundSetId": "ISS_Weapons_Blade_Large",
+  "MaxDurability": 80,
+  "DurabilityLossOnHit": 0.21
+}
+```
+  </TabItem>
+  <TabItem label="Shortbow Template">
+```json title="Template_Weapon_Shortbow.json"
+{
+  "TranslationProperties": {
+    "Name": "server.items.Template_Weapon_Shortbow.name"
+  },
+  "Model": "Items/Weapons/Bow/Iron.blockymodel",
+  "Texture": "Items/Weapons/Bow/Iron_Texture.png",
+  "Icon": "Icons/ItemsGenerated/Weapon_Bow_Crude.png",
+  "DroppedItemAnimation": "Items/Animations/Dropped/Dropped_Diagonal_Left.blockyanim",
+  "PlayerAnimationsId": "Bow",
+  "Reticle": "DefaultMelee",
+  "Quality": "Template",
+  "ItemLevel": 5,
+  "Categories": ["Items.Weapons"],
+  "Interactions": {
+    "Primary": "Root_Weapon_Shortbow_Primary_Shoot",
+    "Secondary": "Root_Weapon_Shortbow_Secondary_Guard",
+    "Ability1": "Root_Weapon_Shortbow_Signature_Volley"
+  },
+  "Tags": {
+    "Type": ["Weapon"],
+    "Family": ["Bow"]
+  },
+  "Weapon": {
+    "EntityStatsToClear": ["SignatureEnergy", "SignatureCharges"],
+    "StatModifiers": {
+      "SignatureEnergy": [{ "Amount": 6, "CalculationType": "Additive" }],
+      "SignatureCharges": [{ "Amount": 1, "CalculationType": "Additive" }]
+    }
+  },
+  "ItemSoundSetId": "ISS_Weapons_Wood",
+  "MaxDurability": 80,
+  "DurabilityLossOnHit": 0.58
+}
+```
+  </TabItem>
+</Tabs>
+
+## Complete Weapon Examples
+
+### Sword (Melee with Template)
+
+```json title="Weapon_Sword_Iron.json" {2,8-37}
+{
+  "Parent": "Template_Weapon_Sword",
+  "TranslationProperties": {
+    "Name": "server.items.Weapon_Sword_Iron.name"
+  },
+  "Model": "Items/Weapons/Sword/Iron.blockymodel",
+  "Texture": "Items/Weapons/Sword/Iron_Texture.png",
+  "Quality": "Uncommon",
+  "Icon": "Icons/ItemsGenerated/Weapon_Sword_Iron.png",
+  "ItemLevel": 20,
+  "Recipe": {
+    "TimeSeconds": 3.5,
+    "KnowledgeRequired": false,
+    "Input": [
+      { "ItemId": "Ingredient_Bar_Iron", "Quantity": 6 },
+      { "ItemId": "Ingredient_Leather_Light", "Quantity": 3 },
+      { "ItemId": "Ingredient_Fabric_Scrap_Linen", "Quantity": 3 }
+    ],
+    "BenchRequirement": [
+      {
+        "Type": "Crafting",
+        "Categories": ["Weapon_Sword"],
+        "Id": "Weapon_Bench"
+      }
+    ]
+  },
+  "InteractionVars": {
+    "Swing_Left_Damage": {
+      "Interactions": [{
+        "Parent": "Weapon_Sword_Primary_Swing_Left_Damage",
+        "DamageCalculator": { "BaseDamage": { "Physical": 9 } },
+        "DamageEffects": {
+          "WorldSoundEventId": "SFX_Sword_T2_Impact",
+          "LocalSoundEventId": "SFX_Sword_T2_Impact"
+        }
+      }]
+    },
+    "Swing_Right_Damage": {
+      "Interactions": [{
+        "Parent": "Weapon_Sword_Primary_Swing_Right_Damage",
+        "DamageCalculator": { "BaseDamage": { "Physical": 10 } },
+        "DamageEffects": {
+          "WorldSoundEventId": "SFX_Sword_T2_Impact",
+          "LocalSoundEventId": "SFX_Sword_T2_Impact"
+        }
+      }]
+    },
+    "Swing_Down_Damage": {
+      "Interactions": [{
+        "Parent": "Weapon_Sword_Primary_Swing_Down_Damage",
+        "DamageCalculator": { "BaseDamage": { "Physical": 18 } },
+        "DamageEffects": {
+          "WorldSoundEventId": "SFX_Sword_T2_Impact",
+          "LocalSoundEventId": "SFX_Sword_T2_Impact"
+        }
+      }]
+    },
+    "Thrust_Damage": {
+      "Interactions": [{
+        "Parent": "Weapon_Sword_Primary_Thrust_Damage",
+        "DamageCalculator": { "BaseDamage": { "Physical": 26 } },
+        "EntityStatsOnHit": [{ "EntityStatId": "SignatureEnergy", "Amount": 3 }],
+        "DamageEffects": {
+          "WorldSoundEventId": "SFX_Sword_T2_Impact",
+          "LocalSoundEventId": "SFX_Sword_T2_Impact"
+        }
+      }]
+    },
+    "Vortexstrike_Spin_Damage": {
+      "Interactions": [{
+        "Parent": "Weapon_Sword_Signature_Vortexstrike_Spin_Damage",
+        "DamageCalculator": { "BaseDamage": { "Physical": 19 } },
+        "DamageEffects": {
+          "WorldSoundEventId": "SFX_Sword_T2_Impact",
+          "LocalSoundEventId": "SFX_Sword_T2_Impact"
+        }
+      }]
+    },
+    "Vortexstrike_Stab_Damage": {
+      "Interactions": [{
+        "Parent": "Weapon_Sword_Signature_Vortexstrike_Stab_Damage",
+        "DamageCalculator": { "BaseDamage": { "Physical": 56 } },
+        "DamageEffects": {
+          "WorldSoundEventId": "SFX_Sword_T2_Impact",
+          "LocalSoundEventId": "SFX_Sword_T2_Impact"
+        }
+      }]
+    },
+    "Guard_Wield": {
+      "Interactions": [{
+        "Parent": "Weapon_Sword_Secondary_Guard_Wield",
+        "StaminaCost": { "Value": 10, "CostType": "Damage" }
+      }]
+    }
+  },
+  "MaxDurability": 120,
+  "DurabilityLossOnHit": 0.21
+}
+```
+
+### Axe (Melee without Template)
+
+```json title="Weapon_Axe_Iron.json"
+{
+  "TranslationProperties": {
+    "Name": "server.items.Weapon_Axe_Iron.name"
+  },
+  "Categories": ["Items.Weapons"],
+  "Icon": "Icons/ItemsGenerated/Weapon_Axe_Iron.png",
+  "Quality": "Uncommon",
+  "ItemLevel": 20,
+  "Recipe": {
+    "TimeSeconds": 3.5,
+    "KnowledgeRequired": false,
+    "Input": [
+      { "ItemId": "Ingredient_Bar_Iron", "Quantity": 4 },
+      { "ItemId": "Ingredient_Fabric_Scrap_Linen", "Quantity": 3 },
+      { "ItemId": "Ingredient_Leather_Light", "Quantity": 4 }
+    ],
+    "BenchRequirement": [
+      { "Type": "Crafting", "Categories": ["Weapon_Axe"], "Id": "Weapon_Bench" }
+    ]
+  },
+  "Model": "Items/Weapons/Axe/Iron.blockymodel",
+  "Texture": "Items/Weapons/Axe/Iron_Texture.png",
+  "PlayerAnimationsId": "Axe",
+  "Utility": { "Compatible": true },
+  "Interactions": {
+    "Primary": "Axe_Attack"
+  },
+  "InteractionVars": {
+    "Axe_Swing_Down_Left_Effect": {
+      "Interactions": [{
+        "Parent": "Axe_Swing_Down_Left_Effect",
+        "Effects": { "WorldSoundEventId": "SFX_Axe_Iron_Swing" }
+      }]
+    },
+    "Axe_Swing_Down_Left_Damage": {
+      "Interactions": [{
+        "Parent": "Axe_Swing_Down_Left_Damage",
+        "DamageCalculator": {
+          "Type": "Absolute",
+          "BaseDamage": { "Physical": 17 },
+          "RandomPercentageModifier": 0.2
+        },
+        "DamageEffects": { "WorldSoundEventId": "SFX_Axe_Iron_Impact" }
+      }]
+    },
+    "Axe_Swing_Up_Right_Damage": {
+      "Interactions": [{
+        "Parent": "Axe_Swing_Up_Right_Damage",
+        "DamageCalculator": {
+          "Type": "Absolute",
+          "BaseDamage": { "Physical": 17 },
+          "RandomPercentageModifier": 0.2
+        },
+        "DamageEffects": { "WorldSoundEventId": "SFX_Axe_Iron_Impact" }
+      }]
+    },
+    "Axe_Swing_Left_Charged_Damage": {
+      "Interactions": [{
+        "Parent": "Axe_Swing_Left_Charged_Damage",
+        "DamageCalculator": {
+          "BaseDamage": { "Physical": 34 },
+          "Type": "Absolute",
+          "RandomPercentageModifier": 0.2
+        },
+        "DamageEffects": { "WorldSoundEventId": "SFX_Axe_Iron_Impact" }
+      }]
+    }
+  },
+  "IconProperties": {
+    "Scale": 0.45,
+    "Translation": [-26, -25],
+    "Rotation": [45, 90, 0]
+  },
+  "DroppedItemAnimation": "Items/Animations/Dropped/Dropped_Diagonal_Left.blockyanim",
+  "MaxDurability": 120,
+  "DurabilityLossOnHit": 0.56,
+  "Tags": { "Type": ["Weapon"], "Family": ["Axe"] },
+  "Weapon": {},
+  "ItemAppearanceConditions": {
+    "Health": [
+      {
+        "Particles": [{ "SystemId": "Torch_Fire" }],
+        "Model": "Items/Weapons/Axe/Iron.blockymodel",
+        "Texture": "Items/Weapons/Axe/Iron_Texture.png",
+        "Condition": [0, 20]
+      },
+      {
+        "Particles": [{ "SystemId": "Torch_Fire" }],
+        "Texture": "Items/Weapons/Axe/Iron_Rusty_Texture.png",
+        "Condition": [21, 40]
+      }
+    ]
+  },
+  "ItemSoundSetId": "ISS_Weapons_Blunt_Small"
+}
+```
+
+### Spear (Stackable Thrown)
+
+```json title="Weapon_Spear_Iron.json"
+{
+  "TranslationProperties": {
+    "Name": "server.items.Weapon_Spear_Iron.name"
+  },
+  "Categories": ["Items.Weapons"],
+  "Quality": "Uncommon",
+  "ItemLevel": 20,
+  "Model": "Items/Weapons/Spear/Iron.blockymodel",
+  "Texture": "Items/Weapons/Spear/Iron_Texture.png",
+  "MaxStack": 30,
+  "IconProperties": {
+    "Scale": 0.24,
+    "Translation": [-58, -58],
+    "Rotation": [45, 90, 0]
+  },
+  "Interactions": {
+    "Primary": "Spear_Attack",
+    "Secondary": "Spear_Block"
+  },
+  "InteractionVars": {
+    "Spear_Block_Damage": "Spear_Block_Damage",
+    "Spear_Stab_Effect": {
+      "Interactions": [{
+        "Parent": "Spear_Stab_Effect",
+        "Effects": { "WorldSoundEventId": "SFX_Axe_Special_Swing" }
+      }]
+    },
+    "Spear_Stab_Damage": {
+      "Interactions": [{
+        "Parent": "Spear_Stab_Damage",
+        "DamageCalculator": {
+          "BaseDamage": { "Physical": 6 },
+          "Type": "Absolute"
+        },
+        "DamageEffects": { "WorldSoundEventId": "SFX_Axe_Special_Impact" }
+      }]
+    },
+    "Spear_Throw_Charged_Projectile": {
+      "Interactions": [{
+        "Parent": "Spear_Throw_Charged_Projectile",
+        "ProjectileId": "Spear_Iron"
+      }]
+    }
+  },
+  "Icon": "Icons/ItemsGenerated/Weapon_Spear_Iron.png",
+  "DroppedItemAnimation": "Items/Animations/Dropped/Dropped_Diagonal_Left.blockyanim",
+  "PlayerAnimationsId": "Spear",
+  "Tags": { "Type": ["Weapon"], "Family": ["Spear"] },
+  "MaxDurability": 30,
+  "DurabilityLossOnHit": 0.56,
+  "Weapon": {},
+  "ItemSoundSetId": "ISS_Weapons_Wood"
+}
+```
+
+## Damage Calculator System
+
+The `DamageCalculator` object defines how damage is computed:
+
+```json title="DamageCalculator structure"
+{
+  "DamageCalculator": {
+    "BaseDamage": {
+      "Physical": 17,
+      "Projectile": 0
+    },
+    "Type": "Absolute",
+    "RandomPercentageModifier": 0.2
+  }
+}
+```
+
+### Damage Types
+
+| Type | Description |
+|------|-------------|
+| `Physical` | Melee damage |
+| `Projectile` | Ranged damage |
+
+### Calculation Types
+
+| Type | Description |
+|------|-------------|
+| `Absolute` | Damage is used directly |
+| (default) | May apply modifiers |
+
+### Random Modifier
+
+The `RandomPercentageModifier` adds variance to attacks:
+- `0.2` = ±20% damage variance
+- A 17 base damage attack deals 13-21 damage
+
+## Interaction Variables
+
+`InteractionVars` define per-attack damage and effects:
+
+### Common Sword Variables
+
+| Variable | Purpose |
+|----------|---------|
+| `Swing_Left_Damage` | Left swing attack |
+| `Swing_Right_Damage` | Right swing attack |
+| `Swing_Down_Damage` | Overhead swing |
+| `Thrust_Damage` | Stabbing attack |
+| `Vortexstrike_Spin_Damage` | Signature spin phase |
+| `Vortexstrike_Stab_Damage` | Signature stab finisher |
+| `Guard_Wield` | Block stance |
+
+### Common Bow Variables
+
+| Variable | Purpose |
+|----------|---------|
+| `Primary_Shoot_Charge` | Charging sound/effects |
+| `Primary_Shoot_Strength_[0-4]` | Shot power levels (0s to 1.2s+ charge) |
+| `Primary_Shoot_Damage_Strength_[0-4]` | Damage per power level |
+| `Primary_Shoot_Impact_Strength_[0-4]` | Hit effects per power |
+| `Primary_Shoot_Miss_Strength_[0-4]` | Miss effects per power |
+| `Signature_Volley_*` | Volley ability variants |
+| `Guard_Wield` | Block with bow |
+| `Guard_Bash` | Melee attack while blocking |
+
+### Bow Damage Scaling
+
+Bows deal increasing damage based on charge time:
+
+| Charge Level | Time | Projectile Damage |
+|--------------|------|-------------------|
+| 0 | 0.0s | 6 |
+| 1 | 0.3s | 10 |
+| 2 | 0.6s | 12 |
+| 3 | 0.9s | 14 |
+| 4 | 1.2s+ | 15 |
+
+## Signature Abilities
+
+Weapons with templates include signature abilities that charge over combat:
+
+### Sword: Vortexstrike
+
+- Charges `SignatureEnergy` stat through combat
+- At 100% energy, activates via `Ability1`
+- Two-phase attack: spinning AoE + powerful stab
+- Visual particles indicate charged status
+
+### Shortbow: Volley
+
+- Charges `SignatureEnergy` and `SignatureCharges`
+- Fires multiple arrows simultaneously
+- Model swaps to show triple arrows when ready
+- 25 projectile damage per arrow
+
+## Item Appearance Conditions
+
+Weapons can change visuals based on stats:
+
+```json title="Signature ability visual effects"
+{
+  "ItemAppearanceConditions": {
+    "SignatureEnergy": [
+      {
+        "Condition": [100, 100],
+        "ConditionValueType": "Percent",
+        "Particles": [
+          {
+            "SystemId": "Sword_Signature_Ready",
+            "TargetNodeName": "Handle",
+            "PositionOffset": { "X": 0.8 },
+            "TargetEntityPart": "PrimaryItem"
+          },
+          {
+            "SystemId": "Sword_Signature_Status",
+            "TargetNodeName": "Handle",
+            "PositionOffset": { "X": 0.55 },
+            "TargetEntityPart": "PrimaryItem",
+            "Scale": 1.3
+          }
+        ],
+        "ModelVFXId": "Sword_Signature_Status"
+      }
+    ]
+  }
+}
+```
+
+### Condition Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Condition` | `[min, max]` | Value range to match |
+| `ConditionValueType` | `string` | `"Percent"` or absolute |
+| `Model` | `string` | Override model path |
+| `Texture` | `string` | Override texture path |
+| `Particles` | `array` | Particle effects to spawn |
+| `ModelVFXId` | `string` | Visual effect to apply |
+| `LocalSoundEventId` | `string` | Sound to play |
+| `WorldSoundEventId` | `string` | World-audible sound |
+
+## Crafting Recipes
+
+Weapons include inline recipes:
+
+```json title="Recipe structure"
+{
+  "Recipe": {
+    "TimeSeconds": 3.5,
+    "KnowledgeRequired": false,
+    "Input": [
+      { "ItemId": "Ingredient_Bar_Iron", "Quantity": 6 },
+      { "ItemId": "Ingredient_Leather_Light", "Quantity": 3 },
+      { "ItemId": "Ingredient_Fabric_Scrap_Linen", "Quantity": 3 }
+    ],
+    "BenchRequirement": [
+      {
+        "Type": "Crafting",
+        "Categories": ["Weapon_Sword"],
+        "Id": "Weapon_Bench"
+      }
+    ]
+  }
+}
+```
+
+### Recipe Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `TimeSeconds` | `number` | Crafting duration |
+| `KnowledgeRequired` | `boolean` | Whether recipe must be learned |
+| `Input` | `array` | Required materials |
+| `BenchRequirement` | `array` | Required crafting stations |
+
+## Sound Sets
+
+Common weapon sound sets:
+
+| Sound Set | Weapon Types |
+|-----------|--------------|
+| `ISS_Weapons_Blade_Large` | Swords, longswords |
+| `ISS_Weapons_Blade_Small` | Daggers |
+| `ISS_Weapons_Blunt_Small` | Axes, maces, clubs |
+| `ISS_Weapons_Blunt_Large` | Battleaxes |
+| `ISS_Weapons_Wood` | Bows, staves, spears |
+
+## Animation Sets
+
+Each weapon type has a `PlayerAnimationsId`:
+
+| Animation ID | Used By |
+|--------------|---------|
+| `Sword` | Swords |
+| `Bow` | Shortbows, crossbows |
+| `Axe` | Axes, battleaxes |
+| `Spear` | Spears |
+| `Staff` | Staves, wands |
+| `Shield` | Shields |
+| `Dagger` | Daggers |
+| `Item` | Default items |
+
+## Accessing Weapons in Code
+
+```java title="WeaponExample.java"
+import com.hypixel.hytale.server.core.asset.type.item.config.Item;
+import com.hypixel.hytale.server.core.asset.type.item.config.ItemWeapon;
+
+public class WeaponExample {
+    public void accessWeapons() {
+        Item sword = Item.getAssetMap().get("Weapon_Sword_Iron");
+
+        if (sword != null) {
+            // Check if it's a weapon
+            ItemWeapon weaponConfig = sword.getWeapon();
+            if (weaponConfig != null) {
+                // Access weapon-specific properties
+            }
+
+            // Get combat properties
+            double maxDurability = sword.getMaxDurability();
+            double durabilityLoss = sword.getDurabilityLossOnHit();
+            String animationSet = sword.getPlayerAnimationsId();
+
+            // Get interactions
+            Map<InteractionType, String> interactions = sword.getInteractions();
+            String primaryAttack = interactions.get(InteractionType.Primary);
+        }
+    }
+}
+```
+
+## Creating Custom Weapons
+
+### Using a Template
+
+```json title="MyPlugin_Sword_Custom.json"
+{
+  "Parent": "Template_Weapon_Sword",
+  "TranslationProperties": {
+    "Name": "server.items.MyPlugin_Sword_Custom.name"
+  },
+  "Model": "MyPlugin/Weapons/Sword/Custom.blockymodel",
+  "Texture": "MyPlugin/Weapons/Sword/Custom_Texture.png",
+  "Icon": "Icons/ItemsGenerated/MyPlugin_Sword_Custom.png",
+  "Quality": "Rare",
+  "ItemLevel": 35,
+  "MaxDurability": 150,
+  "InteractionVars": {
+    "Swing_Left_Damage": {
+      "Interactions": [{
+        "Parent": "Weapon_Sword_Primary_Swing_Left_Damage",
+        "DamageCalculator": { "BaseDamage": { "Physical": 15 } }
+      }]
+    },
+    "Swing_Right_Damage": {
+      "Interactions": [{
+        "Parent": "Weapon_Sword_Primary_Swing_Right_Damage",
+        "DamageCalculator": { "BaseDamage": { "Physical": 16 } }
+      }]
+    },
+    "Swing_Down_Damage": {
+      "Interactions": [{
+        "Parent": "Weapon_Sword_Primary_Swing_Down_Damage",
+        "DamageCalculator": { "BaseDamage": { "Physical": 28 } }
+      }]
+    },
+    "Thrust_Damage": {
+      "Interactions": [{
+        "Parent": "Weapon_Sword_Primary_Thrust_Damage",
+        "DamageCalculator": { "BaseDamage": { "Physical": 38 } }
+      }]
+    }
+  }
+}
+```
+
+### Without Template
+
+For unique weapon behaviors, define all interactions manually:
+
+```json title="MyPlugin_Weapon_Unique.json"
+{
+  "TranslationProperties": {
+    "Name": "server.items.MyPlugin_Weapon_Unique.name"
+  },
+  "Model": "MyPlugin/Weapons/Unique.blockymodel",
+  "Texture": "MyPlugin/Weapons/Unique_Texture.png",
+  "Icon": "Icons/ItemsGenerated/MyPlugin_Weapon_Unique.png",
+  "Quality": "Epic",
+  "ItemLevel": 50,
+  "Categories": ["Items.Weapons"],
+  "PlayerAnimationsId": "Sword",
+  "Reticle": "DefaultMelee",
+  "Tags": { "Type": ["Weapon"], "Family": ["Unique"] },
+  "Interactions": {
+    "Primary": "MyPlugin_Unique_Primary",
+    "Secondary": "MyPlugin_Unique_Secondary"
+  },
+  "InteractionVars": {
+    "Primary_Attack_Damage": {
+      "Interactions": [{
+        "Parent": "MyPlugin_Unique_Primary_Damage",
+        "DamageCalculator": {
+          "BaseDamage": { "Physical": 25 },
+          "Type": "Absolute"
+        }
+      }]
+    }
+  },
+  "Weapon": {},
+  "MaxDurability": 200,
+  "DurabilityLossOnHit": 0.15,
+  "ItemSoundSetId": "ISS_Weapons_Blade_Large"
+}
+```
+
+## Best Practices
+
+1. **Use templates**: Inherit from existing templates for consistent combat feel
+2. **Balance damage curves**: Follow existing patterns for material tiers
+3. **Include sound effects**: Use appropriate `ItemSoundSetId` and `DamageEffects`
+4. **Set proper durability**: Higher tier = higher durability
+5. **Test all attacks**: Verify each `InteractionVar` works correctly
+6. **Match animation set**: Use compatible `PlayerAnimationsId`
+7. **Prefix IDs**: Use plugin name prefix for all custom weapons
+
+## Related
+
+- [Item System Overview](/asset-development/items/overview/) - General item documentation
+- [Custom Weapon Tutorial](/tutorials/examples/custom-weapon/) - Step-by-step weapon creation
+- [Blockbench Setup](/tutorials/blockbench/setup/) - Creating weapon models
+- [Plugin Manifest](/getting-started/plugin-manifest/) - Including assets in plugins

@@ -794,11 +794,319 @@ Use this checklist when creating each new documentation page:
 
 ---
 
+## Server API Changelog - Update 2
+
+**Server Version**: Update 2 (`2026.01.24-6e2d4fc36`)
+**Comparison**: `hyaleServer-extracted-v1` (Update 1) → `hytaleServer-extracted-v2` (Update 2)
+
+This section documents all changes between server updates that may require documentation updates.
+
+### Summary Statistics
+
+| Metric | v1 | v2 | Delta |
+|--------|-----|-----|-------|
+| Total Java files | 5,284 | 5,300 | +16 |
+| Modified files | - | - | 365 |
+| New files | - | - | 16+ |
+| Removed files | - | - | 10 |
+
+### Changes by Subsystem
+
+| Subsystem | Modified Files | Priority |
+|-----------|---------------|----------|
+| `server/` | 185 | HIGH |
+| `builtin/` | 95 | HIGH |
+| `protocol/` | 61 | MEDIUM |
+| `component/` | 19 | MEDIUM |
+| `codec/` | 2 | LOW |
+| `procedurallib/` | 1 | LOW |
+| `math/` | 1 | LOW |
+| `common/` | 1 | LOW |
+
+---
+
+### NEW FILES (Documentation Required)
+
+#### 1. Server Update System (NEW MODULE)
+**Location**: `server/core/update/`
+**Priority**: HIGH - New command and system
+
+| File | Purpose |
+|------|---------|
+| `UpdateModule.java` | Core auto-update system with scheduled checks |
+| `UpdateService.java` | Version manifest fetching, download management |
+| `command/UpdateCommand.java` | Parent command for update subcommands |
+| `command/UpdateCheckCommand.java` | `/update check` - Check for new versions |
+| `command/UpdateDownloadCommand.java` | `/update download` - Download new version |
+| `command/UpdateApplyCommand.java` | `/update apply` - Apply downloaded update |
+| `command/UpdateCancelCommand.java` | `/update cancel` - Cancel active download |
+| `command/UpdateStatusCommand.java` | `/update status` - Show update status |
+| `command/UpdatePatchlineCommand.java` | `/update patchline` - Manage patch lines |
+
+**Documentation Tasks**:
+- [x] Document `/update` command and all subcommands ✅ Created `api-reference/server/update-system.mdx`
+- [x] Document `HYTALE_DISABLE_UPDATES` environment variable ✅ Included in update-system.mdx
+- [x] Document auto-update scheduling and player warnings ✅ Included in update-system.mdx
+- [x] Add to commands.mdx or create new update-system.mdx ✅ Created update-system.mdx + updated commands.mdx
+
+#### 2. World Generator Props (NEW)
+**Location**: `builtin/hytalegenerator/props/`
+**Priority**: MEDIUM - World generation enhancements
+
+| File | Purpose |
+|------|---------|
+| `WeightedProp.java` | Random prop selection with weight-based probability |
+| `WeightedPropAsset.java` | Asset definition for weighted props |
+| `OffsetProp.java` | Apply position offset to child prop |
+| `OffsetPropAsset.java` | Asset definition for offset props |
+| `SimpleHorizontalPositionProvider.java` | Horizontal position provider |
+| `SimpleHorizontalPositionProviderAsset.java` | Asset for horizontal positions |
+
+**Documentation Tasks**:
+- [x] Update worldgen/overview.mdx with new prop types ✅ Added Props section
+- [x] Document `WeightedProp` for probabilistic prop placement ✅ Added with examples
+- [x] Document `OffsetProp` for position-adjusted props ✅ Added with examples
+- [x] Create examples showing combined usage ✅ Added configuration examples
+
+#### 3. New Interaction Type
+**Location**: `server/core/modules/interaction/interaction/config/server/`
+**Priority**: HIGH - New modding capability
+
+| File | Purpose |
+|------|---------|
+| `RunOnBlockTypesInteraction.java` | Search for blocks by BlockSet and run interactions on them |
+
+**Key Features**:
+- Spherical radius search for matching block types
+- `Range` - Search radius in blocks
+- `BlockSets` - Array of BlockSet IDs to match
+- `MaxCount` - Maximum blocks to affect (uses reservoir sampling)
+- `Interactions` - Interaction chain to run on each found block
+
+**Documentation Tasks**:
+- [x] Add to custom-interactions.mdx ✅ Added RunOnBlockTypes section
+- [x] Document BlockSet-based block searching ✅ Added with schema table
+- [x] Provide examples for AOE effects on specific blocks ✅ Added frost spell example
+
+#### 4. Teleport Record Component
+**Location**: `server/core/modules/entity/teleport/`
+**Priority**: LOW - Internal component
+
+| File | Purpose |
+|------|---------|
+| `TeleportRecord.java` | Tracks last teleport origin, destination, and timestamp |
+
+**Documentation Tasks**:
+- [x] Add to component-catalog.mdx (entity components) ✅ Added to Entity System Components table
+- [ ] Document cooldown checking via `hasElapsedSinceLastTeleport()` (low priority)
+
+#### 5. Map Marker System Refactor
+**Location**: `server/core/universe/world/worldmap/markers/`
+**Priority**: MEDIUM - Architecture change
+
+| File | Purpose |
+|------|---------|
+| `MapMarkerTracker.java` | Central tracker for map markers per player |
+| `providers/DeathMarkerProvider.java` | Death location markers |
+| `providers/PlayerIconMarkerProvider.java` | Player position markers |
+| `providers/POIMarkerProvider.java` | Points of interest |
+| `providers/RespawnMarkerProvider.java` | Respawn point markers |
+| `providers/SpawnMarkerProvider.java` | Spawn location markers |
+| `providers/PerWorldDataMarkerProvider.java` | Per-world data markers |
+
+**Documentation Tasks**:
+- [ ] Document new provider-based marker architecture
+- [ ] Update world map documentation with marker providers
+- [ ] Document `MapMarkerTracker` for custom marker tracking
+
+#### 6. Git Commands Reorganization
+**Location**: `server/core/command/commands/utility/git/`
+**Priority**: LOW - Asset development tool
+
+| File | Purpose |
+|------|---------|
+| `GitCommand.java` | Parent for git-related commands |
+| `UpdateAssetsCommand.java` | Git pull for assets |
+| `UpdatePrefabsCommand.java` | Git pull for prefabs |
+
+**Documentation Tasks**:
+- [x] Document `/git updateassets` and `/git updateprefabs` ✅ Added to commands.mdx
+- [x] Add to commands.mdx or development-tools section ✅ Added Git Commands table to commands.mdx
+
+#### 7. Builder Tools Utility
+**Location**: `builtin/buildertools/utils/`
+**Priority**: LOW - Builder tool enhancement
+
+| File | Purpose |
+|------|---------|
+| `PasteToolUtil.java` | Utility functions for paste operations |
+
+**Documentation Tasks**:
+- [ ] Note in builder tools section if relevant
+
+---
+
+### REMOVED FILES
+
+#### 1. Protocol Removal
+| File | Reason |
+|------|--------|
+| `protocol/RefillContainerInteraction.java` | Interaction type removed from protocol |
+
+**Documentation Tasks**:
+- [ ] Remove any references to RefillContainerInteraction
+- [ ] Check if functionality replaced elsewhere
+
+#### 2. World Generator Refactor
+| File | Replaced By |
+|------|-------------|
+| `positionproviders/VerticalEliminatorPositionProvider.java` | `SimpleHorizontalPositionProvider.java` |
+| `positionproviders/VerticalEliminatorPositionProviderAsset.java` | `SimpleHorizontalPositionProviderAsset.java` |
+
+**Documentation Tasks**:
+- [x] Update worldgen documentation with renamed providers ✅ Added SimpleHorizontalPositionProvider section
+- [x] Note deprecation of VerticalEliminator approach ✅ Added caution aside in worldgen/overview.mdx
+
+#### 3. Map Markers Moved to Providers
+| Old Location | New Location |
+|--------------|--------------|
+| `markers/DeathMarkerProvider.java` | `markers/providers/DeathMarkerProvider.java` |
+| `markers/PlayerIconMarkerProvider.java` | `markers/providers/PlayerIconMarkerProvider.java` |
+| `markers/POIMarkerProvider.java` | `markers/providers/POIMarkerProvider.java` |
+| `markers/RespawnMarkerProvider.java` | `markers/providers/RespawnMarkerProvider.java` |
+| `markers/SpawnMarkerProvider.java` | `markers/providers/SpawnMarkerProvider.java` |
+| `markers/PlayerMarkersProvider.java` | Reorganized into above providers |
+
+**Documentation Tasks**:
+- [ ] Update package references in documentation
+
+#### 4. Update Command Moved
+| Old Location | New Location |
+|--------------|--------------|
+| `command/commands/utility/git/UpdateCommand.java` | `update/command/UpdateCommand.java` |
+
+**Documentation Tasks**:
+- [ ] Update command documentation with new location
+
+---
+
+### SIGNIFICANT API CHANGES
+
+#### 1. Protocol Serialization Changes (HIGH IMPACT)
+**Affected**: `protocol/ItemBase.java` and 60+ other protocol classes
+**Change**: Bit mask reordering in serialization
+
+```java
+// v1
+if ((nullBits[0] & 64) != 0) { ... }
+// v2
+if ((nullBits[0] & 1) != 0) { ... }
+```
+
+**Impact**: Binary protocol format changed - clients must match server version
+
+**Documentation Tasks**:
+- [ ] Note protocol version incompatibility
+- [ ] Document that v2 requires matching client
+
+#### 2. Phobia Enum Addition
+**File**: `protocol/Phobia.java`
+**Change**: Added new phobia type
+
+```java
+// v1
+Arachnophobia(1);
+// v2
+Arachnophobia(1),
+Ophidiophobia(2);  // NEW: Fear of snakes
+```
+
+**Documentation Tasks**:
+- [ ] Document Ophidiophobia phobia type
+- [ ] Update accessibility/phobia documentation
+
+#### 3. BlockType RailConfig Change
+**File**: `server/core/asset/type/blocktype/config/BlockType.java`
+**Change**: Rail cloning method
+
+```java
+// v1
+rotatedRail = new RailConfig(this.railConfig);
+// v2
+rotatedRail = this.railConfig.clone();
+```
+
+**Documentation Tasks**:
+- [ ] No user-facing documentation needed (internal change)
+
+#### 4. Crafting System Changes
+**Files**: Multiple in `builtin/crafting/`
+**Changes**: Window and bench state modifications
+
+**Documentation Tasks**:
+- [ ] Review crafting window documentation for accuracy
+- [ ] Check BenchState and ProcessingBenchState changes
+
+#### 5. Builder Tools Enhancements
+**Files**: 22 files in `builtin/buildertools/`
+**Changes**: Commands, brush operations, prefab handling
+
+**Documentation Tasks**:
+- [ ] Review builder tools documentation
+- [ ] Document any new brush operations or commands
+
+#### 6. Teleport System Enhancements
+**Files**: 14 files in `builtin/teleport/`
+**Changes**: Command handling, history tracking
+
+**Documentation Tasks**:
+- [ ] Update teleport command documentation
+- [ ] Document teleport history feature
+
+---
+
+### DOCUMENTATION UPDATE CHECKLIST
+
+#### HIGH Priority (New Features)
+- [x] Create `/api-reference/server/update-system.mdx` for auto-update system ✅ DONE
+- [x] Add `RunOnBlockTypesInteraction` to interaction documentation ✅ DONE
+- [x] Document new world generator prop types (Weighted, Offset) ✅ DONE
+- [ ] Update protocol documentation noting v2 incompatibility
+
+#### MEDIUM Priority (Refactored Features)
+- [ ] Update map marker documentation with provider architecture
+- [x] Review and update worldgen position provider docs ✅ DONE (SimpleHorizontalPositionProvider)
+- [ ] Add Ophidiophobia to accessibility/phobia docs
+
+#### LOW Priority (Internal Changes)
+- [ ] Update package paths for moved classes
+- [x] Add TeleportRecord to component catalog ✅ DONE
+- [x] Document git asset commands ✅ DONE (added to commands.mdx)
+
+---
+
+### Files to Review for Detailed Changes
+
+Run this to see specific changes in a file:
+```bash
+diff hyaleServer-extracted-v1/path/to/file.java hytaleServer-extracted-v2/path/to/file.java
+```
+
+**Key files for detailed review**:
+1. `server/core/update/UpdateModule.java` - Full new module
+2. `builtin/hytalegenerator/props/WeightedProp.java` - New prop type
+3. `server/core/modules/interaction/interaction/config/server/RunOnBlockTypesInteraction.java` - New interaction
+4. `protocol/PacketRegistry.java` - Protocol changes
+5. `server/core/universe/world/worldmap/markers/MapMarkerTracker.java` - New marker system
+
+---
+
 ## Resources
 
 ### Local References
 - **Assets Directory**: `/home/riprod/Documents/hytale/modding/docs/Assets/`
-- **Extracted Java Code**: `/home/riprod/Documents/hytale/modding/docs/extracted/`
+- **Extracted Java Code (v1)**: `/home/riprod/Documents/hytale/modding/docs/hyaleServer-extracted-v1/`
+- **Extracted Java Code (v2)**: `/home/riprod/Documents/hytale/modding/docs/hytaleServer-extracted-v2/`
 - **Existing Overview**: `src/content/docs/api-reference/assets/overview.md`
 - **Example Tutorial**: `src/content/docs/getting-started/first-plugin.md`
 - **Site Config**: `astro.config.mjs`
@@ -815,3 +1123,5 @@ Use this checklist when creating each new documentation page:
 - `com.hypixel.hytale.server.core.asset.type.BlockType`
 - `com.hypixel.hytale.server.core.asset.AssetMap`
 - `com.hypixel.hytale.server.core.plugin.Plugin`
+- `com.hypixel.hytale.server.core.update.UpdateModule` (NEW in v2)
+- `com.hypixel.hytale.server.core.modules.interaction.interaction.config.server.RunOnBlockTypesInteraction` (NEW in v2)

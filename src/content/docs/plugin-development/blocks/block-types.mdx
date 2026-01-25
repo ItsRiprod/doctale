@@ -1,0 +1,237 @@
+---
+title: "Block Types"
+---
+
+{/* [VERIFIED: 2026-01-19] */}
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+# Block Types
+
+`BlockType` is an asset that defines a block's properties and behavior. It's loaded from JSON files in the `blocktype/` directory.
+
+## Package Location
+
+`com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType`
+
+## BlockType Structure
+
+```json title="MyPlugin_CustomBlock.json"
+{
+  "Id": "MyPlugin_CustomBlock",
+  "Group": "MyBlocks",
+  "DrawType": "Cube",
+  "Material": "Stone",
+  "Opacity": "Solid",
+  "Textures": [
+    {
+      "Up": "textures/block_top.png",
+      "Down": "textures/block_bottom.png",
+      "North": "textures/block_side.png",
+      "South": "textures/block_side.png",
+      "East": "textures/block_side.png",
+      "West": "textures/block_side.png"
+    }
+  ],
+  "HitboxType": "Full",
+  "BlockSoundSetId": "Hytale/Stone"
+}
+```
+
+## Key Properties
+
+### Rendering Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `DrawType` | `DrawType` | How the block is rendered (`Cube`, `Model`, `Empty`) |
+| `Textures` | `BlockTypeTextures[]` | Textures for each face |
+| `CustomModel` | `string` | Path to custom 3D model |
+| `CustomModelTexture` | `array` | Textures for custom model |
+| `CustomModelScale` | `float` | Scale factor for model (default: 1.0) |
+| `CustomModelAnimation` | `string` | Animation for model |
+| `Opacity` | `Opacity` | Light blocking (`Solid`, `Transparent`, `SemiTransparent`) |
+| `RequiresAlphaBlending` | `bool` | Enable alpha blending |
+| `CubeShadingMode` | `ShadingMode` | Shading style (`Standard`, etc.) |
+| `Effect` | `ShaderType[]` | Shader effects |
+
+### Physics Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Material` | `BlockMaterial` | Physical material type |
+| `HitboxType` | `string` | Collision hitbox type (`Full`, etc.) |
+| `InteractionHitboxType` | `string` | Hitbox for interactions |
+| `MovementSettings` | `object` | Movement modifiers on block |
+
+### Visual Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Light` | `ColorLight` | Emitted light color and intensity |
+| `Tint` | `Color[]` | Color tint per face |
+| `TintUp/Down/North/South/East/West` | `Color[]` | Per-face tints |
+| `BiomeTint` | `int` | Biome color application |
+| `ParticleColor` | `Color` | Particle tint |
+| `Particles` | `ModelParticle[]` | Block-attached particles |
+| `BlockParticleSetId` | `string` | Particle set for interactions |
+
+### Sound Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `BlockSoundSetId` | `string` | Sound set for block events |
+| `AmbientSoundEventId` | `string` | Looping ambient sound |
+| `InteractionSoundEventId` | `string` | Sound on interaction |
+| `Looping` | `bool` | Whether ambient sound loops |
+
+### Rotation Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `RandomRotation` | `RandomRotation` | Random rotation on placement |
+| `VariantRotation` | `VariantRotation` | Variant-based rotation |
+| `FlipType` | `BlockFlipType` | Flip behavior |
+| `RotationYawPlacementOffset` | `Rotation` | Yaw offset when placed |
+
+### Support Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Support` | `map` | Required support per face |
+| `Supporting` | `map` | Support provided to neighbors |
+| `SupportDropType` | `SupportDropType` | What happens when support lost |
+| `MaxSupportDistance` | `int` | Maximum support reach (0-14) |
+| `SupportsRequiredFor` | `enum` | When support is checked |
+| `IgnoreSupportWhenPlaced` | `bool` | Bypass support on placement |
+
+See [Block Physics](/plugin-development/blocks/block-physics/) for detailed support system documentation.
+
+### Behavior Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Flags.IsUsable` | `bool` | Can be used/interacted with |
+| `Flags.IsStackable` | `bool` | Can be stacked on top |
+| `Interactions` | `map` | Interaction handlers |
+| `Bench` | `object` | Crafting bench configuration |
+| `Gathering` | `object` | Resource gathering settings |
+| `PlacementSettings` | `object` | Placement restrictions |
+| `Seats` | `array` | Seating mount points |
+| `Beds` | `array` | Bed mount points |
+| `IsDoor` | `bool` | Door behavior (deprecated) |
+| `DamageToEntities` | `int` | Contact damage |
+
+### State Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `State` | `StateData` | Block state configuration |
+| `BlockEntity` | `Holder` | ECS components for block entity |
+| `TickProcedure` | `object` | Block tick behavior |
+
+See [Block States](/plugin-development/blocks/block-states/) and [Block Ticking](/plugin-development/blocks/block-ticking/) for details.
+
+## DrawType Enum
+
+| Value | Description |
+|-------|-------------|
+| `Empty` | Invisible, no rendering |
+| `Cube` | Standard cube block |
+| `Model` | Custom 3D model |
+
+## BlockMaterial Enum
+
+Common materials:
+
+| Value | Description |
+|-------|-------------|
+| `Empty` | No physical material |
+| `Solid` | Generic solid |
+| `Stone` | Stone-like |
+| `Wood` | Wood-like |
+| `Metal` | Metallic |
+| `Glass` | Glass-like |
+| `Organic` | Plants, grass |
+| `Cloth` | Fabric |
+| `Liquid` | Water, lava |
+
+## Accessing BlockTypes
+
+```java title="Getting BlockType references"
+// Get by ID
+BlockType stone = BlockType.getAssetMap().get("Rock_Stone");
+
+// Get from world position
+World world = Universe.get().getDefaultWorld();
+BlockType type = world.getBlockType(x, y, z);
+
+// Get block ID (numeric)
+int blockId = world.getBlock(x, y, z);
+
+// Check special blocks
+BlockType.EMPTY  // Air block
+BlockType.UNKNOWN  // Unknown block placeholder
+```
+
+## Setting Blocks
+
+```java title="Setting blocks in the world"
+// Simple set
+world.setBlock(x, y, z, blockType);
+
+// With settings
+SetBlockSettings settings = new SetBlockSettings();
+settings.setNotifyNeighbors(true);
+settings.setUpdateLighting(true);
+settings.setTriggerBlockUpdate(true);
+world.setBlock(x, y, z, blockType, settings);
+```
+
+### SetBlockSettings Options
+
+| Method | Description |
+|--------|-------------|
+| `setNotifyNeighbors(boolean)` | Trigger neighbor updates |
+| `setUpdateLighting(boolean)` | Recalculate lighting |
+| `setTriggerBlockUpdate(boolean)` | Trigger block update event |
+| `setDropItems(boolean)` | Drop items when replacing |
+
+## Block Interactions
+
+Define interactions in the block type:
+
+```json title="Block with interactions"
+{
+  "Interactions": {
+    "Primary": "MyPlugin_PrimaryInteraction",
+    "Secondary": "MyPlugin_SecondaryInteraction"
+  },
+  "InteractionHint": "ui.interaction.open"
+}
+```
+
+## Connected Blocks
+
+Blocks can connect to neighbors for visual continuity (fences, glass panes, etc.).
+
+```json title="Connected block configuration"
+{
+  "ConnectedBlockRuleSet": {
+    "Rules": [
+      {
+        "Condition": { "Type": "SameBlock" },
+        "Connect": true
+      }
+    ]
+  }
+}
+```
+
+## Related
+
+- [Block States](/plugin-development/blocks/block-states/) - Per-block instance data
+- [Block Events](/plugin-development/blocks/block-events/) - Block-related events
+- [Block Physics](/plugin-development/blocks/block-physics/) - Support system
+- [Block Ticking](/plugin-development/blocks/block-ticking/) - Time-based behavior
+- [Block Types (Assets)](/asset-development/blocks/block-types/) - Asset creation guide

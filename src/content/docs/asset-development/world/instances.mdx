@@ -1,0 +1,530 @@
+---
+title: "World Instances"
+---
+
+{/* [VERIFIED: 2026-01-20] */}
+
+import { Aside, Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="AI-Generated Content">
+This documentation was generated from analysis of decompiled source code and game assets. Some details may be incomplete or subject to change.
+</Aside>
+
+World instances are self-contained world configurations that define spawn points, world generation, game rules, and persistence settings. They can be zone overworlds, dungeons, minigames, or special areas.
+
+## Asset Location
+
+<FileTree>
+- Assets/Server/Instances/
+  - Zone1_Plains1/
+    - instance.bson
+    - resources/
+      - InstanceData.json
+      - Time.json
+      - ReputationData.json
+      - SpawnSuppressionController.json
+      - PrefabEditSession.json
+  - Zone2_Desert1/
+  - Zone3_Taiga1/
+  - Zone4_Volcanic1/
+  - CreativeHub/
+    - config.json
+    - resources/
+      - BlockCounter.json
+      - ConnectedBlocksWorldResource.json
+  - Forgotten_Temple/
+    - config.json
+    - resources/
+  - Dungeon_1/
+  - Dungeon_Goblin/
+  - Dungeon_Outlander/
+  - NPC_Gym/
+  - Challenge_Combat_1/
+  - Portals_Hedera/
+  - Portals_Henges/
+  - Portals_Jungles/
+  - Portals_Oasis/
+  - ShortLived/
+  - Void/
+  - Flat/
+  - Basic/
+  - Default/
+</FileTree>
+
+## Instance Types
+
+### Zone Overworlds
+
+Main game zones with full world generation:
+
+| Instance | Description |
+|----------|-------------|
+| `Zone1_Plains1` | Emerald Grove (Plains) |
+| `Zone2_Desert1` | Howling Sands (Desert) |
+| `Zone3_Taiga1` | Borea (Taiga/Snow) |
+| `Zone4_Volcanic1` | Devastated Lands |
+
+### Dungeons
+
+Instanced dungeon areas:
+
+| Instance | Description |
+|----------|-------------|
+| `Dungeon_1` | Generic dungeon template |
+| `Dungeon_Goblin` | Goblin cave dungeon |
+| `Dungeon_Outlander` | Outlander camp dungeon |
+| `Forgotten_Temple` | Story dungeon |
+
+### Special Instances
+
+| Instance | Description |
+|----------|-------------|
+| `CreativeHub` | Creative mode hub world |
+| `NPC_Gym` | NPC testing area |
+| `NPC_Faction_Gym` | Faction NPC testing |
+| `Challenge_Combat_1` | Combat challenge arena |
+| `Void` | Void dimension |
+| `Flat` | Flat world for testing |
+| `Basic` | Minimal instance template |
+
+### Portal Instances
+
+Instanced portal destinations:
+
+| Instance | Description |
+|----------|-------------|
+| `Portals_Hedera` | Hedera portal realm |
+| `Portals_Henges` | Henge portal area |
+| `Portals_Jungles` | Jungle portal realm |
+| `Portals_Oasis` | Oasis portal destination |
+| `Portals_Taiga` | Taiga portal realm |
+
+### Lifecycle Instances
+
+| Instance | Description |
+|----------|-------------|
+| `ShortLived` | Temporary instances (fast cleanup) |
+| `ShortLivedSlow` | Temporary instances (slow cleanup) |
+| `TimeOut` | Timeout-based instances |
+| `Persistent` | Never-cleanup instances |
+
+## Instance Configuration Schema
+
+The main configuration is in `config.json`:
+
+### Core Properties
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Version` | `int` | Configuration version |
+| `UUID` | `object` | Unique instance identifier |
+| `Seed` | `long` | World generation seed |
+| `SpawnProvider` | `object` | Spawn point configuration |
+| `WorldGen` | `object` | World generation settings |
+| `ChunkStorage` | `object` | Chunk persistence type |
+| `GameMode` | `string` | Default game mode |
+
+### Spawn Provider
+
+```json
+{
+  "SpawnProvider": {
+    "Id": "Global",
+    "SpawnPoint": {
+      "X": 5103.5,
+      "Y": 168.0,
+      "Z": 4982.5,
+      "Pitch": 0.0,
+      "Yaw": 90.0,
+      "Roll": 0.0
+    }
+  }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Id` | `string` | Spawn provider type |
+| `SpawnPoint` | `object` | Default spawn coordinates |
+| `X`, `Y`, `Z` | `float` | World position |
+| `Pitch`, `Yaw`, `Roll` | `float` | View rotation |
+
+### World Generation
+
+```json
+{
+  "WorldGen": {
+    "Type": "Hytale",
+    "Name": "Instance_Creative_Hub",
+    "Environment": "Env_Creative_Hub"
+  }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Type` | `string` | Generator type (`Hytale`, `Flat`) |
+| `Name` | `string` | World generator name |
+| `Environment` | `string` | Default environment ID |
+
+### Game Rules
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `IsTicking` | `bool` | `true` | Enable world tick updates |
+| `IsBlockTicking` | `bool` | `true` | Enable block tick updates |
+| `IsPvpEnabled` | `bool` | `true` | Allow player vs player |
+| `IsFallDamageEnabled` | `bool` | `true` | Enable fall damage |
+| `IsGameTimePaused` | `bool` | `false` | Freeze time of day |
+| `IsSpawningNPC` | `bool` | `true` | Enable NPC spawning |
+| `IsAllNPCFrozen` | `bool` | `false` | Freeze all NPCs |
+
+### Persistence Settings
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `IsSavingPlayers` | `bool` | `true` | Save player data |
+| `IsSavingChunks` | `bool` | `true` | Save chunk data |
+| `SaveNewChunks` | `bool` | `true` | Save newly generated chunks |
+| `IsUnloadingChunks` | `bool` | `true` | Unload distant chunks |
+| `DeleteOnUniverseStart` | `bool` | `false` | Reset on server start |
+| `DeleteOnRemove` | `bool` | `false` | Delete when unloaded |
+
+### Plugin Configuration
+
+```json
+{
+  "Plugin": {
+    "Instance": {
+      "RemovalConditions": [],
+      "PreventReconnection": true,
+      "Discovery": {
+        "TitleKey": "server.instances.creative_hub.title",
+        "SubtitleKey": "server.instances.creative_hub.subtitle",
+        "Display": true,
+        "AlwaysDisplay": false,
+        "Icon": "Forgotten_Temple.png",
+        "Major": true,
+        "Duration": 4.0,
+        "FadeInDuration": 1.5,
+        "FadeOutDuration": 1.5
+      }
+    }
+  }
+}
+```
+
+#### Discovery Settings
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `TitleKey` | `string` | Localization key for title |
+| `SubtitleKey` | `string` | Localization key for subtitle |
+| `Display` | `bool` | Show discovery notification |
+| `AlwaysDisplay` | `bool` | Show on every entry |
+| `Icon` | `string` | Discovery icon filename |
+| `Major` | `bool` | Large notification style |
+| `Duration` | `float` | Display time (seconds) |
+| `FadeInDuration` | `float` | Fade in time |
+| `FadeOutDuration` | `float` | Fade out time |
+
+## Resource Files
+
+Each instance has a `resources/` directory with state data:
+
+### InstanceData.json
+
+Basic instance state:
+
+```json
+{
+  "HadPlayer": false
+}
+```
+
+### Time.json
+
+Game time tracking:
+
+```json
+{
+  "Now": "1970-01-01T00:00:02.163598610Z"
+}
+```
+
+### SpawnSuppressionController.json
+
+Controls spawn suppression zones:
+
+```json
+{
+  "SpawnSuppressorMap": {}
+}
+```
+
+### BlockCounter.json
+
+Tracks block placement (creative mode):
+
+```json
+{
+  "BlockPlacementCounts": {}
+}
+```
+
+### ReputationData.json
+
+Faction reputation tracking.
+
+### PrefabEditSession.json
+
+Prefab editing state.
+
+## Examples
+
+### Creative Hub Instance
+
+```json title="CreativeHub/config.json" {19-22,27,38-39,42}
+{
+  "Version": 4,
+  "UUID": {
+    "$binary": "Ds/3XgghTq2JYJNzWFqVMQ==",
+    "$type": "04"
+  },
+  "Seed": 1618917989368,
+  "SpawnProvider": {
+    "Id": "Global",
+    "SpawnPoint": {
+      "X": 5103.5,
+      "Y": 168.0,
+      "Z": 4982.5,
+      "Pitch": 0.0,
+      "Yaw": 90.0,
+      "Roll": 0.0
+    }
+  },
+  "WorldGen": {
+    "Type": "Hytale",
+    "Name": "Instance_Creative_Hub",
+    "Environment": "Env_Creative_Hub"
+  },
+  "WorldMap": {
+    "Type": "Disabled"
+  },
+  "ChunkStorage": {
+    "Type": "Hytale"
+  },
+  "IsTicking": false,
+  "IsBlockTicking": false,
+  "IsPvpEnabled": false,
+  "IsFallDamageEnabled": true,
+  "IsGameTimePaused": true,
+  "GameTime": "0001-01-01T16:50:44.090953998Z",
+  "RequiredPlugins": {},
+  "GameMode": "Creative",
+  "IsSpawningNPC": false,
+  "IsAllNPCFrozen": true,
+  "GameplayConfig": "CreativeHub",
+  "IsCompassUpdating": true,
+  "IsSavingPlayers": false,
+  "IsSavingChunks": true,
+  "SaveNewChunks": true,
+  "IsUnloadingChunks": true,
+  "DeleteOnUniverseStart": false,
+  "DeleteOnRemove": false,
+  "Plugin": {
+    "Instance": {
+      "RemovalConditions": [],
+      "PreventReconnection": true,
+      "Discovery": {
+        "TitleKey": "server.instances.creative_hub.title",
+        "SubtitleKey": "server.instances.creative_hub.subtitle",
+        "Display": true,
+        "AlwaysDisplay": false,
+        "Icon": "Forgotten_Temple.png",
+        "Major": true,
+        "Duration": 4.0,
+        "FadeInDuration": 1.5,
+        "FadeOutDuration": 1.5
+      }
+    }
+  }
+}
+```
+
+Key characteristics:
+- **Creative mode** - GameMode set to Creative
+- **Ticking disabled** - No world/block updates (performance)
+- **NPC spawning disabled** - No hostile mobs
+- **Time paused** - Fixed time of day
+- **Player saving disabled** - Fresh start each session
+
+### Dungeon Instance (Forgotten Temple)
+
+```json title="Forgotten_Temple/config.json" {21,28,35-36}
+{
+  "Version": 4,
+  "UUID": {
+    "$binary": "YDOsXrt3TOmXhNGwFrXXBA==",
+    "$type": "04"
+  },
+  "Seed": 1618917989368,
+  "SpawnProvider": {
+    "Id": "Global",
+    "SpawnPoint": {
+      "X": 5095.0,
+      "Y": 169.0,
+      "Z": 4983.5,
+      "Pitch": 0.0,
+      "Yaw": 90.0,
+      "Roll": 0.0
+    }
+  },
+  "WorldGen": {
+    "Type": "Hytale",
+    "Name": "Instance_Forgotten_Temple"
+  },
+  "ChunkStorage": {
+    "Type": "Hytale"
+  },
+  "IsTicking": false,
+  "IsBlockTicking": true,
+  "IsPvpEnabled": false,
+  "IsFallDamageEnabled": true,
+  "IsGameTimePaused": true,
+  "GameTime": "0001-01-04T08:00:00.000858306Z",
+  "GameMode": "Creative",
+  "IsSpawningNPC": true,
+  "IsSpawnMarkersEnabled": true,
+  "IsAllNPCFrozen": true,
+  "GameplayConfig": "ForgottenTemple",
+  "Plugin": {
+    "Instance": {
+      "PreventReconnection": false,
+      "Discovery": {
+        "TitleKey": "server.instances.forgotten_temple.title",
+        "SubtitleKey": "server.instances.forgotten_temple.subtitle",
+        "Display": true,
+        "AlwaysDisplay": true,
+        "Icon": "Forgotten_Temple.png",
+        "Major": true,
+        "Duration": 4.0,
+        "FadeInDuration": 1.5,
+        "FadeOutDuration": 1.5
+      }
+    }
+  }
+}
+```
+
+Key characteristics:
+- **Block ticking enabled** - Allows trap/door mechanisms
+- **NPC spawning enabled** - Dungeon monsters
+- **Time paused** - Fixed lighting atmosphere
+- **AlwaysDisplay** - Shows notification every entry
+
+## Storage Types
+
+### ChunkStorage Types
+
+| Type | Description |
+|------|-------------|
+| `Hytale` | Standard Hytale chunk storage |
+| `Memory` | RAM-only (no persistence) |
+| `Disabled` | No chunk storage |
+
+### ResourceStorage Types
+
+| Type | Description |
+|------|-------------|
+| `Hytale` | Standard resource storage |
+| `Memory` | RAM-only resources |
+
+## Creating Custom Instances
+
+```json title="MyPlugin_Instance/config.json"
+{
+  "Version": 4,
+  "UUID": {
+    "$binary": "YOUR_UNIQUE_UUID_HERE",
+    "$type": "04"
+  },
+  "Seed": 12345,
+  "SpawnProvider": {
+    "Id": "Global",
+    "SpawnPoint": {
+      "X": 0.0,
+      "Y": 100.0,
+      "Z": 0.0,
+      "Pitch": 0.0,
+      "Yaw": 0.0,
+      "Roll": 0.0
+    }
+  },
+  "WorldGen": {
+    "Type": "Hytale",
+    "Name": "MyPlugin_WorldGen",
+    "Environment": "Env_Zone1_Plains"
+  },
+  "ChunkStorage": {
+    "Type": "Hytale"
+  },
+  "IsTicking": true,
+  "IsBlockTicking": true,
+  "IsPvpEnabled": true,
+  "IsFallDamageEnabled": true,
+  "IsGameTimePaused": false,
+  "GameMode": "Survival",
+  "IsSpawningNPC": true,
+  "IsAllNPCFrozen": false,
+  "IsSavingPlayers": true,
+  "IsSavingChunks": true,
+  "DeleteOnUniverseStart": false,
+  "DeleteOnRemove": false,
+  "Plugin": {
+    "Instance": {
+      "PreventReconnection": false,
+      "Discovery": {
+        "TitleKey": "my_plugin.instance.title",
+        "SubtitleKey": "my_plugin.instance.subtitle",
+        "Display": true,
+        "AlwaysDisplay": false,
+        "Icon": "Custom_Icon.png",
+        "Major": true,
+        "Duration": 3.0,
+        "FadeInDuration": 1.0,
+        "FadeOutDuration": 1.0
+      }
+    }
+  }
+}
+```
+
+## Instance Directory Structure
+
+```
+MyPlugin_Instance/
+├── config.json           # Main instance configuration
+├── instance.bson         # Binary instance data
+└── resources/
+    ├── InstanceData.json
+    ├── Time.json
+    ├── ReputationData.json
+    ├── SpawnSuppressionController.json
+    └── PrefabEditSession.json
+```
+
+## Best Practices
+
+1. **Use appropriate storage** - Memory for temporary, Hytale for persistent
+2. **Set correct game rules** - Match instance purpose (creative vs survival)
+3. **Configure discovery** - Help players understand where they are
+4. **Manage tick settings** - Disable unnecessary ticking for performance
+5. **Test spawn points** - Ensure players don't spawn in solid blocks
+
+## Related
+
+- [Environments](/asset-development/world/environments/) - Environment configuration
+- [Weather Systems](/asset-development/world/weather/) - Weather definitions
+- [Prefabs](/asset-development/world/prefabs/) - Prefab structures
+- [World Overview](/plugin-development/world/overview/) - World system API

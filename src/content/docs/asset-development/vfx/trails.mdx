@@ -1,0 +1,467 @@
+---
+title: "Trail Effects"
+---
+
+{/* [VERIFIED: 2026-01-20] */}
+
+import { Aside, Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="AI-Generated Content">
+This documentation was generated from analysis of decompiled source code and game assets. Some details may be incomplete or subject to change.
+</Aside>
+
+Trail effects create visual streaks behind moving entities like weapons, projectiles, and NPCs. They interpolate color, width, and texture between start and end states over a defined lifespan.
+
+## Asset Location
+
+<FileTree>
+- Assets/Server/Entity/Trails/
+  - Small_Default.json
+  - Medium_Default.json
+  - Large_Default.json
+  - Huge_Default.json
+  - Small_Charged.json
+  - Medium_Charged.json
+  - Large_Charged.json
+  - Small_Flame.json
+  - Medium_Flame.json
+  - Large_Flame.json
+  - Critical.json
+  - Acid.json
+  - Void.json
+  - Void_Green.json
+  - Memory_Trail.json
+  - Daggers_Dash.json
+  - Sword_Distortion.json
+  - Weapons/
+    - Arrow/
+      - Arrow.json
+      - Arrow_Ricochet.json
+      - Arrow_Vamp.json
+    - Sword/
+      - Medium_Sword_Basic.json
+      - Medium_Sword_Strong.json
+    - Mace/
+      - Weapon_Mace_Prisma.json
+    - Dagger_Basic.json
+    - Bomb/
+    - Kunai/
+    - Rubble/
+  - NPCs/
+    - Bear/
+      - Bear_Claw.json
+    - Fen_Stalker/
+      - Fen_Stalker_Claw.json
+    - Crawler_Void/
+      - Crawler_Void_Claw.json
+  - Fire_Trap/
+  - Tests/
+</FileTree>
+
+## Trail Schema
+
+### Core Properties
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `TexturePath` | `string` | Yes | Path to trail texture (relative to `Common/`) |
+| `LifeSpan` | `int` | Yes | Trail segment duration in ticks |
+| `Roll` | `float` | No | Rotation around trail axis (degrees) |
+| `Start` | `object` | Yes | Start state (color, width) |
+| `End` | `object` | Yes | End state (color, width) |
+| `LightInfluence` | `float` | No | How much lighting affects the trail (0-1) |
+| `Smooth` | `bool` | No | Enable smoothing between segments |
+| `RenderMode` | `string` | No | Blending mode |
+| `Animation` | `object` | No | Animated texture settings |
+
+### Start/End State Properties
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Color` | `string` | Color in hex (`#RRGGBBAA`) or rgba format |
+| `Width` | `float` | Trail width at this point |
+
+### Animation Properties
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `FrameSize` | `object` | Frame dimensions `{X, Y}` |
+| `FrameLifeSpan` | `int` | Ticks per frame |
+| `FrameRange` | `object` | Frame index range `{Min, Max}` |
+
+## Render Modes
+
+| Mode | Description |
+|------|-------------|
+| `BlendLinear` | Standard alpha blending |
+| `BlendAdd` | Additive blending (glowing effect) |
+
+## Color Formats
+
+Trails support multiple color formats:
+
+```json
+// Hex with alpha
+"Color": "#ffffff65"
+"Color": "#FFFFFF00"
+
+// RGBA function
+"Color": "rgba(#ffffff, 1)"
+"Color": "rgba(#ff2c00, 0.4)"
+
+// Hex without alpha (full opacity)
+"Color": "#483d6aff"
+```
+
+## Examples
+
+### Basic Weapon Trail
+
+```json title="Medium_Default.json"
+{
+  "TexturePath": "Trails/White.png",
+  "LifeSpan": 8,
+  "Roll": 0,
+  "Start": {
+    "Color": "#ffffff65",
+    "Width": 0.4
+  },
+  "End": {
+    "Color": "#FFFFFF00",
+    "Width": 0
+  },
+  "LightInfluence": 0.524,
+  "Smooth": true,
+  "RenderMode": "BlendLinear"
+}
+```
+
+This creates a white fade trail that tapers from 0.4 width to 0 over 8 ticks.
+
+### Fire Trail
+
+```json title="Large_Flame.json"
+{
+  "TexturePath": "Trails/Fire.png",
+  "LifeSpan": 5,
+  "Roll": 0,
+  "Start": {
+    "Color": "rgba(#ffcf00, 0.9)",
+    "Width": 0.6
+  },
+  "End": {
+    "Color": "rgba(#ff2c00, 0.4)",
+    "Width": 0
+  },
+  "LightInfluence": 0,
+  "Smooth": true,
+  "RenderMode": "BlendAdd"
+}
+```
+
+Key features:
+- **Color gradient**: Yellow to red (fire effect)
+- **Additive blending**: Creates glowing appearance
+- **No light influence**: Consistent brightness
+
+### Projectile Trail
+
+```json title="Arrow.json"
+{
+  "TexturePath": "Trails/Arrow.png",
+  "LifeSpan": 20,
+  "Roll": 90,
+  "LightInfluence": 0,
+  "Start": {
+    "Color": "#ffffff40",
+    "Width": 0.2
+  },
+  "End": {
+    "Color": "#ffffff00",
+    "Width": 0.1
+  },
+  "RenderMode": "BlendAdd",
+  "Smooth": true
+}
+```
+
+Key features:
+- **Long lifespan**: 20 ticks for projectile motion
+- **90° roll**: Rotated to align with flight
+- **Thin width**: Subtle arrow trail
+
+### Frost Weapon Trail
+
+```json title="Weapon_Sword_Frost.json"
+{
+  "TexturePath": "Trails/Ice.png",
+  "LifeSpan": 4,
+  "Roll": 90.0,
+  "Start": {
+    "Width": 0.65
+  },
+  "End": {
+    "Width": 0.4,
+    "Color": "#483d6aff"
+  },
+  "LightInfluence": 0.1,
+  "Smooth": true,
+  "RenderMode": "BlendLinear"
+}
+```
+
+Note: Start color is inherited from texture when not specified.
+
+### Void Trail
+
+```json title="Void.json"
+{
+  "TexturePath": "Trails/Void.png",
+  "LifeSpan": 6,
+  "Roll": 90,
+  "Start": {
+    "Color": "rgba(#ffffff, 0.9)",
+    "Width": 0.4
+  },
+  "End": {
+    "Color": "rgba(#2f0f53, 0.733)",
+    "Width": 0.1
+  },
+  "LightInfluence": 0.3,
+  "Smooth": true,
+  "RenderMode": "BlendLinear"
+}
+```
+
+### Critical Hit Trail
+
+```json title="Critical.json"
+{
+  "TexturePath": "Trails/Critical.png",
+  "LifeSpan": 6,
+  "Roll": 0,
+  "Start": {
+    "Color": "rgba(#ffffff, 1)",
+    "Width": 0.45
+  },
+  "End": {
+    "Color": "rgba(#ffffff, 0.404)",
+    "Width": 0
+  },
+  "LightInfluence": 0,
+  "Smooth": true,
+  "RenderMode": "BlendLinear"
+}
+```
+
+### Animated Trail
+
+```json title="Daggers_Dash.json"
+{
+  "TexturePath": "Trails/Daggers_Dash.png",
+  "LifeSpan": 8,
+  "Roll": 90,
+  "Start": {
+    "Color": "rgba(#ffffff, 1)",
+    "Width": 0.5
+  },
+  "End": {
+    "Color": "rgba(#ffffff, 1)",
+    "Width": 0.1
+  },
+  "LightInfluence": 0.0,
+  "Smooth": true,
+  "RenderMode": "BlendLinear",
+  "Animation": {
+    "FrameSize": {
+      "X": 256,
+      "Y": 96
+    },
+    "FrameLifeSpan": 2,
+    "FrameRange": {
+      "Max": 3,
+      "Min": 0
+    }
+  }
+}
+```
+
+Key features:
+- **Animated texture**: 4 frames (0-3)
+- **Frame size**: 256x96 pixels per frame
+- **Frame lifespan**: 2 ticks per frame
+
+### NPC Claw Trail
+
+```json title="Bear_Claw.json"
+{
+  "TexturePath": "Trails/Claws/Claw_4.png",
+  "LifeSpan": 7,
+  "Roll": 0,
+  "Start": {
+    "Color": "rgba(#ff7f31, 0.8)",
+    "Width": 0.2
+  },
+  "End": {
+    "Color": "rgba(#ff0000, 0.526)",
+    "Width": 0
+  },
+  "LightInfluence": 0.5,
+  "Smooth": true,
+  "RenderMode": "BlendAdd"
+}
+```
+
+### Memory Trail (Large)
+
+```json title="Memory_Trail.json"
+{
+  "TexturePath": "Trails/Ice.png",
+  "LifeSpan": 10,
+  "Roll": 90,
+  "Start": {
+    "Color": "#00e9ffdd",
+    "Width": 10
+  },
+  "End": {
+    "Color": "#000cffb8",
+    "Width": 0
+  },
+  "LightInfluence": 0.516,
+  "Smooth": false,
+  "RenderMode": "BlendLinear"
+}
+```
+
+Note: Very wide trail (10 units) with smoothing disabled.
+
+## Trail Categories
+
+### Size Variations
+
+| Size | Default | Charged | Flame |
+|------|---------|---------|-------|
+| Small | `Small_Default` | `Small_Charged` | `Small_Flame` |
+| Medium | `Medium_Default` | `Medium_Charged` | `Medium_Flame` |
+| Large | `Large_Default` | `Large_Charged` | `Large_Flame` |
+| Huge | `Huge_Default` | — | — |
+
+### Weapon Trails
+
+| Weapon | Trail |
+|--------|-------|
+| Swords | `Weapons/Sword/Medium_Sword_Basic`, `Medium_Sword_Strong` |
+| Daggers | `Weapons/Dagger_Basic`, `Daggers_Dash`, `Daggers_Signature` |
+| Maces | `Medium_Mace_Normal`, `Medium_Mace_Charged`, `Mace_Signature` |
+| Arrows | `Weapons/Arrow/Arrow`, `Arrow_Ricochet`, `Arrow_Vamp` |
+| Bombs | `Weapons/Bomb/Bomb` |
+| Kunai | `Weapons/Kunai/Kunai` |
+
+### Elemental Trails
+
+| Element | Trails |
+|---------|--------|
+| Fire | `Small_Flame`, `Medium_Flame`, `Large_Flame` |
+| Ice/Frost | `Weapon_Sword_Frost`, `Memory_Trail` |
+| Void | `Void`, `Void_Green` |
+| Acid | `Acid` |
+
+### NPC Trails
+
+| NPC | Trail |
+|-----|-------|
+| Bear | `NPCs/Bear/Bear_Claw` |
+| Fen Stalker | `NPCs/Fen_Stalker/Fen_Stalker_Claw` |
+| Void Crawler | `NPCs/Crawler_Void/Crawler_Void_Claw` |
+
+## Creating Custom Trails
+
+### Basic Trail
+
+```json title="MyPlugin_Trail_Basic.json"
+{
+  "TexturePath": "MyPlugin/Trails/Custom.png",
+  "LifeSpan": 6,
+  "Roll": 0,
+  "Start": {
+    "Color": "#00ff00cc",
+    "Width": 0.35
+  },
+  "End": {
+    "Color": "#00ff0000",
+    "Width": 0
+  },
+  "LightInfluence": 0.5,
+  "Smooth": true,
+  "RenderMode": "BlendLinear"
+}
+```
+
+### Glowing Trail
+
+```json title="MyPlugin_Trail_Glow.json"
+{
+  "TexturePath": "MyPlugin/Trails/Glow.png",
+  "LifeSpan": 10,
+  "Roll": 0,
+  "Start": {
+    "Color": "rgba(#ffaa00, 1)",
+    "Width": 0.5
+  },
+  "End": {
+    "Color": "rgba(#ff0000, 0.5)",
+    "Width": 0.1
+  },
+  "LightInfluence": 0,
+  "Smooth": true,
+  "RenderMode": "BlendAdd"
+}
+```
+
+### Animated Trail
+
+```json title="MyPlugin_Trail_Animated.json"
+{
+  "TexturePath": "MyPlugin/Trails/Animated.png",
+  "LifeSpan": 8,
+  "Roll": 90,
+  "Start": {
+    "Color": "#ffffffff",
+    "Width": 0.4
+  },
+  "End": {
+    "Color": "#ffffff00",
+    "Width": 0.2
+  },
+  "Smooth": true,
+  "RenderMode": "BlendLinear",
+  "Animation": {
+    "FrameSize": { "X": 128, "Y": 64 },
+    "FrameLifeSpan": 3,
+    "FrameRange": { "Min": 0, "Max": 5 }
+  }
+}
+```
+
+## Texture Requirements
+
+- **Format**: PNG with alpha channel
+- **Location**: `Assets/Common/Trails/`
+- **Animated textures**: Horizontal sprite sheet
+- **Recommended width**: Power of 2 (64, 128, 256, etc.)
+
+## Best Practices
+
+1. **Match lifespan to animation speed** - Faster attacks need shorter lifespans
+2. **Use additive blending for glow** - Creates light-emitting effect
+3. **Keep width reasonable** - 0.2-0.6 for weapons, larger for effects
+4. **Taper width to zero** - Natural fade at end
+5. **Use light influence sparingly** - 0 for consistent brightness, >0 for world-lit trails
+6. **Roll for projectiles** - 90° aligns trail with flight path
+7. **Smooth for organic motion** - Disable for sharp/mechanical trails
+
+## Related
+
+- [Particles](/asset-development/vfx/particles/) - Particle systems
+- [Items Overview](/asset-development/items/overview/) - Item definitions
+- [Weapons](/asset-development/items/weapons/) - Weapon configurations

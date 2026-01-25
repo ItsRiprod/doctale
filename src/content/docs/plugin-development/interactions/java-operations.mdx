@@ -1,0 +1,423 @@
+---
+title: "Java Interaction Operations"
+---
+
+import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
+
+{/* [VERIFIED: 2026-01-20] */}
+
+# Java Interaction Operations
+
+For creating entirely new interaction types (new `Type` values), you need to implement the Java Operation interface. This is an advanced topic for plugin developers who need custom behavior beyond what the asset-based system provides.
+
+<Aside type="note" title="When to Use Java Operations">
+Most custom interactions can be created using [asset-based JSON definitions](/plugin-development/interactions/custom-interactions/). Only use Java Operations when you need:
+- A completely new interaction type
+- Custom logic not possible with existing types
+- Integration with external systems
+</Aside>
+
+## Package Location
+
+- Operations: `com.hypixel.hytale.server.core.modules.interaction.interaction.operation`
+- Configs: `com.hypixel.hytale.server.core.modules.interaction.interaction.config`
+- Suppliers: `com.hypixel.hytale.server.core.modules.interaction.suppliers`
+
+## Overview
+
+Custom interactions can be created by:
+
+1. Implementing the `Operation` interface
+2. Registering with the interaction codec
+3. Defining in RootInteraction assets
+
+## Operation Interface
+
+Core interface for executable interaction logic:
+
+```java
+package com.hypixel.hytale.server.core.modules.interaction.interaction.operation;
+
+public interface Operation {
+    // Server-side tick execution
+    void tick(
+        Ref<EntityStore> ref,
+        LivingEntity entity,
+        boolean firstRun,
+        float time,
+        InteractionType type,
+        InteractionContext context,
+        CooldownHandler cooldownHandler
+    );
+
+    // Client-side predictive simulation
+    void simulateTick(
+        Ref<EntityStore> ref,
+        LivingEntity entity,
+        boolean firstRun,
+        float time,
+        InteractionType type,
+        InteractionContext context,
+        CooldownHandler cooldownHandler
+    );
+
+    // Post-tick handling
+    default void handle(
+        Ref<EntityStore> ref,
+        boolean firstRun,
+        float time,
+        InteractionType type,
+        InteractionContext context
+    ) {}
+
+    // Sync point (Server, Client, or None)
+    WaitForDataFrom getWaitForDataFrom();
+
+    // Optional interrupt/blocking rules
+    @Nullable
+    default InteractionRules getRules() { return null; }
+
+    // Optional tags for categorization
+    default Int2ObjectMap<IntSet> getTags() {
+        return Int2ObjectMaps.emptyMap();
+    }
+}
+```
+
+### Parameters
+
+| Parameter | Description |
+|-----------|-------------|
+| `ref` | Entity reference |
+| `entity` | Living entity instance |
+| `firstRun` | True on first tick of operation |
+| `time` | Elapsed time in seconds |
+| `type` | Interaction type (Held, HeldOffhand, etc.) |
+| `context` | Execution context with metadata |
+| `cooldownHandler` | Cooldown management |
+
+### WaitForDataFrom
+
+Sync point for server-client coordination:
+
+| Value | Description |
+|-------|-------------|
+| `None` | No synchronization needed |
+| `Server` | Wait for server data |
+| `Client` | Wait for client data |
+
+## Creating a Custom Interaction
+
+### 1. Implement the Operation
+
+```java
+package com.example.myplugin.interaction;
+
+import com.hypixel.hytale.server.core.modules.interaction.interaction.operation.Operation;
+import com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction;
+import com.hypixel.hytale.codec.BuilderCodec;
+import com.hypixel.hytale.protocol.WaitForDataFrom;
+
+public class CustomInteraction extends Interaction implements Operation {
+    // Configuration fields
+    private float damage;
+    private String effectId;
+
+    // Codec for serialization
+    public static final BuilderCodec<CustomInteraction> CODEC = BuilderCodec.builder(
+        CustomInteraction.class,
+        CustomInteraction::new
+    )
+        .extend(Interaction.CODEC)
+        .withFloat("Damage", c -> c.damage, (c, v) -> c.damage = v)
+        .withString("Effect", c -> c.effectId, (c, v) -> c.effectId = v)
+        .build();
+
+    @Override
+    public void tick(
+        Ref<EntityStore> ref,
+        LivingEntity entity,
+        boolean firstRun,
+        float time,
+        InteractionType type,
+        InteractionContext context,
+        CooldownHandler cooldownHandler
+    ) {
+        if (firstRun) {
+            // One-time initialization
+            applyDamage(context, damage);
+            applyEffect(context, effectId);
+        }
+
+        // Check if complete
+        if (time >= runTime) {
+            context.getChain().updateServerState(InteractionState.Finished);
+        }
+    }
+
+    @Override
+    public void simulateTick(
+        Ref<EntityStore> ref,
+        LivingEntity entity,
+        boolean firstRun,
+        float time,
+        InteractionType type,
+        InteractionContext context,
+        CooldownHandler cooldownHandler
+    ) {
+        // Client-side prediction (optional)
+    }
+
+    @Override
+    public WaitForDataFrom getWaitForDataFrom() {
+        return WaitForDataFrom.None;
+    }
+
+    private void applyDamage(InteractionContext context, float damage) {
+        // Implementation
+    }
+
+    private void applyEffect(InteractionContext context, String effectId) {
+        // Implementation
+    }
+}
+```
+
+### 2. Register the Interaction
+
+```java
+@Override
+protected void setup() {
+    // Register with interaction codec
+    Interaction.CODEC.register(
+        "CustomInteraction",
+        CustomInteraction.class,
+        CustomInteraction.CODEC
+    );
+}
+```
+
+### 3. Define in Assets
+
+Create a RootInteraction asset that uses your custom interaction:
+
+```json
+{
+  "Id": "custom_ability",
+  "InteractionIds": ["CustomInteraction"],
+  "Cooldown": {
+    "CooldownId": "custom_ability",
+    "Cooldown": 1.0
+  }
+}
+```
+
+## Custom UI Page Suppliers
+
+Create custom UI pages triggered by interactions.
+
+### CustomPageSupplier Interface
+
+```java
+package com.hypixel.hytale.server.core.modules.interaction.interaction.config.server;
+
+public interface CustomPageSupplier {
+    CustomUIPage tryCreate(
+        Ref<EntityStore> ref,
+        ComponentAccessor<EntityStore> componentAccessor,
+        PlayerRef playerRef,
+        InteractionContext context
+    );
+}
+```
+
+### Implementing a Custom Page
+
+```java
+package com.example.myplugin.ui;
+
+import com.hypixel.hytale.server.core.modules.interaction.interaction.config.server.OpenCustomUIInteraction;
+import com.hypixel.hytale.server.ui.CustomUIPage;
+import com.hypixel.hytale.codec.BuilderCodec;
+
+public class MyCustomPageSupplier
+    implements OpenCustomUIInteraction.CustomPageSupplier {
+
+    // Configuration
+    private String title;
+    private int maxItems;
+
+    // Codec
+    public static final BuilderCodec<MyCustomPageSupplier> CODEC =
+        BuilderCodec.builder(MyCustomPageSupplier.class, MyCustomPageSupplier::new)
+            .withString("Title", s -> s.title, (s, v) -> s.title = v)
+            .withInt("MaxItems", s -> s.maxItems, (s, v) -> s.maxItems = v)
+            .build();
+
+    @Override
+    public CustomUIPage tryCreate(
+        Ref<EntityStore> ref,
+        ComponentAccessor<EntityStore> componentAccessor,
+        PlayerRef playerRef,
+        InteractionContext context
+    ) {
+        // Get player
+        Player player = componentAccessor.getComponent(
+            ref,
+            Player.getComponentType()
+        );
+
+        if (player == null) {
+            return null;
+        }
+
+        // Create custom page
+        return new MyCustomPage(
+            playerRef,
+            player.getInventory(),
+            title,
+            maxItems
+        );
+    }
+}
+```
+
+### Register the Supplier
+
+```java
+@Override
+protected void setup() {
+    OpenCustomUIInteraction.registerCustomPageSupplier(
+        this,
+        MyCustomPageSupplier.class,
+        "MyCustomUI",
+        new MyCustomPageSupplier()
+    );
+
+    // Or register codec for asset-defined suppliers
+    OpenCustomUIInteraction.PAGE_CODEC.register(
+        "MyCustomUI",
+        MyCustomPageSupplier.class,
+        MyCustomPageSupplier.CODEC
+    );
+}
+```
+
+## Block-Based Page Suppliers
+
+For UIs triggered by block interaction:
+
+```java
+public class BlockCustomPageSupplier<T extends Component<ChunkStore>>
+    implements OpenCustomUIInteraction.CustomPageSupplier {
+
+    private final ComponentType<ChunkStore, T> componentType;
+
+    @Override
+    public CustomUIPage tryCreate(
+        Ref<EntityStore> ref,
+        ComponentAccessor<EntityStore> componentAccessor,
+        PlayerRef playerRef,
+        InteractionContext context
+    ) {
+        // Get target block from context
+        Vector3i targetBlock = context.getMetaStore().get(Interaction.TARGET_BLOCK);
+
+        if (targetBlock == null) {
+            return null;
+        }
+
+        // Get block component
+        T blockComponent = getBlockComponent(targetBlock, componentType);
+
+        if (blockComponent == null) {
+            return null;
+        }
+
+        // Create page using block data
+        return createPage(playerRef, blockComponent);
+    }
+}
+```
+
+## Built-in Suppliers
+
+| Supplier | Description |
+|----------|-------------|
+| `ItemRepairPageSupplier` | Item repair/anvil UI |
+| `BlockEntityCustomPageSupplier` | Generic block entity UI |
+| `BlockCustomPageSupplier` | Generic block component UI |
+
+### ItemRepairPageSupplier Example
+
+```java
+public class ItemRepairPageSupplier
+    implements OpenCustomUIInteraction.CustomPageSupplier {
+
+    protected double repairPenalty;
+
+    @Override
+    public CustomUIPage tryCreate(
+        Ref<EntityStore> ref,
+        ComponentAccessor<EntityStore> componentAccessor,
+        PlayerRef playerRef,
+        InteractionContext context
+    ) {
+        Player player = componentAccessor.getComponent(
+            ref,
+            Player.getComponentType()
+        );
+
+        ItemContext itemContext = context.createHeldItemContext();
+
+        if (itemContext == null) {
+            return null;
+        }
+
+        return new ItemRepairPage(
+            playerRef,
+            player.getInventory().getCombinedArmorHotbarUtilityStorage(),
+            repairPenalty,
+            itemContext
+        );
+    }
+}
+```
+
+## Interaction Rules
+
+Control how interactions interact with each other:
+
+```java
+public class InteractionRules {
+    // What this interaction can interrupt
+    Set<String> canInterrupt;
+
+    // What can interrupt this interaction
+    Set<String> interruptedBy;
+
+    // What this interaction blocks
+    Set<String> blocks;
+
+    // What blocks this interaction
+    Set<String> blockedBy;
+}
+```
+
+### Example Rules
+
+```java
+// Ability can interrupt basic attacks
+InteractionRules rules = new InteractionRules();
+rules.canInterrupt = Set.of("basic_attack");
+rules.interruptedBy = Set.of("stun", "knockback");
+rules.blocks = Set.of();
+rules.blockedBy = Set.of("silence");
+```
+
+## Related
+
+- [Custom Interactions (Asset-Based)](/plugin-development/interactions/custom-interactions/) - JSON-based interactions
+- [Interaction System](/plugin-development/interactions/overview/) - System overview
+- [Block Tracking](/plugin-development/interactions/block-tracking/) - Track block placements
+- [Serialization](/plugin-development/serialization/overview/) - Codec system

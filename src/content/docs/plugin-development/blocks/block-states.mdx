@@ -1,0 +1,164 @@
+---
+title: "Block States"
+---
+
+{/* [VERIFIED: 2026-01-19] */}
+
+import { Aside } from '@astrojs/starlight/components';
+
+# Block States
+
+Block states store per-block instance data for blocks that need persistent state (e.g., chests with inventory, doors with open/closed state).
+
+<Aside type="caution" title="Deprecated API">
+The `BlockState` class is marked as `@Deprecated(forRemoval = true)`. It may be replaced with a new ECS-based block entity system in future versions. Use with caution and prepare for API changes.
+</Aside>
+
+## Package Location
+
+- BlockState: `com.hypixel.hytale.server.core.universe.world.meta.BlockState`
+- BlockStateRegistry: `com.hypixel.hytale.server.core.universe.world.meta.BlockStateRegistry`
+
+## BlockState Class
+
+```java title="BlockState base class"
+// BlockState is a component for the ChunkStore
+public abstract class BlockState implements Component<ChunkStore> {
+    // Position within chunk
+    public Vector3i getPosition();
+    public Vector3i getBlockPosition();  // World coordinates
+
+    // Access chunk and block type
+    public WorldChunk getChunk();
+    public BlockType getBlockType();
+
+    // Rotation
+    public int getRotationIndex();
+
+    // Lifecycle
+    public boolean initialize(BlockType blockType);
+    public void onUnload();
+    public void invalidate();
+
+    // Persistence
+    public void markNeedsSave();
+    public BsonDocument saveToDocument();
+}
+```
+
+## Registering Block States
+
+Register custom block states during plugin setup:
+
+```java title="Registering a block state type"
+@Override
+protected void setup() {
+    // Register a block state type
+    getBlockStateRegistry().registerBlockState(
+        MyBlockState.class,
+        "MyPlugin_CustomState",
+        MyBlockState.CODEC
+    );
+
+    // With associated data class
+    getBlockStateRegistry().registerBlockState(
+        MyBlockState.class,
+        "MyPlugin_CustomState",
+        MyBlockState.CODEC,
+        MyStateData.class,
+        MyStateData.CODEC
+    );
+}
+```
+
+## Custom Block State Example
+
+```java title="ChestBlockState.java"
+public class ChestBlockState extends BlockState {
+    public static final BuilderCodec<ChestBlockState> CODEC =
+        BuilderCodec.builder(ChestBlockState.class, ChestBlockState::new)
+            .inherit(BlockState.BASE_CODEC)
+            .addField(
+                new KeyedCodec<>("IsOpen", Codec.BOOLEAN),
+                (state, open) -> state.isOpen = open,
+                state -> state.isOpen
+            )
+            .build();
+
+    private boolean isOpen = false;
+    private ItemContainer inventory;
+
+    @Override
+    public boolean initialize(BlockType blockType) {
+        this.inventory = new SimpleItemContainer((short) 27);
+        return true;
+    }
+
+    public void toggle() {
+        this.isOpen = !this.isOpen;
+        markNeedsSave();
+    }
+
+    public boolean isOpen() {
+        return isOpen;
+    }
+
+    public ItemContainer getInventory() {
+        return inventory;
+    }
+}
+```
+
+## Accessing Block States
+
+```java title="Working with block states"
+// Get state from chunk
+WorldChunk chunk = world.getChunk(chunkX, chunkZ);
+BlockState state = chunk.getState(localX, y, localZ);
+
+// Ensure state exists (creates if needed)
+BlockState state = BlockState.ensureState(chunk, x, y, z);
+
+// Cast to specific type
+if (state instanceof ChestBlockState chestState) {
+    chestState.toggle();
+}
+```
+
+## StateData Configuration
+
+Configure block states in JSON:
+
+```json title="Block with state configuration"
+{
+  "Id": "MyPlugin_Chest",
+  "State": {
+    "Type": "MyPlugin_CustomState",
+    "Data": {
+      "DefaultCapacity": 27
+    }
+  }
+}
+```
+
+## Lifecycle Methods
+
+| Method | When Called |
+|--------|-------------|
+| `initialize(BlockType)` | When state is first created |
+| `onUnload()` | When chunk is unloaded |
+| `invalidate()` | When block is destroyed |
+| `markNeedsSave()` | Call when state changes |
+
+## Best Practices
+
+1. **Minimize usage**: Only use block states when truly needed for persistent data
+2. **Mark saves**: Always call `markNeedsSave()` when modifying state
+3. **Handle null**: States may be null if block doesn't require state
+4. **Prepare for removal**: This API is deprecated; consider ECS alternatives
+
+## Related
+
+- [Block Types](/plugin-development/blocks/block-types/) - BlockType properties
+- [ECS Overview](/plugin-development/core-concepts/ecs-overview/) - Entity Component System
+- [Serialization](/plugin-development/serialization/overview/) - Data persistence

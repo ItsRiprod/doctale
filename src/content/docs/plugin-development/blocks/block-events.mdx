@@ -1,0 +1,221 @@
+---
+title: "Block Events"
+---
+
+{/* [VERIFIED: 2026-01-19] */}
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+# Block Events
+
+Block events allow plugins to react to and modify block-related actions in the world.
+
+## Package Location
+
+`com.hypixel.hytale.server.core.event.world.*`
+
+## BreakBlockEvent
+
+Fired when a block is about to be broken.
+
+```java title="Handling block breaks"
+getEventRegistry().register(BreakBlockEvent.class, event -> {
+    BlockType blockType = event.getBlockType();
+    Vector3i position = event.getPosition();
+    PlayerRef player = event.getPlayerRef();
+
+    // Log the break
+    getLogger().info("Player breaking " + blockType.getId() + " at " + position);
+
+    // Cancel to prevent breaking
+    if (blockType.getId().equals("Protected_Block")) {
+        event.setCancelled(true);
+    }
+});
+```
+
+### BreakBlockEvent Methods
+
+| Method | Return Type | Description |
+|--------|-------------|-------------|
+| `getBlockType()` | `BlockType` | The block being broken |
+| `getPosition()` | `Vector3i` | World position |
+| `getPlayerRef()` | `PlayerRef` | Player breaking the block (may be null) |
+| `getWorld()` | `World` | The world |
+| `setCancelled(boolean)` | `void` | Cancel the break |
+| `isCancelled()` | `boolean` | Check if cancelled |
+
+## PlaceBlockEvent
+
+Fired when a block is about to be placed.
+
+```java title="Handling block placement"
+getEventRegistry().register(PlaceBlockEvent.class, event -> {
+    BlockType blockType = event.getBlockType();
+    Vector3i position = event.getPosition();
+    PlayerRef player = event.getPlayerRef();
+
+    // Prevent placement in certain areas
+    if (isProtectedArea(position)) {
+        event.setCancelled(true);
+        return;
+    }
+
+    // Log placement
+    getLogger().info("Player placed " + blockType.getId() + " at " + position);
+});
+```
+
+### PlaceBlockEvent Methods
+
+| Method | Return Type | Description |
+|--------|-------------|-------------|
+| `getBlockType()` | `BlockType` | The block being placed |
+| `getPosition()` | `Vector3i` | Target position |
+| `getPlayerRef()` | `PlayerRef` | Player placing the block |
+| `getWorld()` | `World` | The world |
+| `getReplacedBlockType()` | `BlockType` | Block being replaced |
+| `setCancelled(boolean)` | `void` | Cancel the placement |
+
+## DamageBlockEvent
+
+Fired during mining progression (each hit while mining).
+
+```java title="Tracking mining progress"
+getEventRegistry().register(DamageBlockEvent.class, event -> {
+    BlockType blockType = event.getBlockType();
+    float damage = event.getDamage();
+    float progress = event.getProgress();
+
+    // Custom mining speed logic
+    if (hasEnchantment(event.getPlayerRef(), "FastMining")) {
+        event.setDamage(damage * 1.5f);
+    }
+});
+```
+
+### DamageBlockEvent Methods
+
+| Method | Return Type | Description |
+|--------|-------------|-------------|
+| `getBlockType()` | `BlockType` | Block being mined |
+| `getPosition()` | `Vector3i` | World position |
+| `getDamage()` | `float` | Damage this tick |
+| `setDamage(float)` | `void` | Modify damage amount |
+| `getProgress()` | `float` | Total mining progress (0-1) |
+| `getPlayerRef()` | `PlayerRef` | Player mining |
+
+## UseBlockEvent
+
+Fired when a player interacts with a usable block (right-click).
+
+```java title="Handling block interactions"
+getEventRegistry().register(UseBlockEvent.class, event -> {
+    BlockType blockType = event.getBlockType();
+    Vector3i position = event.getPosition();
+    PlayerRef player = event.getPlayerRef();
+
+    // Custom interaction logic
+    if (blockType.getId().equals("MyPlugin_SpecialBlock")) {
+        openCustomUI(player, position);
+        event.setCancelled(true);  // Prevent default behavior
+    }
+});
+```
+
+### UseBlockEvent Methods
+
+| Method | Return Type | Description |
+|--------|-------------|-------------|
+| `getBlockType()` | `BlockType` | Block being used |
+| `getPosition()` | `Vector3i` | World position |
+| `getPlayerRef()` | `PlayerRef` | Player interacting |
+| `getWorld()` | `World` | The world |
+| `setCancelled(boolean)` | `void` | Cancel the interaction |
+
+## Event Cancellation Patterns
+
+<Tabs>
+  <TabItem label="Protection">
+```java title="Area protection"
+getEventRegistry().register(BreakBlockEvent.class, event -> {
+    if (isProtectedRegion(event.getPosition())) {
+        event.setCancelled(true);
+        sendMessage(event.getPlayerRef(), "This area is protected!");
+    }
+});
+
+getEventRegistry().register(PlaceBlockEvent.class, event -> {
+    if (isProtectedRegion(event.getPosition())) {
+        event.setCancelled(true);
+    }
+});
+```
+  </TabItem>
+  <TabItem label="Permissions">
+```java title="Permission-based blocking"
+getEventRegistry().register(BreakBlockEvent.class, event -> {
+    PlayerRef player = event.getPlayerRef();
+    if (player != null && !hasPermission(player, "blocks.break")) {
+        event.setCancelled(true);
+    }
+});
+```
+  </TabItem>
+  <TabItem label="Logging">
+```java title="Block change logging"
+getEventRegistry().register(BreakBlockEvent.class, event -> {
+    logBlockChange(
+        event.getPlayerRef(),
+        "BREAK",
+        event.getBlockType(),
+        event.getPosition()
+    );
+});
+
+getEventRegistry().register(PlaceBlockEvent.class, event -> {
+    logBlockChange(
+        event.getPlayerRef(),
+        "PLACE",
+        event.getBlockType(),
+        event.getPosition()
+    );
+});
+```
+  </TabItem>
+</Tabs>
+
+## Event Priority
+
+Register with priority to control execution order:
+
+```java title="Event priority"
+// High priority - runs first
+getEventRegistry().register(BreakBlockEvent.class, event -> {
+    // Security checks
+}, EventPriority.HIGH);
+
+// Normal priority
+getEventRegistry().register(BreakBlockEvent.class, event -> {
+    // Standard handling
+}, EventPriority.NORMAL);
+
+// Low priority - runs last
+getEventRegistry().register(BreakBlockEvent.class, event -> {
+    // Logging, cleanup
+}, EventPriority.LOW);
+```
+
+## Best Practices
+
+1. **Check for null**: Player references may be null for non-player block changes
+2. **Use priority wisely**: Security checks at HIGH, logging at LOW
+3. **Avoid heavy work**: Events fire frequently; keep handlers fast
+4. **Consider batching**: For bulk operations, batch your logic
+5. **Test cancellation**: Ensure cancelled events don't have side effects
+
+## Related
+
+- [Event System](/plugin-development/core-concepts/event-system/) - Event handling basics
+- [Event Catalog](/plugin-development/events/event-catalog/) - All available events
+- [Block Types](/plugin-development/blocks/block-types/) - BlockType properties

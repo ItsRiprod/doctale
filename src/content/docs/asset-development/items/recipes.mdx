@@ -1,0 +1,475 @@
+---
+title: "Recipe System"
+---
+
+{/* [VERIFIED: 2026-01-20] */}
+
+import { Aside, Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="AI-Generated Content">
+This documentation was generated from analysis of decompiled source code and game assets. Some details may be incomplete or subject to change.
+</Aside>
+
+The recipe system defines crafting requirements for items. Recipes are embedded directly in item definitions and specify input materials, output items, crafting bench requirements, and processing time.
+
+## Recipe Location
+
+Recipes are defined within item JSON files under the `Recipe` property:
+
+<FileTree>
+- Assets/Server/Item/Items/
+  - Weapon/
+    - Sword/
+      - Weapon_Sword_Iron.json (contains Recipe)
+    - Mace/
+    - Dagger/
+  - Armor/
+    - Iron/
+      - Armor_Iron_Chest.json (contains Recipe)
+  - Food/
+    - Food_Bread.json (contains Recipe)
+    - Food_Pie_Apple.json (contains Recipe)
+  - Tool/
+  - Ingredient/
+</FileTree>
+
+## Recipe Schema
+
+### Core Properties
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `Input` | `array` | Yes | Required materials |
+| `Output` | `array` | No | Produced items (defaults to containing item) |
+| `BenchRequirement` | `array` | No | Required crafting stations |
+| `TimeSeconds` | `float` | No | Crafting duration in seconds |
+| `KnowledgeRequired` | `bool` | No | Requires recipe knowledge |
+
+### Input Entry
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ItemId` | `string` | Item ID to consume |
+| `ResourceTypeId` | `string` | Resource type (e.g., `Fuel`) |
+| `Quantity` | `int` | Amount required |
+
+### Output Entry
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ItemId` | `string` | Item ID to produce |
+| `Quantity` | `int` | Amount produced (default: 1) |
+
+### Bench Requirement
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Id` | `string` | Crafting bench ID |
+| `Type` | `string` | Requirement type |
+| `Categories` | `array` | Recipe categories this bench supports |
+| `RequiredTierLevel` | `int` | Minimum bench tier level |
+
+## Requirement Types
+
+| Type | Description |
+|------|-------------|
+| `Crafting` | Standard crafting bench |
+| `DiagramCrafting` | Requires unlocked diagram |
+
+## Examples
+
+### Weapon Recipe
+
+```json title="Weapon_Sword_Iron.json (Recipe section)"
+{
+  "Recipe": {
+    "TimeSeconds": 3.5,
+    "KnowledgeRequired": false,
+    "Input": [
+      {
+        "ItemId": "Ingredient_Bar_Iron",
+        "Quantity": 6
+      },
+      {
+        "ItemId": "Ingredient_Leather_Light",
+        "Quantity": 3
+      },
+      {
+        "ItemId": "Ingredient_Fabric_Scrap_Linen",
+        "Quantity": 3
+      }
+    ],
+    "BenchRequirement": [
+      {
+        "Type": "Crafting",
+        "Categories": ["Weapon_Sword"],
+        "Id": "Weapon_Bench"
+      }
+    ]
+  }
+}
+```
+
+Key elements:
+- **3.5 second** crafting time
+- **No knowledge required** - recipe is known by default
+- **Weapon Bench** required with sword crafting capability
+
+### Multiple Bench Options
+
+```json title="Weapon_Mace_Iron.json (Recipe section)"
+{
+  "Recipe": {
+    "TimeSeconds": 3.5,
+    "KnowledgeRequired": false,
+    "Input": [
+      { "ItemId": "Ingredient_Bar_Iron", "Quantity": 10 },
+      { "ItemId": "Ingredient_Leather_Light", "Quantity": 4 },
+      { "ItemId": "Ingredient_Fabric_Scrap_Linen", "Quantity": 3 }
+    ],
+    "BenchRequirement": [
+      {
+        "Type": "Crafting",
+        "Categories": ["Weapon_Mace"],
+        "Id": "Weapon_Bench"
+      },
+      {
+        "Type": "DiagramCrafting",
+        "Categories": ["Weapons.Mace"],
+        "Id": "Armory"
+      }
+    ]
+  }
+}
+```
+
+This recipe can be crafted at:
+1. **Weapon_Bench** - standard crafting
+2. **Armory** - requires unlocked diagram
+
+### Armor Recipe
+
+```json title="Armor_Iron_Chest.json (Recipe section)"
+{
+  "Recipe": {
+    "Input": [
+      { "ItemId": "Ingredient_Bar_Iron", "Quantity": 16 },
+      { "ItemId": "Ingredient_Leather_Light", "Quantity": 7 },
+      { "ItemId": "Ingredient_Fabric_Scrap_Linen", "Quantity": 6 }
+    ],
+    "BenchRequirement": [
+      {
+        "Id": "Armor_Bench",
+        "Type": "Crafting",
+        "Categories": ["Armor_Chest"]
+      }
+    ],
+    "KnowledgeRequired": false,
+    "TimeSeconds": 3
+  }
+}
+```
+
+### Food Recipe with Resource Type
+
+```json title="Food_Bread.json (Recipe section)"
+{
+  "Recipe": {
+    "Input": [
+      { "ItemId": "Ingredient_Dough", "Quantity": 1 },
+      { "ResourceTypeId": "Fuel", "Quantity": 3 }
+    ],
+    "Output": [
+      { "ItemId": "Food_Bread" }
+    ],
+    "BenchRequirement": [
+      {
+        "Type": "Crafting",
+        "Id": "Cookingbench",
+        "Categories": ["Baked"]
+      }
+    ],
+    "TimeSeconds": 5
+  }
+}
+```
+
+Key features:
+- **ResourceTypeId** instead of ItemId - accepts any fuel type
+- **Explicit Output** - specifies what is produced
+
+### Complex Recipe with Knowledge
+
+```json title="Food_Pie_Apple.json (Recipe section)"
+{
+  "Recipe": {
+    "Input": [
+      { "ItemId": "Ingredient_Dough", "Quantity": 1 },
+      { "ItemId": "Plant_Fruit_Apple", "Quantity": 3 },
+      { "ItemId": "Ingredient_Spices", "Quantity": 1 },
+      { "ResourceTypeId": "Fuel", "Quantity": 3 }
+    ],
+    "BenchRequirement": [
+      {
+        "Type": "Crafting",
+        "Id": "Cookingbench",
+        "Categories": ["Baked"]
+      }
+    ],
+    "TimeSeconds": 5,
+    "KnowledgeRequired": true
+  }
+}
+```
+
+**KnowledgeRequired: true** - Recipe must be discovered/unlocked before crafting.
+
+## Crafting Benches
+
+### Common Bench IDs
+
+| Bench ID | Description | Common Categories |
+|----------|-------------|-------------------|
+| `Weapon_Bench` | Weapon crafting | `Weapon_Sword`, `Weapon_Mace`, `Weapon_Dagger` |
+| `Armor_Bench` | Armor crafting | `Armor_Head`, `Armor_Chest`, `Armor_Legs`, `Armor_Hands` |
+| `Cookingbench` | Food preparation | `Baked`, `Cooked`, `Prepared` |
+| `Armory` | Advanced weapons | `Weapons.Sword`, `Weapons.Mace`, `Weapons.Bow` |
+| `Forgery` | Smithing | Various |
+| `Workbench` | General crafting | Various |
+
+### Bench Tiers
+
+Benches can have tier levels that unlock more advanced recipes:
+
+```json
+{
+  "BenchRequirement": [
+    {
+      "Id": "Weapon_Bench",
+      "Type": "Crafting",
+      "RequiredTierLevel": 1
+    }
+  ]
+}
+```
+
+## Resource Types
+
+Resource types allow recipes to accept any item of a specific category:
+
+| ResourceTypeId | Description |
+|----------------|-------------|
+| `Fuel` | Coal, wood, or other fuel sources |
+
+```json
+{
+  "Input": [
+    {
+      "ResourceTypeId": "Fuel",
+      "Quantity": 3
+    }
+  ]
+}
+```
+
+## Recipe Categories
+
+Categories group recipes by type for bench filtering:
+
+### Weapon Categories
+- `Weapon_Sword`
+- `Weapon_Mace`
+- `Weapon_Dagger`
+- `Weapon_Battleaxe`
+- `Weapon_Bow`
+- `Weapon_Crossbow`
+- `Weapon_Shield`
+
+### Armor Categories
+- `Armor_Head`
+- `Armor_Chest`
+- `Armor_Legs`
+- `Armor_Hands`
+
+### Food Categories
+- `Baked`
+- `Cooked`
+- `Prepared`
+
+### Diagram Categories
+- `Weapons.Sword`
+- `Weapons.Mace`
+- `Weapons.Bow`
+- `Armors.Head`
+- `Armors.Chest`
+
+## Common Ingredients
+
+### Metals
+
+| Ingredient | Description |
+|------------|-------------|
+| `Ingredient_Bar_Copper` | Copper bar |
+| `Ingredient_Bar_Bronze` | Bronze bar |
+| `Ingredient_Bar_Iron` | Iron bar |
+| `Ingredient_Bar_Steel` | Steel bar |
+| `Ingredient_Bar_Cobalt` | Cobalt bar |
+| `Ingredient_Bar_Mithril` | Mithril bar |
+| `Ingredient_Bar_Adamantite` | Adamantite bar |
+| `Ingredient_Bar_Thorium` | Thorium bar |
+| `Ingredient_Bar_Onyxium` | Onyxium bar |
+
+### Materials
+
+| Ingredient | Description |
+|------------|-------------|
+| `Ingredient_Leather_Light` | Light leather |
+| `Ingredient_Leather_Medium` | Medium leather |
+| `Ingredient_Leather_Heavy` | Heavy leather |
+| `Ingredient_Fabric_Scrap_Linen` | Linen fabric |
+| `Ingredient_Fabric_Scrap_Wool` | Wool fabric |
+| `Ingredient_Fabric_Scrap_Silk` | Silk fabric |
+| `Ingredient_Fabric_Scrap_Cotton` | Cotton fabric |
+
+### Food
+
+| Ingredient | Description |
+|------------|-------------|
+| `Ingredient_Dough` | Bread dough |
+| `Ingredient_Spices` | Cooking spices |
+| `Ingredient_Flour` | Ground flour |
+
+## Creating Custom Recipes
+
+### Basic Recipe
+
+```json title="MyPlugin_Weapon_Custom.json"
+{
+  "Parent": "Template_Weapon_Sword",
+  "Recipe": {
+    "TimeSeconds": 4.0,
+    "KnowledgeRequired": false,
+    "Input": [
+      { "ItemId": "Ingredient_Bar_Iron", "Quantity": 8 },
+      { "ItemId": "Ingredient_Leather_Light", "Quantity": 4 }
+    ],
+    "BenchRequirement": [
+      {
+        "Type": "Crafting",
+        "Id": "Weapon_Bench",
+        "Categories": ["Weapon_Sword"]
+      }
+    ]
+  }
+}
+```
+
+### Recipe with Multiple Outputs
+
+```json
+{
+  "Recipe": {
+    "TimeSeconds": 2.0,
+    "Input": [
+      { "ItemId": "Ingredient_Raw_Material", "Quantity": 5 }
+    ],
+    "Output": [
+      { "ItemId": "MyPlugin_Item_A", "Quantity": 2 },
+      { "ItemId": "MyPlugin_Item_B", "Quantity": 1 }
+    ],
+    "BenchRequirement": [
+      {
+        "Type": "Crafting",
+        "Id": "Workbench",
+        "Categories": ["General"]
+      }
+    ]
+  }
+}
+```
+
+### Tiered Bench Recipe
+
+```json
+{
+  "Recipe": {
+    "TimeSeconds": 5.0,
+    "KnowledgeRequired": true,
+    "Input": [
+      { "ItemId": "Ingredient_Bar_Mithril", "Quantity": 12 },
+      { "ItemId": "Ingredient_Leather_Heavy", "Quantity": 6 }
+    ],
+    "BenchRequirement": [
+      {
+        "Type": "Crafting",
+        "Id": "Weapon_Bench",
+        "Categories": ["Weapon_Sword"],
+        "RequiredTierLevel": 2
+      }
+    ]
+  }
+}
+```
+
+### Fuel-Based Recipe
+
+```json
+{
+  "Recipe": {
+    "TimeSeconds": 8.0,
+    "Input": [
+      { "ItemId": "Ingredient_Ore_Iron", "Quantity": 3 },
+      { "ResourceTypeId": "Fuel", "Quantity": 5 }
+    ],
+    "Output": [
+      { "ItemId": "Ingredient_Bar_Iron", "Quantity": 1 }
+    ],
+    "BenchRequirement": [
+      {
+        "Type": "Crafting",
+        "Id": "Forgery",
+        "Categories": ["Smelting"]
+      }
+    ]
+  }
+}
+```
+
+## Recipe Patterns by Tier
+
+### Weapon Tier Progression
+
+| Tier | Metal | Leather | Fabric | Time |
+|------|-------|---------|--------|------|
+| T1 (Copper) | 4 | 2 | 2 | 2.5s |
+| T2 (Iron) | 6 | 3 | 3 | 3.5s |
+| T3 (Steel) | 8 | 4 | 4 | 4.5s |
+| T4 (Cobalt) | 10 | 5 | 5 | 5.5s |
+| T5 (Mithril) | 12 | 6 | 6 | 6.5s |
+
+### Armor Tier Progression
+
+| Piece | Metal Multiplier | Leather Multiplier |
+|-------|------------------|--------------------|
+| Head | 1.0x | 0.5x |
+| Chest | 2.0x | 1.0x |
+| Legs | 1.5x | 0.75x |
+| Hands | 0.5x | 0.25x |
+
+## Best Practices
+
+1. **Balance input costs** - Higher tier items should cost more
+2. **Scale crafting time** - Complex items take longer
+3. **Use appropriate benches** - Match bench to item type
+4. **Consider knowledge** - Advanced recipes should require discovery
+5. **Test resource availability** - Ensure ingredients are obtainable
+6. **Use resource types** - Allow flexibility with fuel types
+7. **Provide bench alternatives** - Multiple crafting paths when appropriate
+
+## Related
+
+- [Items Overview](/asset-development/items/overview/) - Item definitions
+- [Weapons](/asset-development/items/weapons/) - Weapon configurations
+- [Armor](/asset-development/items/armor/) - Armor configurations
+- [Consumables](/asset-development/items/consumables/) - Consumable items
+- [Combat System](/asset-development/items/combat/) - Combat mechanics

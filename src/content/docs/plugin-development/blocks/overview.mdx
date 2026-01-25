@@ -1,0 +1,126 @@
+---
+title: "Block System Overview"
+---
+
+{/* [VERIFIED: 2026-01-19] */}
+
+import { Aside, Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+# Block System Overview
+
+The Block System manages all block types, block states, and block-related operations in Hytale. Blocks are the fundamental building units of the world.
+
+## Package Locations
+
+| Component | Package |
+|-----------|---------|
+| BlockType | `com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType` |
+| BlockState | `com.hypixel.hytale.server.core.universe.world.meta.BlockState` |
+| BlockStateRegistry | `com.hypixel.hytale.server.core.universe.world.meta.BlockStateRegistry` |
+| TickProcedure | `com.hypixel.hytale.server.core.asset.type.blocktick.config.TickProcedure` |
+
+## Core Components
+
+| Component | Description |
+|-----------|-------------|
+| `BlockType` | Asset definition for block behavior and appearance |
+| `BlockState` | Per-block instance data for stateful blocks (deprecated) |
+| `BlockStateRegistry` | Registration of custom block state types |
+| `TickProcedure` | Block tick behavior (growth, decay, etc.) |
+
+## Sub-Pages
+
+<CardGrid>
+  <LinkCard
+    title="Block Types"
+    description="BlockType assets, properties, enums, and how to access/set blocks"
+    href="/plugin-development/blocks/block-types/"
+  />
+  <LinkCard
+    title="Block States"
+    description="Per-block instance data and custom state registration (deprecated API)"
+    href="/plugin-development/blocks/block-states/"
+  />
+  <LinkCard
+    title="Block Events"
+    description="React to block breaks, placements, mining, and interactions"
+    href="/plugin-development/blocks/block-events/"
+  />
+  <LinkCard
+    title="Block Physics"
+    description="Support system, requirements, and physical behavior"
+    href="/plugin-development/blocks/block-physics/"
+  />
+  <LinkCard
+    title="Block Ticking"
+    description="Time-based behavior like growth and decay"
+    href="/plugin-development/blocks/block-ticking/"
+  />
+</CardGrid>
+
+## Quick Reference
+
+### Getting Blocks
+
+```java title="Reading blocks from the world"
+// Get by ID
+BlockType stone = BlockType.getAssetMap().get("Rock_Stone");
+
+// Get from world position
+World world = Universe.get().getDefaultWorld();
+BlockType type = world.getBlockType(x, y, z);
+
+// Get block ID (numeric)
+int blockId = world.getBlock(x, y, z);
+
+// Special block references
+BlockType.EMPTY   // Air block
+BlockType.UNKNOWN // Unknown block placeholder
+```
+
+### Setting Blocks
+
+```java title="Writing blocks to the world"
+// Simple set
+world.setBlock(x, y, z, blockType);
+
+// With settings
+SetBlockSettings settings = new SetBlockSettings();
+settings.setNotifyNeighbors(true);
+settings.setUpdateLighting(true);
+settings.setTriggerBlockUpdate(true);
+world.setBlock(x, y, z, blockType, settings);
+```
+
+### Handling Events
+
+```java title="Block event handling"
+getEventRegistry().register(BreakBlockEvent.class, event -> {
+    BlockType blockType = event.getBlockType();
+    Vector3i position = event.getPosition();
+
+    // Cancel to prevent breaking
+    event.setCancelled(true);
+});
+
+getEventRegistry().register(PlaceBlockEvent.class, event -> {
+    BlockType blockType = event.getBlockType();
+    // Handle placement
+});
+```
+
+## Best Practices
+
+1. **Use groups**: Organize related blocks with the `Group` property
+2. **Minimize states**: Only use block states when truly needed
+3. **Optimize hitboxes**: Use appropriate hitbox complexity
+4. **Consider support**: Define support requirements for physics
+5. **Batch updates**: Group block changes when possible
+6. **Check loaded**: Verify chunks are loaded before block access
+
+## Related
+
+- [Asset System](/asset-development/overview/) - Asset loading
+- [Block Types (Assets)](/asset-development/blocks/block-types/) - Block asset creation
+- [World System](/plugin-development/world/overview/) - World and chunks
+- [Events](/plugin-development/core-concepts/event-system/) - Event handling basics

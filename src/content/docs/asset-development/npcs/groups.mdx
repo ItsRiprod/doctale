@@ -1,0 +1,325 @@
+---
+title: "NPC Groups"
+---
+
+{/* [VERIFIED: 2026-01-20] */}
+
+import { Aside, Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="AI-Generated Content">
+This documentation was generated from analysis of decompiled source code and game assets. Some details may be incomplete or subject to change.
+</Aside>
+
+NPC groups define collections of NPCs that share common behaviors and attitudes. Groups are used for AI targeting, faction relationships, and behavior rules.
+
+## Asset Location
+
+Group definitions are stored in `Assets/Server/NPC/Groups/`:
+
+<FileTree>
+- Assets/Server/NPC/Groups/
+  - Prey.json
+  - Predators.json
+  - PredatorsBig.json
+  - Livestock.json
+  - Critters.json
+  - Birds.json
+  - Aquatic.json
+  - Vermin.json
+  - Undead.json
+  - Void.json
+  - Player.json
+  - Self.json
+  - Creature/
+    - Livestock/
+    - Mammal/
+    - Mythic/
+    - Vermin/
+  - Intelligent/
+    - Aggressive/
+      - Goblin/
+      - Outlander/
+      - Scarak.json
+      - Trork/
+    - Neutral/
+  - LivingWorld/
+    - Aggressive.json
+    - Neutral.json
+    - Passive.json
+  - Undead/
+</FileTree>
+
+## Group Definition Schema
+
+Groups can include individual roles or other groups:
+
+### Including Roles
+
+```json title="Prey.json"
+{
+  "IncludeRoles": [
+    "Chicken",
+    "Chicken_Chick",
+    "Chicken_Desert",
+    "Turkey",
+    "Rabbit",
+    "Bunny",
+    "Mouse",
+    "Penguin",
+    "Flamingo"
+  ]
+}
+```
+
+### Including Other Groups
+
+```json title="Livestock.json"
+{
+  "IncludeGroups": [
+    "Bison",
+    "Chicken",
+    "Cow",
+    "Pig",
+    "Sheep",
+    "Mouflon",
+    "Turkey",
+    "Chicken_Desert",
+    "Goat",
+    "Rabbit",
+    "Camel",
+    "Deer"
+  ]
+}
+```
+
+### Wildcard Patterns
+
+Use `*` to match role name patterns:
+
+```json title="Predators.json"
+{
+  "IncludeRoles": [
+    "Fox*",
+    "Hyena*",
+    "Fen_Stalker",
+    "Spark*",
+    "Toad*"
+  ]
+}
+```
+
+This matches `Fox`, `Fox_Arctic`, `Fox_Desert`, etc.
+
+### Combined Definition
+
+```json title="Example combined group"
+{
+  "IncludeRoles": [
+    "SpecificNPC_A",
+    "SpecificNPC_B"
+  ],
+  "IncludeGroups": [
+    "ExistingGroup_A",
+    "ExistingGroup_B"
+  ]
+}
+```
+
+## Standard Groups
+
+### Prey Groups
+
+Animals that flee from predators:
+
+| Group | Members |
+|-------|---------|
+| `Prey` | Chickens, Turkey, Rabbits, Mice, Penguins, Flamingos, young livestock |
+| `PreyBig` | Larger prey animals |
+
+### Predator Groups
+
+Hostile hunting NPCs:
+
+| Group | Members |
+|-------|---------|
+| `Predators` | Fox*, Hyena*, Fen_Stalker, Spark*, Toad* |
+| `PredatorsBig` | Bear*, Wolf*, Yeti, Emberwulf, Leopard_Snow, Tiger_Sabertooth, Crocodile, Raptor_Cave, Rex_Cave |
+
+### Livestock Groups
+
+Domesticated animals:
+
+```json title="Livestock.json"
+{
+  "IncludeGroups": [
+    "Bison", "Chicken", "Cow", "Pig", "Sheep",
+    "Mouflon", "Turkey", "Chicken_Desert", "Goat",
+    "Rabbit", "Camel", "Deer"
+  ]
+}
+```
+
+### Environmental Groups
+
+| Group | Description |
+|-------|-------------|
+| `Critters` | Small wildlife (squirrels, birds) |
+| `Birds` | Flying bird NPCs |
+| `Aquatic` | Water-dwelling creatures |
+| `Vermin` | Pest creatures |
+
+### Faction Groups
+
+Located in `Intelligent/Aggressive/`:
+
+| Group | Members |
+|-------|---------|
+| `Goblin` | Goblin faction members |
+| `Trork` | Trork faction members |
+| `Outlander` | Outlander faction members |
+| `Scarak` | Scarak hive creatures |
+
+### Undead Groups
+
+| Group | Description |
+|-------|-------------|
+| `Undead` | All undead NPCs |
+| `Skeleton` | Skeleton variants |
+| `Zombie` | Zombie variants |
+
+### Special Groups
+
+| Group | Purpose |
+|-------|---------|
+| `Player` | Player entities |
+| `Self` | Self-reference for targeting |
+| `Void` | Void realm creatures |
+| `Capture_Crate` | NPCs that can be captured |
+
+## Living World Groups
+
+High-level behavioral groupings:
+
+```json title="LivingWorld/Aggressive.json"
+{
+  "IncludeGroups": [
+    "Trork",
+    "Goblin",
+    "Skeleton",
+    "Void",
+    "Zombie",
+    "Vermin",
+    "Predators",
+    "PredatorsBig"
+  ]
+}
+```
+
+| Group | Description | Behavior |
+|-------|-------------|----------|
+| `LivingWorld/Aggressive` | Hostile to players | Attack on sight |
+| `LivingWorld/Neutral` | Defensive NPCs | Attack if provoked |
+| `LivingWorld/Passive` | Non-hostile NPCs | Flee or ignore |
+
+## Group Usage in Roles
+
+Groups are referenced in NPC role definitions for targeting:
+
+```json title="Role targeting example"
+{
+  "Behaviors": {
+    "Combat": {
+      "TargetGroups": ["Player", "Livestock"],
+      "FleeFromGroups": ["PredatorsBig"],
+      "IgnoreGroups": ["Self"]
+    }
+  }
+}
+```
+
+### Attitude System
+
+Groups define default attitudes between factions:
+
+| Attitude | Description |
+|----------|-------------|
+| `Hostile` | Will attack on sight |
+| `Neutral` | Will attack if provoked |
+| `Friendly` | Will not attack, may assist |
+| `Fearful` | Will flee when detected |
+
+## Group Hierarchy
+
+Groups can be nested for organization:
+
+```
+LivingWorld/Aggressive
+├── Trork
+├── Goblin
+├── Skeleton
+├── Void
+├── Zombie
+├── Vermin
+├── Predators
+│   ├── Fox*
+│   ├── Hyena*
+│   └── Toad*
+└── PredatorsBig
+    ├── Bear*
+    ├── Wolf*
+    └── Yeti
+```
+
+## Creating Custom Groups
+
+### Simple Role Group
+
+```json title="MyPlugin_CustomEnemies.json"
+{
+  "IncludeRoles": [
+    "MyPlugin_Enemy_A",
+    "MyPlugin_Enemy_B",
+    "MyPlugin_Boss"
+  ]
+}
+```
+
+### Composite Group
+
+```json title="MyPlugin_AllHostile.json"
+{
+  "IncludeRoles": [
+    "MyPlugin_CustomEnemy"
+  ],
+  "IncludeGroups": [
+    "Undead",
+    "Trork"
+  ]
+}
+```
+
+### Pattern-Based Group
+
+```json title="MyPlugin_AllVariants.json"
+{
+  "IncludeRoles": [
+    "MyPlugin_Creature*"
+  ]
+}
+```
+
+This matches `MyPlugin_Creature`, `MyPlugin_Creature_Rare`, `MyPlugin_Creature_Boss`, etc.
+
+## Best Practices
+
+1. **Use wildcards sparingly** - Explicit lists are more maintainable
+2. **Nest groups logically** - Create hierarchies for complex factions
+3. **Consider symmetry** - If A is hostile to B, B should be hostile to A
+4. **Use standard groups** - Reference existing groups like `Player` rather than duplicating
+5. **Prefix custom groups** - Use plugin prefix to avoid conflicts
+
+## Related
+
+- [NPC Asset Overview](/asset-development/npcs/overview/) - NPC system overview
+- [NPC Model Definitions](/asset-development/npcs/models/) - Model configuration
+- [Entities Overview](/plugin-development/entities/overview/) - Entity API

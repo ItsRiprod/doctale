@@ -1,0 +1,242 @@
+---
+title: "Server Update System"
+---
+
+import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
+
+{/* [VERIFIED: 2026-01-24] - Added in Update 2 */}
+
+<Aside type="note" title="New in Update 2">
+The Server Update System was introduced in Update 2. This module provides automated server update capabilities.
+</Aside>
+
+# Server Update System
+
+The Server Update System provides automated update management for Hytale servers, including version checking, downloading, and applying updates with player notification.
+
+## Package Location
+
+- Module: `com.hypixel.hytale.server.core.update.UpdateModule`
+- Service: `com.hypixel.hytale.server.core.update.UpdateService`
+- Commands: `com.hypixel.hytale.server.core.update.command`
+
+## Overview
+
+The update system runs as a core server module that:
+- Periodically checks for new server versions
+- Downloads updates in the background
+- Notifies players before applying updates
+- Supports manual and automatic update application
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `HYTALE_DISABLE_UPDATES` | `boolean` | Set to `true` to completely disable the update system |
+
+```bash
+# Disable auto-updates
+export HYTALE_DISABLE_UPDATES=true
+```
+
+<Aside type="caution">
+When `HYTALE_DISABLE_UPDATES` is enabled, all `/update` commands will be disabled and return a "disabled" message.
+</Aside>
+
+## Commands
+
+The update system provides a command collection under `/update`:
+
+### /update check
+
+Check for available server updates.
+
+```
+/update check
+```
+
+**Output**: Displays current version vs available version, or confirms you're up to date.
+
+### /update download
+
+Download an available update in the background.
+
+```
+/update download
+```
+
+**Behavior**:
+- Downloads run in a background thread
+- Progress can be monitored with `/update status`
+- Only one download can be active at a time
+
+### /update apply
+
+Apply a downloaded update.
+
+```
+/update apply
+```
+
+<Aside type="danger">
+Applying an update will restart the server. All players will be disconnected. The system sends warnings before the restart.
+</Aside>
+
+**Behavior**:
+- Sends warnings to all online players
+- Schedules server shutdown
+- Applies the downloaded update
+- Restarts with new version
+
+### /update cancel
+
+Cancel an active download.
+
+```
+/update cancel
+```
+
+**Behavior**: Interrupts the download thread and cleans up partial downloads.
+
+### /update status
+
+Display current update status.
+
+```
+/update status
+```
+
+**Output**:
+- Current version
+- Download status (if active)
+- Download progress (bytes downloaded / total bytes)
+- Time elapsed since download started
+- Scheduled auto-apply time (if applicable)
+
+### /update patchline
+
+Manage patch line configuration for update channels.
+
+```
+/update patchline [channel]
+```
+
+**Usage**: Switch between stable, beta, or custom update channels.
+
+## Architecture
+
+### UpdateModule
+
+The main plugin class that manages the update lifecycle:
+
+```java
+public class UpdateModule extends JavaPlugin {
+    // Scheduled executor for background tasks
+    private final ScheduledExecutorService scheduler;
+
+    // Scheduled update check task
+    private ScheduledFuture<?> updateCheckTask;
+
+    // Auto-apply countdown task
+    private ScheduledFuture<?> autoApplyTask;
+
+    // Latest known version from update server
+    private final AtomicReference<UpdateService.VersionManifest> latestKnownVersion;
+
+    // Active download future
+    private final AtomicReference<CompletableFuture<?>> activeDownload;
+
+    // Download progress tracking
+    private final AtomicLong downloadedBytes;
+    private final AtomicLong totalBytes;
+}
+```
+
+### UpdateService
+
+Handles communication with the update server:
+
+```java
+public class UpdateService {
+    // Fetch version manifest from update server
+    public VersionManifest fetchVersionManifest();
+
+    // Download update package
+    public void downloadUpdate(VersionManifest version, ProgressCallback callback);
+
+    // Apply downloaded update
+    public void applyUpdate();
+
+    public record VersionManifest(
+        String version,
+        String downloadUrl,
+        long fileSize,
+        String checksum
+    ) {}
+}
+```
+
+## Update Flow
+
+<Steps>
+1. **Check for Updates**: System periodically queries update server for new versions
+2. **Notify Operators**: If update available, operators are notified via console/chat
+3. **Download**: Operator runs `/update download` to fetch the update
+4. **Monitor Progress**: Use `/update status` to track download
+5. **Schedule Apply**: Run `/update apply` to schedule restart
+6. **Player Warnings**: System sends countdown warnings to all players
+7. **Restart**: Server shuts down and applies update
+8. **Start New Version**: Server restarts with updated version
+</Steps>
+
+## Automatic Updates
+
+The system supports scheduled automatic updates:
+
+```java
+// Auto-apply scheduling
+private final AtomicLong autoApplyScheduledTime = new AtomicLong(0L);
+
+// Warning interval before auto-apply
+private final AtomicLong lastWarningTime = new AtomicLong(0L);
+```
+
+**Warning Schedule**: Players receive warnings at configurable intervals before automatic restart.
+
+## Error Handling
+
+| Error | Cause | Resolution |
+|-------|-------|------------|
+| Download failed | Network issue | Retry with `/update download` |
+| Checksum mismatch | Corrupted download | Re-download the update |
+| Apply failed | File permissions | Check server write permissions |
+| Kill switch active | `HYTALE_DISABLE_UPDATES=true` | Remove environment variable |
+
+## Permissions
+
+Update commands require appropriate operator permissions:
+
+| Command | Permission Level |
+|---------|-----------------|
+| `/update check` | Operator |
+| `/update download` | Operator |
+| `/update apply` | Operator |
+| `/update cancel` | Operator |
+| `/update status` | Operator |
+| `/update patchline` | Operator |
+
+## Best Practices
+
+1. **Test updates on staging**: Apply updates to a test server before production
+2. **Schedule during low activity**: Apply updates when fewer players are online
+3. **Backup before update**: Ensure world backups exist before applying
+4. **Monitor logs**: Check server logs after update for any issues
+5. **Use kill switch for custom builds**: Set `HYTALE_DISABLE_UPDATES=true` if running modified server
+
+## Related
+
+- [Server Configuration](/plugin-development/server/configuration/) - Server settings
+- [Commands](/plugin-development/core-concepts/commands/) - Command system overview
+- [Plugin Lifecycle](/getting-started/plugin-lifecycle/) - Plugin initialization

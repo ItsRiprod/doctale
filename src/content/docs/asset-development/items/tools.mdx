@@ -1,0 +1,823 @@
+---
+title: "Tools"
+---
+
+{/* [VERIFIED: 2026-01-20] */}
+
+import { Aside, Card, CardGrid, LinkCard, Tabs, TabItem, FileTree, Badge } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="AI-Generated Content">
+This documentation was generated from analysis of 48 tool definition files in `/Assets/Server/Item/Items/Tool/`.
+Verify all information against actual asset files before use in production.
+</Aside>
+
+Tools are utility items designed for resource gathering, farming, and world interaction. Unlike weapons, tools have specialized `Tool` configuration that determines their effectiveness against different block types.
+
+## Asset Location
+
+**Server Definitions:** `Assets/Server/Item/Items/Tool/[Category]/`
+**Client Models:** `Assets/Common/Items/Tools/[Category]/`
+
+## Tool Categories
+
+Hytale includes 13 tool categories with 48 total tool definitions:
+
+### Gathering Tools
+
+| Category | Files | Purpose |
+|----------|-------|---------|
+| Pickaxe | 7 | Mining rocks, ores, and stone blocks |
+| Hatchet | 10 | Chopping wood and wooden structures |
+| Shovel | 5 | Digging soil and soft ground |
+| Shears | 1 | Harvesting plants and wool |
+
+### Farming Tools
+
+| Category | Files | Purpose |
+|----------|-------|---------|
+| Hoe | 3 | Tilling soil for farming |
+| Sickle | 1 | Harvesting crops |
+| Watering Can | 1 | Watering plants |
+
+### Utility Tools
+
+| Category | Files | Purpose |
+|----------|-------|---------|
+| Hammer | 2 | Cycling through block variants |
+| Repair Kit | 3 | Repairing damaged items |
+| Capture Crate | 1 | Capturing NPCs |
+| Feedbag | 1 | Feeding animals |
+| Fishing Trap | 1 | Catching fish (placeable) |
+
+### Specialized
+
+| Category | Files | Purpose |
+|----------|-------|---------|
+| Prototype | 1 | Development/testing tool |
+| Misc | 5 | Map, Growth Potion, Sap Shunt, Trap Bait |
+
+## JSON Schema Reference
+
+### Core Tool Properties
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Parent` | `string` | Template to inherit from |
+| `TranslationProperties` | `object` | Localization configuration |
+| `Model` | `string` | Path to `.blockymodel` file |
+| `Texture` | `string` | Path to texture file |
+| `Icon` | `string` | Path to inventory icon |
+| `Quality` | `string` | Quality tier |
+| `ItemLevel` | `integer` | Level requirement |
+| `Categories` | `string[]` | Should include `"Items.Tools"` |
+| `Tags` | `object` | Type classification |
+
+### Tool-Specific Properties
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `Tool` | `object` | - | Tool configuration with `Specs` array |
+| `Tool.Specs` | `array` | - | Gathering power per block type |
+| `Tool.DurabilityLossBlockTypes` | `array` | - | Durability loss per block set |
+| `MaxDurability` | `number` | `100` | Maximum durability |
+| `PlayerAnimationsId` | `string` | - | Animation set (Pickaxe, Hoe, etc.) |
+| `Utility` | `object` | - | Utility item settings |
+
+### GatherType Values
+
+The `Tool.Specs` array defines gathering effectiveness:
+
+| GatherType | Description | Primary Tool |
+|------------|-------------|--------------|
+| `SoftBlocks` | Soft blocks like plants | All tools (Power: 1) |
+| `Soils` | Dirt, sand, gravel | Shovel |
+| `Woods` | Trees, wooden blocks | Hatchet |
+| `Rocks` | Stone, rock formations | Pickaxe |
+| `Benches` | Crafting stations | All tools |
+| `VolcanicRocks` | Volcanic stone | Pickaxe (reduced) |
+| `Ores` | Ore deposits | Pickaxe |
+
+## Tool Specs System
+
+The `Tool.Specs` array determines how effective a tool is against different block types:
+
+```json title="Tool Specs structure"
+{
+  "Tool": {
+    "Specs": [
+      {
+        "Power": 1,
+        "GatherType": "SoftBlocks"
+      },
+      {
+        "Power": 0.5,
+        "GatherType": "Rocks",
+        "HitSoundLayer": "SFX_Pickaxe_T2_Impact_Nice"
+      }
+    ],
+    "DurabilityLossBlockTypes": [
+      {
+        "BlockSets": ["Stone", "Rock", "Ores", "Soil"],
+        "DurabilityLossOnHit": 0.25
+      }
+    ]
+  }
+}
+```
+
+### Power Values
+
+| Power | Effectiveness |
+|-------|---------------|
+| `1.0` | Full speed gathering |
+| `0.5` | Half speed (secondary use) |
+| `0.25-0.35` | Reduced effectiveness |
+| `0.05` | Minimal (wrong tool type) |
+| `0.017-0.084` | Very low (volcanic rocks) |
+
+## Complete Tool Examples
+
+### Pickaxe (Mining Tool)
+
+<Tabs>
+  <TabItem label="Iron Pickaxe">
+```json title="Tool_Pickaxe_Iron.json" {6,38-77}
+{
+  "TranslationProperties": {
+    "Name": "server.items.Tool_Pickaxe_Iron.name",
+    "Description": "server.items.Tool_Pickaxe_Crude.description"
+  },
+  "Parent": "Tool_Pickaxe_Crude",
+  "Icon": "Icons/ItemsGenerated/Tool_Pickaxe_Iron.png",
+  "Quality": "Uncommon",
+  "ItemLevel": 20,
+  "Model": "Items/Tools/Pickaxe/Iron.blockymodel",
+  "Texture": "Items/Tools/Pickaxe/Iron_Texture.png",
+  "Recipe": {
+    "TimeSeconds": 3.5,
+    "Input": [
+      { "ItemId": "Ingredient_Bar_Iron", "Quantity": 5 },
+      { "ItemId": "Ingredient_Leather_Light", "Quantity": 2 },
+      { "ItemId": "Ingredient_Fabric_Scrap_Linen", "Quantity": 2 }
+    ],
+    "BenchRequirement": [
+      {
+        "Id": "Workbench",
+        "Type": "Crafting",
+        "Categories": ["Workbench_Tools"]
+      }
+    ]
+  },
+  "Tool": {
+    "Specs": [
+      { "Power": 1, "GatherType": "SoftBlocks" },
+      { "Power": 0.5, "GatherType": "Soils" },
+      { "Power": 0.05, "GatherType": "Woods" },
+      {
+        "Power": 0.5,
+        "GatherType": "Rocks",
+        "HitSoundLayer": "SFX_Pickaxe_T2_Impact_Nice"
+      },
+      { "Power": 0.5, "GatherType": "Benches" },
+      { "Power": 0.17, "GatherType": "VolcanicRocks" }
+    ],
+    "DurabilityLossBlockTypes": [
+      {
+        "BlockSets": ["Stone", "Rock", "Ores", "Soil"],
+        "DurabilityLossOnHit": 0.25
+      }
+    ]
+  },
+  "MaxDurability": 250
+}
+```
+  </TabItem>
+  <TabItem label="Crude Pickaxe (Template)">
+```json title="Tool_Pickaxe_Crude.json"
+{
+  "TranslationProperties": {
+    "Name": "server.items.Tool_Pickaxe_Crude.name",
+    "Description": "server.items.Tool_Pickaxe_Crude.description"
+  },
+  "Categories": ["Items.Tools"],
+  "Quality": "Common",
+  "ItemLevel": 10,
+  "Icon": "Icons/ItemsGenerated/Tool_Pickaxe_Crude.png",
+  "Model": "Items/Tools/Pickaxe/Crude.blockymodel",
+  "Texture": "Items/Tools/Pickaxe/Crude_Texture.png",
+  "Recipe": {
+    "TimeSeconds": 1,
+    "KnowledgeRequired": false,
+    "Input": [
+      { "ResourceTypeId": "Rubble", "Quantity": 2 },
+      { "ItemId": "Ingredient_Fibre", "Quantity": 2 },
+      { "ItemId": "Ingredient_Stick", "Quantity": 2 }
+    ],
+    "BenchRequirement": [
+      { "Id": "Fieldcraft", "Type": "Crafting", "Categories": ["Tools"] },
+      { "Id": "Workbench", "Type": "Crafting", "Categories": ["Workbench_Tools"] }
+    ]
+  },
+  "Tool": {
+    "Specs": [
+      { "Power": 1, "GatherType": "SoftBlocks" },
+      { "Power": 0.35, "GatherType": "Soils" },
+      { "Power": 0.05, "GatherType": "Woods" },
+      { "Power": 0.25, "GatherType": "Rocks" },
+      { "Power": 0.5, "GatherType": "Benches" },
+      { "Power": 0.084, "GatherType": "VolcanicRocks" }
+    ],
+    "DurabilityLossBlockTypes": [
+      {
+        "BlockSets": ["Stone", "Rock", "Ores", "Soil"],
+        "DurabilityLossOnHit": 0.25
+      }
+    ]
+  },
+  "PlayerAnimationsId": "Pickaxe",
+  "Utility": { "Compatible": true },
+  "Interactions": {
+    "Primary": "Pickaxe_Attack",
+    "Secondary": "Pickaxe_Attack"
+  },
+  "InteractionVars": {
+    "Block_Hit_Camera_Effects": {
+      "Interactions": [{
+        "Type": "Simple",
+        "Effects": { "CameraEffect": "Pickaxe_Mine_Impact" }
+      }]
+    },
+    "Pickaxe_Mine_Effect": {
+      "Interactions": [{
+        "Parent": "Pickaxe_Mine_Effect",
+        "Effects": {
+          "WorldSoundEventId": "SFX_Tool_T1_Swing",
+          "LocalSoundEventId": "SFX_Pickaxe_T1_Swing_Down_Local"
+        }
+      }]
+    },
+    "Pickaxe_Mine_Damage": {
+      "Interactions": [{
+        "Parent": "Pickaxe_Mine_Damage",
+        "DamageCalculator": {
+          "Type": "Absolute",
+          "BaseDamage": { "Physical": 1 }
+        },
+        "DamageEffects": {
+          "WorldSoundEventId": "SFX_Light_Melee_T1_Impact"
+        }
+      }]
+    }
+  },
+  "IconProperties": {
+    "Scale": 0.45,
+    "Translation": [13.8, -14.4],
+    "Rotation": [45, 270, 0]
+  },
+  "DroppedItemAnimation": "Items/Animations/Dropped/Dropped_Diagonal_Left.blockyanim",
+  "MaxDurability": 150,
+  "Tags": { "Type": ["Tool"] },
+  "ItemSoundSetId": "ISS_Weapons_Wood"
+}
+```
+  </TabItem>
+</Tabs>
+
+### Hatchet (Woodcutting Tool)
+
+```json title="Tool_Hatchet_Iron.json" {6,38-66}
+{
+  "TranslationProperties": {
+    "Name": "server.items.Tool_Hatchet_Iron.name",
+    "Description": "server.items.Tool_Hatchet_Crude.description"
+  },
+  "Parent": "Tool_Hatchet_Crude",
+  "Icon": "Icons/ItemsGenerated/Tool_Hatchet_Iron.png",
+  "Quality": "Uncommon",
+  "ItemLevel": 20,
+  "Model": "Items/Tools/Hatchet/Iron.blockymodel",
+  "Texture": "Items/Tools/Hatchet/Iron_Texture.png",
+  "Recipe": {
+    "TimeSeconds": 3.5,
+    "Input": [
+      { "ItemId": "Ingredient_Bar_Iron", "Quantity": 5 },
+      { "ItemId": "Ingredient_Leather_Light", "Quantity": 2 },
+      { "ItemId": "Ingredient_Fabric_Scrap_Linen", "Quantity": 2 }
+    ],
+    "BenchRequirement": [
+      { "Type": "Crafting", "Categories": ["Workbench_Tools"], "Id": "Workbench" }
+    ]
+  },
+  "Tool": {
+    "Specs": [
+      { "Power": 1, "GatherType": "SoftBlocks" },
+      { "Power": 0.05, "GatherType": "Soils" },
+      {
+        "Power": 0.3,
+        "GatherType": "Woods",
+        "HitSoundLayer": "SFX_Hatchet_T2_Impact_Nice"
+      },
+      { "Power": 0.05, "GatherType": "Rocks" },
+      {
+        "Power": 0.5,
+        "GatherType": "Benches",
+        "HitSoundLayer": "SFX_Hatchet_T2_Impact_Nice"
+      },
+      { "Power": 0.017, "GatherType": "VolcanicRocks" }
+    ],
+    "DurabilityLossBlockTypes": [
+      {
+        "BlockSets": ["Stone", "Rock", "Ores", "Soil"],
+        "DurabilityLossOnHit": 0.25
+      }
+    ]
+  },
+  "MaxDurability": 250
+}
+```
+
+### Farming Tools
+
+<Tabs>
+  <TabItem label="Hoe">
+```json title="Tool_Hoe_Crude.json"
+{
+  "TranslationProperties": {
+    "Name": "server.items.Tool_Hoe_Crude.name",
+    "Description": "server.items.Tool_Hoe.description"
+  },
+  "Categories": ["Items.Tools"],
+  "Set": "Tool_Stone",
+  "Icon": "Icons/ItemsGenerated/Tool_Hoe_Crude.png",
+  "Quality": "Common",
+  "MaxStack": 1,
+  "ItemLevel": 1,
+  "Recipe": {
+    "TimeSeconds": 1.5,
+    "Input": [
+      { "ResourceTypeId": "Wood_Trunk", "Quantity": 2 },
+      { "ResourceTypeId": "Rock", "Quantity": 1 }
+    ],
+    "BenchRequirement": [
+      { "Type": "Crafting", "Categories": ["Farming"], "Id": "Farmingbench" }
+    ]
+  },
+  "Interactions": {
+    "Primary": "Hoe_Attack",
+    "Secondary": "Hoe_Till"
+  },
+  "InteractionVars": {
+    "Hoe_Swing_Left_Effect": "Hoe_Swing_Left_Effect",
+    "Hoe_Swing_Left_Damage": {
+      "Interactions": [{
+        "Parent": "Hoe_Swing_Left_Damage",
+        "DamageCalculator": {
+          "Type": "Dps",
+          "BaseDamage": { "Physical": 1 }
+        }
+      }]
+    }
+  },
+  "Model": "Items/Tools/Hoe/Crude.blockymodel",
+  "Texture": "Items/Tools/Hoe/Crude_Texture.png",
+  "MaxDurability": 100,
+  "PlayerAnimationsId": "Hoe",
+  "Tags": { "Type": ["Tool"] },
+  "ItemSoundSetId": "ISS_Weapons_Wood"
+}
+```
+  </TabItem>
+  <TabItem label="Sickle">
+```json title="Tool_Sickle_Crude.json"
+{
+  "TranslationProperties": {
+    "Name": "server.items.Tool_Sickle_Crude.name",
+    "Description": "server.items.Tool_Sickle.description"
+  },
+  "Categories": ["Items.Tools"],
+  "Set": "Tool_Stone",
+  "Model": "Items/Tools/Sickle/Crude.blockymodel",
+  "Texture": "Items/Tools/Sickle/Crude_Texture.png",
+  "Icon": "Icons/ItemsGenerated/Tool_Sickle_Crude.png",
+  "Quality": "Common",
+  "ItemLevel": 20,
+  "Recipe": {
+    "TimeSeconds": 3,
+    "KnowledgeRequired": false,
+    "Input": [
+      { "ResourceTypeId": "Wood_Trunk", "Quantity": 1 },
+      { "ResourceTypeId": "Rock", "Quantity": 2 },
+      { "ItemId": "Ingredient_Fibre", "Quantity": 2 }
+    ],
+    "BenchRequirement": [
+      { "Type": "Crafting", "Categories": ["Workbench_Farming"], "Id": "Workbench" }
+    ]
+  },
+  "PlayerAnimationsId": "Sickle",
+  "Utility": { "Compatible": true },
+  "Interactions": {
+    "Primary": "Sickle_Attack",
+    "Secondary": "Sickle_Attack"
+  },
+  "InteractionVars": {
+    "Sickle_Swing_Left_Damage": {
+      "Interactions": [{
+        "Parent": "Sickle_Swing_Left_Damage",
+        "DamageCalculator": {
+          "Type": "Dps",
+          "BaseDamage": { "Physical": 5 }
+        },
+        "DamageEffects": {
+          "WorldSoundEventId": "SFX_Sword_T2_Impact"
+        }
+      }]
+    }
+  },
+  "MaxDurability": 60,
+  "MaxStack": 1,
+  "Tags": { "Type": ["Tool"] },
+  "ItemSoundSetId": "ISS_Weapons_Wood"
+}
+```
+  </TabItem>
+  <TabItem label="Watering Can">
+```json title="Tool_Watering_Can.json"
+{
+  "TranslationProperties": {
+    "Name": "server.items.Tool_Watering_Can.name",
+    "Description": "server.items.Tool_Watering_Can.description"
+  },
+  "Categories": ["Items.Tools"],
+  "ItemLevel": 4,
+  "Recipe": {
+    "TimeSeconds": 1,
+    "Input": [
+      { "ItemId": "Ingredient_Bar_Iron", "Quantity": 3 }
+    ],
+    "BenchRequirement": [
+      { "Type": "Crafting", "Categories": ["Farming"], "Id": "Farmingbench" }
+    ]
+  },
+  "Quality": "Common",
+  "Tool": {},
+  "PlayerAnimationsId": "Watering_Can",
+  "Texture": "Items/Tools/Watering_Can/Watering_Can_Texture.png",
+  "Model": "Items/Tools/Watering_Can/Watering_Can_Empty.blockymodel",
+  "Icon": "Icons/ItemsGenerated/Tool_Watering_Can.png",
+  "Interactions": {
+    "Primary": "Watering_Can_Fill",
+    "Secondary": "Watering_Can_Fill"
+  },
+  "State": {
+    "Filled_Water": {
+      "Variant": true,
+      "TranslationProperties": {
+        "Name": "server.items.Tool_Watering_Can_Full.name"
+      },
+      "Model": "Items/Tools/Watering_Can/Watering_Can.blockymodel",
+      "Icon": "Icons/ItemsGenerated/Tool_Watering_Can_Full.png",
+      "Interactions": {
+        "Primary": {
+          "Interactions": [{
+            "Parent": "Watering_Can_Fill",
+            "Failed": "Watering_Can_Use"
+          }]
+        }
+      },
+      "MaxDurability": 20,
+      "DurabilityLossOnHit": 1
+    }
+  },
+  "Tags": { "Type": ["Tool"] },
+  "ItemSoundSetId": "ISS_Weapons_Wood"
+}
+```
+  </TabItem>
+</Tabs>
+
+### Utility Tools
+
+<Tabs>
+  <TabItem label="Hammer">
+```json title="Tool_Hammer_Crude.json"
+{
+  "TranslationProperties": {
+    "Name": "server.items.Tool_Hammer_Crude.name",
+    "Description": "server.items.Tool_Hammer_Crude.description"
+  },
+  "Categories": ["Items.Tools"],
+  "Icon": "Icons/ItemsGenerated/Tool_Hammer_Crude.png",
+  "Quality": "Common",
+  "ItemLevel": 2,
+  "MaxStack": 1,
+  "Set": "Tool_Stone",
+  "Model": "Items/Tools/Hammer/Crude.blockymodel",
+  "Texture": "Items/Tools/Hammer/Crude_Texture.png",
+  "PlayerAnimationsId": "Pickaxe",
+  "Recipe": {
+    "TimeSeconds": 1,
+    "KnowledgeRequired": false,
+    "Input": [
+      { "ResourceTypeId": "Rubble", "Quantity": 2 },
+      { "ItemId": "Ingredient_Fibre", "Quantity": 3 },
+      { "ItemId": "Ingredient_Stick", "Quantity": 3 }
+    ],
+    "BenchRequirement": [
+      { "Id": "Workbench", "Type": "Crafting", "Categories": ["Workbench_Tools"] }
+    ]
+  },
+  "Interactions": {
+    "Primary": {
+      "Interactions": [{
+        "Type": "CycleBlockGroup",
+        "RunTime": 0.1,
+        "Effects": { "ItemAnimationId": "Mine" }
+      }]
+    },
+    "Secondary": {
+      "Interactions": [{
+        "Type": "CycleBlockGroup",
+        "RunTime": 0.1,
+        "Effects": { "ItemAnimationId": "Mine" }
+      }]
+    }
+  },
+  "MaxDurability": 100,
+  "Tags": { "Type": ["Tool"] },
+  "BlockSelectorTool": {
+    "DurabilityLossOnUse": 1.0
+  },
+  "ItemSoundSetId": "ISS_Weapons_Wood"
+}
+```
+  </TabItem>
+  <TabItem label="Repair Kit">
+```json title="Tool_Repair_Kit_Iron.json"
+{
+  "TranslationProperties": {
+    "Name": "server.items.Tool_Repair_Kit_Iron.name",
+    "Description": "server.items.Tool_Repair_Kit_Iron.description"
+  },
+  "Icon": "Icons/ItemsGenerated/Tool_Repair_Kit_Iron.png",
+  "Parent": "Tool_Repair_Kit_Crude",
+  "ItemLevel": 1,
+  "Model": "Items/Tools/Repair_Kit/Repair_Kit_Iron.blockymodel",
+  "Texture": "Items/Tools/Repair_Kit/Repair_Kit_Iron_Texture.png",
+  "Interactions": {
+    "Primary": {
+      "Interactions": [{
+        "Type": "OpenCustomUI",
+        "Page": {
+          "Id": "ItemRepair",
+          "RepairPenalty": 0.1
+        }
+      }]
+    }
+  },
+  "Recipe": {
+    "TimeSeconds": 1,
+    "Input": [
+      { "ItemId": "Ingredient_Fabric_Scrap_Linen", "Quantity": 2 },
+      { "ItemId": "Ingredient_Bar_Iron", "Quantity": 1 },
+      { "ItemId": "Ingredient_Leather_Light", "Quantity": 1 }
+    ],
+    "BenchRequirement": [
+      { "Type": "Crafting", "Categories": ["Workbench_Tools"], "Id": "Workbench" }
+    ]
+  },
+  "Quality": "Common"
+}
+```
+  </TabItem>
+  <TabItem label="Capture Crate">
+```json title="Tool_Capture_Crate.json"
+{
+  "TranslationProperties": {
+    "Name": "server.items.Tool_Capture_Crate.name",
+    "Description": "server.items.Tool_Capture_Crate.description"
+  },
+  "Model": "Items/CaptureCrate/Capture_Crate.blockymodel",
+  "Texture": "Items/CaptureCrate/Capture_Crate_Texture.png",
+  "Icon": "Icons/ItemsGenerated/Tool_Capture_Crate.png",
+  "PlayerAnimationsId": "Block",
+  "MaxStack": 1,
+  "ItemLevel": 9,
+  "Recipe": {
+    "TimeSeconds": 2,
+    "Input": [
+      { "Quantity": 4, "ResourceTypeId": "Wood_All" },
+      { "ItemId": "Ingredient_Life_Essence", "Quantity": 50 }
+    ],
+    "BenchRequirement": [
+      { "Type": "Crafting", "Categories": ["Farming"], "Id": "Farmingbench" }
+    ]
+  },
+  "Interactions": {
+    "Primary": {
+      "Interactions": [{
+        "Type": "Simple",
+        "Effects": { "ItemAnimationId": "Interact" },
+        "RunTime": 0.05,
+        "Next": {
+          "Type": "UseCaptureCrate",
+          "AcceptedNpcGroups": ["Capture_Crate"],
+          "FullIcon": "Icons/ItemsGenerated/Tool_Capture_Crate_Full.png",
+          "Failed": {
+            "Type": "Simple",
+            "Effects": {
+              "LocalSoundEventId": "SFX_Capture_Crate_Capture_Fail_Local"
+            }
+          },
+          "Next": {
+            "Type": "Simple",
+            "Effects": {
+              "LocalSoundEventId": "SFX_Capture_Crate_Capture_Succeed_Local",
+              "WorldSoundEventId": "SFX_Capture_Crate_Capture_Succeed"
+            }
+          }
+        }
+      }]
+    }
+  }
+}
+```
+  </TabItem>
+</Tabs>
+
+## Interaction Types for Tools
+
+Tools use various interaction types:
+
+| Type | Description | Used By |
+|------|-------------|---------|
+| `Pickaxe_Attack` | Mining interaction | Pickaxes |
+| `Hoe_Attack` / `Hoe_Till` | Attack and till | Hoes |
+| `Sickle_Attack` | Crop harvesting | Sickles |
+| `Watering_Can_Fill` / `Watering_Can_Use` | Fill and water | Watering Cans |
+| `CycleBlockGroup` | Rotate block variants | Hammers |
+| `OpenCustomUI` | Open repair UI | Repair Kits |
+| `UseCaptureCrate` | Capture NPCs | Capture Crates |
+
+## Material Tiers
+
+Tools follow a progression through material tiers:
+
+| Material | Quality | Item Level | Durability | Power Modifier |
+|----------|---------|------------|------------|----------------|
+| Crude/Stone | Common | 1-10 | 100-150 | Base |
+| Copper | Common | 15 | 175 | +15% |
+| Iron | Uncommon | 20 | 250 | +25% |
+| Cobalt | Rare | 30 | 350 | +40% |
+| Mithril | Rare | 40 | 450 | +60% |
+| Thorium | Epic | 50 | 550 | +80% |
+| Onyxium | Epic | 60 | 650 | +100% |
+| Adamantite | Legendary | 70 | 800 | +120% |
+
+## Animation Sets
+
+Each tool type uses a specific animation set:
+
+| Animation ID | Tool Types |
+|--------------|------------|
+| `Pickaxe` | Pickaxes, Hammers |
+| `Hoe` | Hoes |
+| `Sickle` | Sickles |
+| `Watering_Can` | Watering Cans |
+| `Block` | Capture Crates, placeable tools |
+| `Item` | Default / miscellaneous |
+
+## Accessing Tools in Code
+
+```java title="ToolExample.java"
+import com.hypixel.hytale.server.core.asset.type.item.config.Item;
+import com.hypixel.hytale.server.core.asset.type.item.config.ItemTool;
+
+public class ToolExample {
+    public void accessTools() {
+        Item pickaxe = Item.getAssetMap().get("Tool_Pickaxe_Iron");
+
+        if (pickaxe != null) {
+            // Check if it's a tool
+            ItemTool toolConfig = pickaxe.getTool();
+            if (toolConfig != null) {
+                // Access tool-specific properties like Specs
+            }
+
+            // Get durability
+            double maxDurability = pickaxe.getMaxDurability();
+            String animationSet = pickaxe.getPlayerAnimationsId();
+
+            // Get interactions
+            Map<InteractionType, String> interactions = pickaxe.getInteractions();
+        }
+    }
+}
+```
+
+## Creating Custom Tools
+
+### Using Parent Inheritance
+
+```json title="MyPlugin_Tool_Pickaxe_Custom.json"
+{
+  "Parent": "Tool_Pickaxe_Crude",
+  "TranslationProperties": {
+    "Name": "server.items.MyPlugin_Tool_Pickaxe_Custom.name"
+  },
+  "Model": "MyPlugin/Tools/Pickaxe/Custom.blockymodel",
+  "Texture": "MyPlugin/Tools/Pickaxe/Custom_Texture.png",
+  "Icon": "Icons/ItemsGenerated/MyPlugin_Tool_Pickaxe_Custom.png",
+  "Quality": "Rare",
+  "ItemLevel": 35,
+  "Tool": {
+    "Specs": [
+      { "Power": 1, "GatherType": "SoftBlocks" },
+      { "Power": 0.6, "GatherType": "Soils" },
+      { "Power": 0.1, "GatherType": "Woods" },
+      {
+        "Power": 0.7,
+        "GatherType": "Rocks",
+        "HitSoundLayer": "SFX_Pickaxe_T2_Impact_Nice"
+      },
+      { "Power": 0.6, "GatherType": "Benches" },
+      { "Power": 0.25, "GatherType": "VolcanicRocks" }
+    ],
+    "DurabilityLossBlockTypes": [
+      {
+        "BlockSets": ["Stone", "Rock", "Ores", "Soil"],
+        "DurabilityLossOnHit": 0.2
+      }
+    ]
+  },
+  "MaxDurability": 400,
+  "Recipe": {
+    "TimeSeconds": 5,
+    "Input": [
+      { "ItemId": "MyPlugin_Custom_Ingot", "Quantity": 5 },
+      { "ItemId": "Ingredient_Leather_Light", "Quantity": 3 }
+    ],
+    "BenchRequirement": [
+      { "Type": "Crafting", "Categories": ["Workbench_Tools"], "Id": "Workbench" }
+    ]
+  }
+}
+```
+
+### Creating a New Tool Type
+
+```json title="MyPlugin_Tool_Multitool.json"
+{
+  "TranslationProperties": {
+    "Name": "server.items.MyPlugin_Tool_Multitool.name",
+    "Description": "server.items.MyPlugin_Tool_Multitool.description"
+  },
+  "Categories": ["Items.Tools"],
+  "Model": "MyPlugin/Tools/Multitool.blockymodel",
+  "Texture": "MyPlugin/Tools/Multitool_Texture.png",
+  "Icon": "Icons/ItemsGenerated/MyPlugin_Tool_Multitool.png",
+  "Quality": "Epic",
+  "ItemLevel": 50,
+  "PlayerAnimationsId": "Pickaxe",
+  "Tool": {
+    "Specs": [
+      { "Power": 1, "GatherType": "SoftBlocks" },
+      { "Power": 0.4, "GatherType": "Soils" },
+      { "Power": 0.4, "GatherType": "Woods" },
+      { "Power": 0.4, "GatherType": "Rocks" },
+      { "Power": 0.5, "GatherType": "Benches" },
+      { "Power": 0.15, "GatherType": "VolcanicRocks" }
+    ],
+    "DurabilityLossBlockTypes": [
+      {
+        "BlockSets": ["Stone", "Rock", "Ores", "Soil", "Wood"],
+        "DurabilityLossOnHit": 0.35
+      }
+    ]
+  },
+  "Utility": { "Compatible": true },
+  "Interactions": {
+    "Primary": "Pickaxe_Attack",
+    "Secondary": "Pickaxe_Attack"
+  },
+  "MaxDurability": 300,
+  "Tags": { "Type": ["Tool"] },
+  "ItemSoundSetId": "ISS_Weapons_Blunt_Small"
+}
+```
+
+## Best Practices
+
+1. **Specialize tools**: Give each tool type clear strengths against specific block types
+2. **Balance power values**: Higher tier materials should have progressively better power
+3. **Match durability to tier**: More powerful tools should last longer
+4. **Use parent inheritance**: Inherit from existing tools to maintain consistency
+5. **Include appropriate sounds**: Use `HitSoundLayer` for satisfying feedback
+6. **Set correct categories**: Always include `"Items.Tools"` in categories
+7. **Prefix IDs**: Use plugin name prefix for all custom tools
+
+## Related
+
+- [Item System Overview](/asset-development/items/overview/) - General item documentation
+- [Weapons](/asset-development/items/weapons/) - Combat item documentation
+- [Blockbench Setup](/tutorials/blockbench/setup/) - Creating tool models
+- [Plugin Manifest](/getting-started/plugin-manifest/) - Including assets in plugins
