@@ -1,21 +1,18 @@
 /* Hytale Server Modding Documentation - Custom Theme */
+/* Architecture: Separates color-scheme (light/dark) from accent colors */
 
 /* ========================================
-   Color Palette & Variables
+   Color Scheme: Dark (Default)
    ======================================== */
 :root {
-  /* Hytale-inspired color palette - Deep blue theme */
-  --sl-color-accent-low: #1e3a5f;
-  --sl-color-accent: #3b82f6;
-  --sl-color-accent-high: #60a5fa;
+  color-scheme: dark;
 
   /* Dark theme backgrounds */
   --sl-color-bg: #0a0f1a;
   --sl-color-bg-nav: #111827;
   --sl-color-bg-sidebar: #111827;
-  --sl-color-bg-accent: rgba(59, 130, 246, 0.1);
 
-  /* Text colors */
+  /* Dark theme text colors */
   --sl-color-white: #f8fafc;
   --sl-color-gray-1: #f1f5f9;
   --sl-color-gray-2: #e2e8f0;
@@ -32,14 +29,6 @@
   --sl-color-hairline: #1e293b;
   --sl-color-hairline-light: #0f172a;
 
-  /* Custom colors */
-  --hytale-primary: #3b82f6;
-  --hytale-secondary: #8b5cf6;
-  --hytale-success: #10b981;
-  --hytale-warning: #f59e0b;
-  --hytale-danger: #ef4444;
-  --hytale-glow: rgba(59, 130, 246, 0.3);
-
   /* Header */
   --header-bg: rgba(10, 15, 26, 0.8);
 
@@ -48,28 +37,24 @@
   --shadow-md: rgba(0, 0, 0, 0.1);
   --shadow-lg: rgba(0, 0, 0, 0.2);
 
-  /* Hover/focus states */
-  --hover-accent-bg: rgba(59, 130, 246, 0.15);
-
-  /* Java syntax highlighting */
+  /* Java syntax highlighting (dark) */
   --syntax-annotation: #fbbf24;
   --syntax-keyword: #f472b6;
   --syntax-class: #67e8f9;
   --syntax-function: #a5b4fc;
   --syntax-string: #86efac;
 
-  /* Aside backgrounds */
-  --aside-note-bg: rgba(59, 130, 246, 0.1);
+  /* Semantic colors (consistent across themes) */
+  --hytale-success: #10b981;
+  --hytale-warning: #f59e0b;
+  --hytale-danger: #ef4444;
+
+  /* Aside backgrounds (non-accent) */
   --aside-tip-bg: rgba(16, 185, 129, 0.1);
   --aside-caution-bg: rgba(245, 158, 11, 0.1);
   --aside-danger-bg: rgba(239, 68, 68, 0.1);
 
-  /* Mermaid diagrams */
-  --mermaid-cluster-bg: rgba(59, 130, 246, 0.08);
-  --mermaid-decision-bg: rgba(139, 92, 246, 0.2);
-  --mermaid-node-bg: rgba(59, 130, 246, 0.1);
-
-  /* Status badges */
+  /* Status badges (dark) */
   --status-verified: #34d399;
   --status-verified-bg: rgba(16, 185, 129, 0.2);
   --status-verified-border: rgba(16, 185, 129, 0.3);
@@ -81,18 +66,19 @@
   --status-review-border: rgba(139, 92, 246, 0.3);
 }
 
-/* Light theme overrides */
-:root[data-theme="light"] {
-  --sl-color-accent-low: #dbeafe;
-  --sl-color-accent: #2563eb;
-  --sl-color-accent-high: #1d4ed8;
+/* ========================================
+   Color Scheme: Light
+   ======================================== */
+:root[data-color-scheme="light"] {
+  color-scheme: light;
 
+  /* Light theme backgrounds */
   --sl-color-bg: #ffffff;
   --sl-color-bg-nav: #f8fafc;
   --sl-color-bg-sidebar: #f8fafc;
-  --sl-color-bg-accent: rgba(37, 99, 235, 0.08);
+  --sl-color-black: #ffffff;
 
-  /* Light theme text colors (inverted from dark) */
+  /* Light theme text colors (inverted) */
   --sl-color-white: #0f172a;
   --sl-color-gray-1: #585858;
   --sl-color-gray-2: #334155;
@@ -101,20 +87,16 @@
   --sl-color-gray-5: #94a3b8;
   --sl-color-gray-6: #cbd5e1;
 
+  /* Code blocks (light) */
   --sl-color-text-code: #1e293b;
   --sl-color-bg-inline-code: #f1f5f9;
 
+  /* Borders (light) */
   --sl-color-hairline: #e2e8f0;
   --sl-color-hairline-light: #f1f5f9;
 
-  /* Light theme custom colors */
-  --hytale-glow: rgba(37, 99, 235, 0.2);
-
-  /* Header */
+  /* Header (light) */
   --header-bg: rgba(255, 255, 255, 0.9);
-
-  /* Hover/focus states */
-  --hover-accent-bg: rgba(37, 99, 235, 0.1);
 
   /* Java syntax highlighting (light) */
   --syntax-annotation: #b45309;
@@ -124,14 +106,9 @@
   --syntax-string: #059669;
 
   /* Aside backgrounds (light) */
-  --aside-note-bg: rgba(37, 99, 235, 0.08);
   --aside-tip-bg: rgba(5, 150, 105, 0.08);
   --aside-caution-bg: rgba(217, 119, 6, 0.08);
   --aside-danger-bg: rgba(220, 38, 38, 0.08);
-
-  /* Mermaid diagrams (light) */
-  --mermaid-cluster-bg: rgba(37, 99, 235, 0.06);
-  --mermaid-node-bg: rgba(37, 99, 235, 0.1);
 
   /* Status badges (light) */
   --status-verified: #047857;
@@ -146,181 +123,207 @@
 }
 
 /* ========================================
-   Theme Variants
+   Accent: Blue (Default)
    ======================================== */
+:root {
+  /* Blue accent colors (dark mode) */
+  --sl-color-accent-low: #1e3a5f;
+  --sl-color-accent: #3b82f6;
+  --sl-color-accent-high: #398abe;
+  --sl-color-bg-accent: rgba(59, 130, 246, 0.1);
 
-/* Emerald Theme (Green accent) */
-:root[data-theme="emerald"] {
+  --hytale-primary: #398abe;
+  --hytale-secondary: #398abe;
+  --hytale-glow: rgba(59, 130, 246, 0.3);
+  --hover-accent-bg: rgba(59, 130, 246, 0.15);
+  --aside-note-bg: rgba(59, 130, 246, 0.1);
+
+  /* Mermaid diagrams */
+  --mermaid-cluster-bg: rgba(59, 130, 246, 0.08);
+  --mermaid-decision-bg: rgba(139, 92, 246, 0.2);
+  --mermaid-node-bg: rgba(59, 130, 246, 0.1);
+}
+
+/* Blue accent in light mode */
+:root[data-color-scheme="light"] {
+  --sl-color-accent-low: #dbeafe;
+  --sl-color-accent: #99b9ff;
+  --sl-color-accent-high: #1e40af;
+  --sl-color-bg-accent: rgba(37, 99, 235, 0.08);
+
+  --hytale-primary: #78c0ec;
+  --hytale-secondary: #b2cfe2;
+  --hytale-glow: rgba(37, 99, 235, 0.2);
+  --hover-accent-bg: rgba(37, 99, 235, 0.1);
+  --aside-note-bg: rgba(37, 99, 235, 0.08);
+
+  --mermaid-cluster-bg: rgba(37, 99, 235, 0.06);
+  --mermaid-node-bg: rgba(37, 99, 235, 0.1);
+}
+
+/* ========================================
+   Accent: Emerald
+   ======================================== */
+:root[data-accent="emerald"] {
   --sl-color-accent-low: #064e3b;
   --sl-color-accent: #10b981;
   --sl-color-accent-high: #34d399;
   --sl-color-bg-accent: rgba(16, 185, 129, 0.1);
+
   --hytale-primary: #10b981;
+  --hytale-secondary: #10b981;
   --hytale-glow: rgba(16, 185, 129, 0.3);
   --hover-accent-bg: rgba(16, 185, 129, 0.15);
   --aside-note-bg: rgba(16, 185, 129, 0.1);
+
   --mermaid-cluster-bg: rgba(16, 185, 129, 0.08);
   --mermaid-node-bg: rgba(16, 185, 129, 0.1);
 
---header-bg: rgba(0, 8, 2, 0.99);
---sl-color-bg-inline-code: #000802;
---sl-color-gray-6: #061108;
---sl-color-bg: #000501;
---sl-color-bg-nav: #000802;
---sl-color-bg-sidebar: #000802;
+  /* Dark mode: subtle green-tinted backgrounds */
+  --sl-color-bg: #000501;
+  --sl-color-bg-nav: #000802;
+  --sl-color-bg-sidebar: #000802;
+  --sl-color-bg-inline-code: #000802;
+  --sl-color-gray-6: #061108;
+  --header-bg: rgba(0, 8, 2, 0.95);
 }
 
-/* Emerald Light variant */
-:root[data-theme="emerald-light"] {
-  /* Base light theme colors */
-  --sl-color-bg: #ffffff;
-  --sl-color-bg-nav: #f8fafc;
-  --sl-color-bg-sidebar: #f8fafc;
-  --sl-color-white: #0f172a;
-  --sl-color-gray-1: #1e293b;
-  --sl-color-gray-2: #334155;
-  --sl-color-gray-3: #475569;
-  --sl-color-gray-4: #64748b;
-  --sl-color-gray-5: #94a3b8;
-  --sl-color-gray-6: #cbd5e1;
-  --sl-color-text-code: #1e293b;
-  --sl-color-bg-inline-code: #f1f5f9;
-  --sl-color-hairline: #e2e8f0;
-  --sl-color-hairline-light: #f1f5f9;
-  --header-bg: rgba(255, 255, 255, 0.9);
-  /* Emerald accent colors */
+/* Emerald in light mode - reset backgrounds to light defaults */
+:root[data-color-scheme="light"][data-accent="emerald"] {
   --sl-color-accent-low: #d1fae5;
   --sl-color-accent: #059669;
   --sl-color-accent-high: #047857;
   --sl-color-bg-accent: rgba(5, 150, 105, 0.08);
+
   --hytale-primary: #059669;
   --hytale-glow: rgba(5, 150, 105, 0.2);
   --hover-accent-bg: rgba(5, 150, 105, 0.1);
   --aside-note-bg: rgba(5, 150, 105, 0.08);
+
   --mermaid-cluster-bg: rgba(5, 150, 105, 0.06);
   --mermaid-node-bg: rgba(5, 150, 105, 0.1);
-  /* Light mode syntax */
-  --syntax-annotation: #b45309;
-  --syntax-keyword: #be185d;
-  --syntax-class: #0891b2;
+
+  /* Reset to standard light backgrounds */
+  --sl-color-bg: #ffffff;
+  --sl-color-bg-nav: #f8fafc;
+  --sl-color-bg-sidebar: #f8fafc;
+  --sl-color-bg-inline-code: #f1f5f9;
+  --sl-color-gray-6: #cbd5e1;
+  --header-bg: rgba(255, 255, 255, 0.9);
+
+  /* Light mode syntax with emerald tint */
   --syntax-function: #059669;
   --syntax-string: #047857;
 }
 
-/* Amber Theme (Orange accent) */
-:root[data-theme="amber"] {
+/* ========================================
+   Accent: Amber
+   ======================================== */
+:root[data-accent="amber"] {
   --sl-color-accent-low: #78350f;
   --sl-color-accent: #f59e0b;
   --sl-color-accent-high: #fbbf24;
   --sl-color-bg-accent: rgba(245, 158, 11, 0.1);
+
   --hytale-primary: #f59e0b;
+  --hytale-secondary: #f59e0b;
   --hytale-glow: rgba(245, 158, 11, 0.3);
   --hover-accent-bg: rgba(245, 158, 11, 0.15);
   --aside-note-bg: rgba(245, 158, 11, 0.1);
+
   --mermaid-cluster-bg: rgba(245, 158, 11, 0.08);
   --mermaid-node-bg: rgba(245, 158, 11, 0.1);
 
-  --header-bg: rgba(20, 8, 2, 0.99);
-  --sl-color-bg-inline-code: #1a0a04;
-  --sl-color-gray-6: #2d1708;
+  /* Dark mode: subtle warm-tinted backgrounds */
   --sl-color-bg: #0f0603;
   --sl-color-bg-nav: #1a0a04;
   --sl-color-bg-sidebar: #1a0a04;
+  --sl-color-bg-inline-code: #1a0a04;
+  --sl-color-gray-6: #2d1708;
+  --header-bg: rgba(20, 8, 2, 0.95);
 }
 
-/* Amber Light variant */
-:root[data-theme="amber-light"] {
-  /* Base light theme colors */
-  --sl-color-bg: #ffffff;
-  --sl-color-bg-nav: #f8fafc;
-  --sl-color-bg-sidebar: #f8fafc;
-  --sl-color-white: #0f172a;
-  --sl-color-gray-1: #1e293b;
-  --sl-color-gray-2: #334155;
-  --sl-color-gray-3: #475569;
-  --sl-color-gray-4: #64748b;
-  --sl-color-gray-5: #94a3b8;
-  --sl-color-gray-6: #cbd5e1;
-  --sl-color-text-code: #1e293b;
-  --sl-color-bg-inline-code: #f1f5f9;
-  --sl-color-hairline: #e2e8f0;
-  --sl-color-hairline-light: #f1f5f9;
-  --header-bg: rgba(255, 255, 255, 0.9);
-  /* Amber accent colors */
+/* Amber in light mode */
+:root[data-color-scheme="light"][data-accent="amber"] {
   --sl-color-accent-low: #fef3c7;
   --sl-color-accent: #d97706;
   --sl-color-accent-high: #b45309;
   --sl-color-bg-accent: rgba(217, 119, 6, 0.08);
+
   --hytale-primary: #d97706;
   --hytale-glow: rgba(217, 119, 6, 0.2);
   --hover-accent-bg: rgba(217, 119, 6, 0.1);
   --aside-note-bg: rgba(217, 119, 6, 0.08);
+
   --mermaid-cluster-bg: rgba(217, 119, 6, 0.06);
   --mermaid-node-bg: rgba(217, 119, 6, 0.1);
-  /* Light mode syntax */
-  --syntax-annotation: #b45309;
-  --syntax-keyword: #be185d;
-  --syntax-class: #0891b2;
+
+  /* Reset to standard light backgrounds */
+  --sl-color-bg: #ffffff;
+  --sl-color-bg-nav: #f8fafc;
+  --sl-color-bg-sidebar: #f8fafc;
+  --sl-color-bg-inline-code: #f1f5f9;
+  --sl-color-gray-6: #cbd5e1;
+  --header-bg: rgba(255, 255, 255, 0.9);
+
+  /* Light mode syntax with amber tint */
   --syntax-function: #d97706;
   --syntax-string: #92400e;
 }
 
-/* Purple Theme (Violet accent) */
-:root[data-theme="purple"] {
+/* ========================================
+   Accent: Purple
+   ======================================== */
+:root[data-accent="purple"] {
   --sl-color-accent-low: #4c1d95;
   --sl-color-accent: #8b5cf6;
   --sl-color-accent-high: #a78bfa;
   --sl-color-bg-accent: rgba(139, 92, 246, 0.1);
+
   --hytale-primary: #8b5cf6;
+  --hytale-secondary: #8b5cf6;
   --hytale-glow: rgba(139, 92, 246, 0.3);
   --hover-accent-bg: rgba(139, 92, 246, 0.15);
   --aside-note-bg: rgba(139, 92, 246, 0.1);
+
   --mermaid-cluster-bg: rgba(139, 92, 246, 0.08);
   --mermaid-node-bg: rgba(139, 92, 246, 0.1);
   --mermaid-decision-bg: rgba(139, 92, 246, 0.2);
 
-  --header-bg: rgba(5, 0, 20, 0.99);
-  --sl-color-bg-inline-code: #0d0419;
-  --sl-color-gray-6: #3d1270;
+  /* Dark mode: subtle purple-tinted backgrounds */
   --sl-color-bg: #050310;
   --sl-color-bg-nav: #0f0620;
   --sl-color-bg-sidebar: #0f0620;
+  --sl-color-bg-inline-code: #0d0419;
+  --sl-color-gray-6: #3d1270;
+  --header-bg: rgba(5, 0, 20, 0.95);
 }
 
-/* Purple Light variant */
-:root[data-theme="purple-light"] {
-  /* Base light theme colors */
-  --sl-color-bg: #ffffff;
-  --sl-color-bg-nav: #f8fafc;
-  --sl-color-bg-sidebar: #f8fafc;
-  --sl-color-white: #0f172a;
-  --sl-color-gray-1: #1e293b;
-  --sl-color-gray-2: #334155;
-  --sl-color-gray-3: #475569;
-  --sl-color-gray-4: #64748b;
-  --sl-color-gray-5: #94a3b8;
-  --sl-color-gray-6: #cbd5e1;
-  --sl-color-text-code: #1e293b;
-  --sl-color-bg-inline-code: #f1f5f9;
-  --sl-color-hairline: #e2e8f0;
-  --sl-color-hairline-light: #f1f5f9;
-  --header-bg: rgba(255, 255, 255, 0.9);
-  /* Purple accent colors */
+/* Purple in light mode */
+:root[data-color-scheme="light"][data-accent="purple"] {
   --sl-color-accent-low: #ede9fe;
   --sl-color-accent: #7c3aed;
   --sl-color-accent-high: #6d28d9;
   --sl-color-bg-accent: rgba(124, 58, 237, 0.08);
+
   --hytale-primary: #7c3aed;
   --hytale-glow: rgba(124, 58, 237, 0.2);
   --hover-accent-bg: rgba(124, 58, 237, 0.1);
   --aside-note-bg: rgba(124, 58, 237, 0.08);
+
   --mermaid-cluster-bg: rgba(124, 58, 237, 0.06);
   --mermaid-node-bg: rgba(124, 58, 237, 0.1);
   --mermaid-decision-bg: rgba(124, 58, 237, 0.15);
-  /* Light mode syntax */
-  --syntax-annotation: #b45309;
-  --syntax-keyword: #be185d;
-  --syntax-class: #0891b2;
+
+  /* Reset to standard light backgrounds */
+  --sl-color-bg: #ffffff;
+  --sl-color-bg-nav: #f8fafc;
+  --sl-color-bg-sidebar: #f8fafc;
+  --sl-color-bg-inline-code: #f1f5f9;
+  --sl-color-gray-6: #cbd5e1;
+  --header-bg: rgba(255, 255, 255, 0.9);
+
+  /* Light mode syntax with purple tint */
   --syntax-function: #7c3aed;
   --syntax-string: #6d28d9;
 }
@@ -524,19 +527,19 @@ nav.sidebar::-webkit-scrollbar-thumb {
 }
 
 /* Light mode sidebar adjustments */
-:root[data-theme="light"] .sidebar-content .group-label .large {
+:root[data-color-scheme="light"] .sidebar-content .group-label .large {
   color: var(--sl-color-gray-1);
 }
 
-:root[data-theme="light"] .sidebar-content a span {
+:root[data-color-scheme="light"] .sidebar-content a span {
   color: var(--sl-color-gray-3);
 }
 
-:root[data-theme="light"] .sidebar-content a:hover span {
+:root[data-color-scheme="light"] .sidebar-content a:hover span {
   color: var(--sl-color-gray-1);
 }
 
-:root[data-theme="light"] .sidebar-content .caret {
+:root[data-color-scheme="light"] .sidebar-content .caret {
   color: var(--sl-color-gray-5);
 }
 
@@ -593,9 +596,8 @@ pre {
 }
 
 /* ========================================
-Tables
-======================================== */
-
+   Tables
+   ======================================== */
 .sl-markdown-content {
   overflow: auto;
 }
@@ -643,10 +645,6 @@ tr:hover td {
   background: var(--hover-accent-bg);
 }
 
-:root[data-theme="light"] th {
-  color: var(--sl-color-gray-2);
-}
-
 /* Method tables - special styling */
 table code {
   font-size: 0.85em;
@@ -659,7 +657,7 @@ table code {
   margin: 1.5rem 0;
 }
 
-/* Status cell styling - "Verified" shows as green, "In Progress" as yellow */
+/* Status cell styling */
 td:last-child {
   font-weight: 500;
 }
@@ -719,7 +717,7 @@ details table {
   height: 1.25rem;
 }
 
-/* Card grid enhancements - Starlight uses .sl-card-grid and .card */
+/* Card grid enhancements */
 .card-grid,
 .sl-card-grid {
   gap: 1.5rem;
@@ -756,7 +754,7 @@ details table {
   color: var(--sl-color-accent);
 }
 
-/* LinkCard styling - Starlight uses .sl-link-card */
+/* LinkCard styling */
 .link-card,
 .sl-link-card,
 a[class*="link-card"] {
@@ -775,20 +773,6 @@ a[class*="link-card"]:hover {
   transform: translateY(-2px) !important;
 }
 
-/* Light mode card shadows */
-:root[data-theme="light"] .card:hover,
-:root[data-theme="light"] .sl-card:hover {
-  box-shadow:
-    0 0 20px rgba(37, 99, 235, 0.15),
-    0 4px 15px rgba(0, 0, 0, 0.08) !important;
-}
-
-:root[data-theme="light"] .link-card:hover,
-:root[data-theme="light"] .sl-link-card:hover,
-:root[data-theme="light"] a[class*="link-card"]:hover {
-  box-shadow: 0 0 15px rgba(37, 99, 235, 0.12) !important;
-}
-
 .sl-markdown-content img {
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
@@ -798,7 +782,6 @@ a[class*="link-card"]:hover {
 /* ========================================
    Hero Section (Splash Page)
    ======================================== */
-/* Hero background image - sunset splash */
 [data-has-hero] .main-frame {
   position: relative;
 }
@@ -810,23 +793,22 @@ a[class*="link-card"]:hover {
   left: 0;
   right: 0;
   height: 100vh;
-  background-image: url('/images/hytale_splash.png');
+  background-image: url("/images/hytale_splash.png");
   background-size: cover;
   background-position: center top;
   background-repeat: no-repeat;
   pointer-events: none;
   z-index: 0;
-  /* Fade to page background at bottom */
   mask-image: linear-gradient(
     to bottom,
-    black 0%,
-    black 50%,
+    var(--sl-color-bg) 0%,
+    var(--sl-color-bg) 50%,
     transparent 90%
   );
   -webkit-mask-image: linear-gradient(
     to bottom,
-    black 0%,
-    black 50%,
+    var(--sl-color-bg) 0%,
+    var(--sl-color-bg) 50%,
     transparent 90%
   );
   opacity: 0.7;
@@ -850,7 +832,7 @@ a[class*="link-card"]:hover {
   z-index: 1;
 }
 
-/* Grid pattern overlay on top of background image */
+/* Grid pattern overlay */
 [data-has-hero] .main-frame .hero::before {
   content: "";
   position: absolute;
@@ -866,17 +848,13 @@ a[class*="link-card"]:hover {
   z-index: 0;
 }
 
-/* Ensure content is above the grid pattern */
 [data-has-hero] .main-frame > * {
   position: relative;
   z-index: 1;
 }
 
-/* Light theme hero adjustments */
-:root[data-theme="light"] [data-has-hero] .main-frame::before,
-:root[data-theme="emerald-light"] [data-has-hero] .main-frame::before,
-:root[data-theme="amber-light"] [data-has-hero] .main-frame::before,
-:root[data-theme="purple-light"] [data-has-hero] .main-frame::before {
+/* Light mode hero adjustments */
+:root[data-color-scheme="light"] [data-has-hero] .main-frame::before {
   background: linear-gradient(
     to bottom,
     rgba(255, 255, 255, 0.15) 0%,
@@ -885,10 +863,7 @@ a[class*="link-card"]:hover {
   );
 }
 
-:root[data-theme="light"] [data-has-hero] .main-frame::after,
-:root[data-theme="emerald-light"] [data-has-hero] .main-frame::after,
-:root[data-theme="amber-light"] [data-has-hero] .main-frame::after,
-:root[data-theme="purple-light"] [data-has-hero] .main-frame::after {
+:root[data-color-scheme="light"] [data-has-hero] .main-frame::after {
   opacity: 0.6;
 }
 
@@ -902,15 +877,7 @@ a[class*="link-card"]:hover {
   font-size: 3.5rem;
   font-weight: 800;
   letter-spacing: -0.03em;
-  background: linear-gradient(
-    135deg,
-    #d1fae5 0%,
-    var(--sl-color-accent-high) 50%,
-    var(--sl-color-accent-high) 100%
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--sl-color-accent-high);
   margin-bottom: 1rem;
 }
 
@@ -923,10 +890,7 @@ a[class*="link-card"]:hover {
 }
 
 /* Light mode hero title gradient */
-:root[data-theme="emerald-light"] .hero h1
-:root[data-theme="amber-light"] .hero h1
-:root[data-theme="purple-light"] .hero h1
-:root[data-theme="light"] .hero h1 {
+:root[data-color-scheme="light"] .hero h1 {
   background: linear-gradient(
     135deg,
     var(--sl-color-accent) 0%,
@@ -938,7 +902,7 @@ a[class*="link-card"]:hover {
   background-clip: text;
 }
 
-/* Hero action buttons - Starlight uses .sl-link-button */
+/* Hero action buttons */
 .sl-link-button {
   display: inline-flex;
   align-items: center;
@@ -980,22 +944,6 @@ a[class*="link-card"]:hover {
   box-shadow: 0 8px 25px var(--hytale-glow) !important;
 }
 
-/* Light mode button adjustments */
-:root[data-theme="light"] .sl-link-button.secondary {
-  background: rgba(37, 99, 235, 0.08) !important;
-}
-
-:root[data-theme="light"] .sl-link-button.secondary:hover {
-  background: rgba(37, 99, 235, 0.15) !important;
-  box-shadow: 0 8px 25px rgba(37, 99, 235, 0.15) !important;
-}
-
-:root[data-theme="light"] .sl-link-button.primary:hover {
-  box-shadow:
-    0 10px 40px rgba(37, 99, 235, 0.25),
-    0 4px 15px rgba(37, 99, 235, 0.2) !important;
-}
-
 /* ========================================
    Badges & Tags
    ======================================== */
@@ -1030,7 +978,7 @@ a[class*="link-card"]:hover {
   color: white;
 }
 
-/* Status badges for documentation tables */
+/* Status badges */
 .status-badge {
   display: inline-flex;
   align-items: center;
@@ -1063,7 +1011,6 @@ a[class*="link-card"]:hover {
 /* ========================================
    API Reference Specific
    ======================================== */
-/* Package path styling */
 .package-path {
   font-family: var(--sl-font-mono);
   color: var(--sl-color-gray-4);
@@ -1075,7 +1022,6 @@ a[class*="link-card"]:hover {
   margin-bottom: 1rem;
 }
 
-/* Method signature styling */
 .method-signature {
   font-family: var(--sl-font-mono);
   background: var(--sl-color-bg-inline-code);
@@ -1086,7 +1032,6 @@ a[class*="link-card"]:hover {
   margin: 0.5rem 0;
 }
 
-/* Class hierarchy */
 .class-hierarchy {
   background: var(--sl-color-bg-nav);
   padding: 1rem;
@@ -1158,7 +1103,6 @@ a {
 /* ========================================
    Responsive Design
    ======================================== */
-/* Tablet (768px-1024px) */
 @media (max-width: 1024px) {
   .hero h1 {
     font-size: 2.5rem;
@@ -1173,7 +1117,6 @@ a {
   }
 }
 
-/* Mobile (320px-768px) */
 @media (max-width: 768px) {
   html {
     font-size: 15px;
@@ -1214,7 +1157,6 @@ a {
     font-size: 1.125rem;
   }
 
-  /* Tables scroll horizontally on mobile */
   table {
     font-size: 0.8125rem;
     display: block;
@@ -1227,18 +1169,15 @@ a {
     padding: 0.5rem 0.75rem;
   }
 
-  /* Code blocks */
   pre {
     font-size: 0.8125rem;
   }
 
-  /* Cards */
   .card-grid {
     gap: 1rem;
   }
 }
 
-/* Very small screens (320px) */
 @media (max-width: 380px) {
   html {
     font-size: 14px;
@@ -1281,7 +1220,6 @@ a {
 /* ========================================
    Mermaid Diagrams
    ======================================== */
-/* Container styling */
 .mermaid {
   background: var(--sl-color-bg-nav);
   border: 1px solid var(--sl-color-hairline);
@@ -1294,7 +1232,6 @@ a {
   position: relative;
 }
 
-/* Hint text for zoom */
 .mermaid::after {
   content: "Click to enlarge";
   position: absolute;
@@ -1311,7 +1248,6 @@ a {
   opacity: 1;
 }
 
-/* Fullscreen state */
 .mermaid:fullscreen {
   background: var(--sl-color-bg);
   border: none;
@@ -1338,29 +1274,8 @@ a {
   height: auto;
 }
 
-/* Vendor prefixes for fullscreen */
-.mermaid:-webkit-full-screen {
-  background: var(--sl-color-bg);
-  border: none;
-  border-radius: 0;
-  padding: 2rem;
-  cursor: zoom-out;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.mermaid:-moz-full-screen {
-  background: var(--sl-color-bg);
-  border: none;
-  border-radius: 0;
-  padding: 2rem;
-  cursor: zoom-out;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
+.mermaid:-webkit-full-screen,
+.mermaid:-moz-full-screen,
 .mermaid:-ms-fullscreen {
   background: var(--sl-color-bg);
   border: none;
@@ -1372,7 +1287,7 @@ a {
   justify-content: center;
 }
 
-/* Dark theme Mermaid colors */
+/* Mermaid colors */
 .mermaid .node rect,
 .mermaid .node circle,
 .mermaid .node ellipse,
@@ -1402,7 +1317,6 @@ a {
   stroke: var(--sl-color-accent) !important;
 }
 
-/* Subgraph/cluster styling */
 .mermaid .cluster rect {
   fill: var(--mermaid-cluster-bg) !important;
   stroke: var(--sl-color-hairline) !important;
@@ -1417,7 +1331,6 @@ a {
   font-weight: 600 !important;
 }
 
-/* Flowchart text */
 .mermaid text,
 .mermaid .nodeLabel,
 .mermaid .label {
@@ -1426,7 +1339,6 @@ a {
   font-size: 0.875rem !important;
 }
 
-/* Decision/diamond nodes */
 .mermaid .node.decision rect {
   fill: var(--mermaid-decision-bg) !important;
   stroke: var(--hytale-secondary) !important;
@@ -1454,7 +1366,6 @@ a {
   animation: fadeIn 0.3s ease-out;
 }
 
-/* Reduce motion for accessibility */
 @media (prefers-reduced-motion: reduce) {
   * {
     animation: none !important;
@@ -1465,7 +1376,6 @@ a {
 /* ========================================
    Accessibility Enhancements
    ======================================== */
-/* Focus states for keyboard navigation */
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,
@@ -1476,7 +1386,6 @@ textarea:focus-visible,
   outline-offset: 2px;
 }
 
-/* Skip to content link */
 .skip-link {
   position: absolute;
   top: -40px;
@@ -1492,7 +1401,6 @@ textarea:focus-visible,
   top: 0;
 }
 
-/* High contrast mode support */
 @media (prefers-contrast: high) {
   :root {
     --sl-color-hairline: #4a5568;
@@ -1537,7 +1445,6 @@ starlight-menu-button button:hover svg {
   fill: var(--sl-color-accent) !important;
 }
 
-/* Ensure adequate touch targets on mobile */
 @media (max-width: 768px) {
   .sidebar-content a,
   .hero .action,

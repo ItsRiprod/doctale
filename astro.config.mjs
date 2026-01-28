@@ -44,19 +44,12 @@ export default defineConfig({
 			],
 			favicon: '/favicon.svg',
 			head: [
+				// CRITICAL: Theme initialization script - separates color-scheme from accent
+				// This reduces flash by handling light/dark separately from accent colors
 				{
 					tag: 'script',
 					attrs: { 'is:inline': true },
-					content: `
-						(function() {
-							var stored = localStorage.getItem('starlight-theme');
-							if (stored) {
-								document.documentElement.setAttribute('data-theme', stored);
-							} else if (window.matchMedia('(prefers-color-scheme: light)').matches) {
-								document.documentElement.setAttribute('data-theme', 'light');
-							}
-						})();
-					`,
+					content: `(function(){function getScheme(){var s=localStorage.getItem('starlight-color-scheme');if(s==='dark'||s==='light')return s;return window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'}function getAccent(){var a=localStorage.getItem('starlight-accent');return(a&&['blue','emerald','amber','purple'].indexOf(a)>-1)?a:'blue'}function apply(doc){doc.documentElement.setAttribute('data-color-scheme',getScheme());var accent=getAccent();if(accent!=='blue')doc.documentElement.setAttribute('data-accent',accent);else doc.documentElement.removeAttribute('data-accent')}apply(document);document.addEventListener('astro:before-swap',function(e){apply(e.newDocument)})})();`,
 				},
 				{
 					tag: 'script',

@@ -1,8 +1,11 @@
 ---
 /**
- * Custom ThemeSelect component that extends Starlight's default with
- * multiple accent color themes (Blue, Emerald, Amber, Purple) each
- * with dark and light variants.
+ * Custom ThemeSelect component that presents combined theme options
+ * (e.g., "Blue Dark", "Emerald Light") but internally sets two attributes:
+ * - data-color-scheme: "dark" or "light"
+ * - data-accent: "blue", "emerald", "amber", or "purple"
+ *
+ * This separation minimizes theme flash during navigation.
  */
 ---
 
@@ -11,20 +14,20 @@
 		<span class="sr-only">Select theme</span>
 		<select>
 			<optgroup label="Blue (Default)">
-				<option value="dark">Blue Dark</option>
-				<option value="light">Blue Light</option>
+				<option value="dark-blue">Blue Dark</option>
+				<option value="light-blue">Blue Light</option>
 			</optgroup>
 			<optgroup label="Emerald">
-				<option value="emerald">Emerald Dark</option>
-				<option value="emerald-light">Emerald Light</option>
+				<option value="dark-emerald">Emerald Dark</option>
+				<option value="light-emerald">Emerald Light</option>
 			</optgroup>
 			<optgroup label="Amber">
-				<option value="amber">Amber Dark</option>
-				<option value="amber-light">Amber Light</option>
+				<option value="dark-amber">Amber Dark</option>
+				<option value="light-amber">Amber Light</option>
 			</optgroup>
 			<optgroup label="Purple">
-				<option value="purple">Purple Dark</option>
-				<option value="purple-light">Purple Light</option>
+				<option value="dark-purple">Purple Dark</option>
+				<option value="light-purple">Purple Light</option>
 			</optgroup>
 		</select>
 		<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -34,72 +37,91 @@
 </starlight-theme-select>
 
 <script>
-	type Theme = 'dark' | 'light' | 'emerald' | 'emerald-light' | 'amber' | 'amber-light' | 'purple' | 'purple-light';
+	type ColorScheme = 'dark' | 'light';
+	type Accent = 'blue' | 'emerald' | 'amber' | 'purple';
+	type ThemeValue = `${ColorScheme}-${Accent}`;
 
 	class StarlightThemeSelect extends HTMLElement {
 		#select: HTMLSelectElement | null = null;
-		#STORAGE_KEY = 'starlight-theme';
+		#SCHEME_KEY = 'starlight-color-scheme';
+		#ACCENT_KEY = 'starlight-accent';
 
 		constructor() {
 			super();
 			this.#select = this.querySelector('select');
 
-			// Initialize on construction
-			this.#initTheme();
+			this.#init();
 
-			// Listen for changes
 			this.#select?.addEventListener('change', () => {
-				const theme = this.#select?.value as Theme;
-				this.#setTheme(theme);
+				const value = this.#select?.value as ThemeValue;
+				this.#setTheme(value);
+			});
+
+			// Handle View Transitions
+			document.addEventListener('astro:before-swap', (e: any) => {
+				const { scheme, accent } = this.#getStoredTheme();
+				this.#applyToDocument(e.newDocument, scheme, accent);
+			});
+
+			document.addEventListener('astro:after-swap', () => {
+				this.#syncSelect();
 			});
 		}
 
-		#initTheme() {
-			const stored = this.#getStoredTheme();
-			const theme = stored || this.#getPreferredTheme();
+		#init() {
+			const { scheme, accent } = this.#getStoredTheme();
+			this.#applyToDocument(document, scheme, accent);
+			this.#syncSelect();
+		}
 
-			// Set the select value
+		#syncSelect() {
+			const { scheme, accent } = this.#getStoredTheme();
 			if (this.#select) {
-				this.#select.value = theme;
+				this.#select.value = `${scheme}-${accent}`;
 			}
-
-			// Apply theme
-			this.#applyTheme(theme);
 		}
 
-		#getStoredTheme(): Theme | null {
-			if (typeof localStorage === 'undefined') return null;
-			const stored = localStorage.getItem(this.#STORAGE_KEY);
-			if (this.#isValidTheme(stored)) {
-				return stored as Theme;
-			}
-			return null;
-		}
+		#getStoredTheme(): { scheme: ColorScheme; accent: Accent } {
+			let scheme: ColorScheme = 'dark';
+			let accent: Accent = 'blue';
 
-		#getPreferredTheme(): Theme {
-			// Check system preference for dark/light
-			if (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: light)').matches) {
-				return 'light';
-			}
-			return 'dark';
-		}
-
-		#isValidTheme(theme: string | null): boolean {
-			return ['dark', 'light', 'emerald', 'emerald-light', 'amber', 'amber-light', 'purple', 'purple-light'].includes(theme || '');
-		}
-
-		#setTheme(theme: Theme) {
-			// Store preference
 			if (typeof localStorage !== 'undefined') {
-				localStorage.setItem(this.#STORAGE_KEY, theme);
+				const storedScheme = localStorage.getItem(this.#SCHEME_KEY);
+				if (storedScheme === 'dark' || storedScheme === 'light') {
+					scheme = storedScheme;
+				} else if (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: light)').matches) {
+					scheme = 'light';
+				}
+
+				const storedAccent = localStorage.getItem(this.#ACCENT_KEY);
+				if (storedAccent && ['blue', 'emerald', 'amber', 'purple'].includes(storedAccent)) {
+					accent = storedAccent as Accent;
+				}
+			} else if (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: light)').matches) {
+				scheme = 'light';
 			}
 
-			// Apply theme
-			this.#applyTheme(theme);
+			return { scheme, accent };
 		}
 
-		#applyTheme(theme: Theme) {
-			document.documentElement.setAttribute('data-theme', theme);
+		#setTheme(value: ThemeValue) {
+			const [scheme, accent] = value.split('-') as [ColorScheme, Accent];
+
+			if (typeof localStorage !== 'undefined') {
+				localStorage.setItem(this.#SCHEME_KEY, scheme);
+				localStorage.setItem(this.#ACCENT_KEY, accent);
+			}
+
+			this.#applyToDocument(document, scheme, accent);
+		}
+
+		#applyToDocument(doc: Document, scheme: ColorScheme, accent: Accent) {
+			doc.documentElement.setAttribute('data-color-scheme', scheme);
+			if (accent === 'blue') {
+				doc.documentElement.removeAttribute('data-accent');
+			} else {
+				doc.documentElement.setAttribute('data-accent', accent);
+			}
 		}
 	}
 
@@ -160,7 +182,6 @@
 		color: var(--sl-color-gray-4);
 	}
 
-	/* Screen reader only class */
 	.sr-only {
 		position: absolute;
 		width: 1px;
