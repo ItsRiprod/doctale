@@ -328,19 +328,8 @@ manager.invalidateLoadedChunks();
 3. Check neighbor chunk sections if needed
 4. Wait for neighbors if not yet calculated
 
-```
-Propagation from center block:
+![Light propagates with different reduction values: -1 for sides, -2 for edges, -3 for corners](/images/world/light-propagation-pattern.png)
 
-          Corner (-3)
-         /
-     Edge (-2)
-    /
-Side (-1) ─ CENTER ─ Side (-1)
-    \
-     Edge (-2)
-         \
-          Corner (-3)
-```
 
 ## Commands
 

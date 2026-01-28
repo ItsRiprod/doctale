@@ -1,139 +1,82 @@
 ---
-title: "Hytale Server Modding"
-description: "Comprehensive documentation for developing server-side plugins for Hytale."
+title: "Hytale Documentation"
+description: "Community-driven documentation for Hytale server modding - assets, plugins, and everything in between."
 template: splash
 hero:
-  tagline: Build powerful server plugins with Java. Comprehensive API documentation, tutorials, and examples for Hytale modders.
+  tagline: By modders, for modders.
   actions:
     - text: Get Started
       link: /getting-started/setup/
       icon: right-arrow
       variant: primary
-    - text: API Reference
-      link: /plugin-development/world/overview/
-      icon: seti:folder
-      variant: secondary
     - text: GitHub
       link: https://github.com/ItsRiprod/doctale
       icon: github
       variant: minimal
 ---
 
-{/* [VERIFIED: 2026-01-20] */}
+{/* [VERIFIED: 2026-01-27] */}
 
-import { Card, CardGrid, LinkCard, Aside } from '@astrojs/starlight/components';
+import { Card, CardGrid, LinkCard, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Choose Your Path
+
+<CardGrid>
+	<Card title="Asset Development">
+		Create items, blocks, NPCs, and effects with JSON.
+
+		[Explore Assets →](/asset-development/overview/)
+	</Card>
+	<Card title="Plugin Development">
+		Write Java plugins with events, commands, and full API access.
+
+		[Start Coding →](/getting-started/setup/)
+	</Card>
+</CardGrid>
+
+```mermaid
+flowchart LR
+    subgraph Assets[Asset Development]
+        A1[Items & Weapons]
+        A2[Blocks & World]
+        A3[NPCs & AI]
+        A4[Audio & VFX]
+    end
+
+    subgraph Plugins[Plugin Development]
+        P1[Events & Commands]
+        P2[World Manipulation]
+        P3[Entity Systems]
+        P4[Networking]
+    end
+
+    Assets --> JSON[JSON Config]
+    Plugins --> Java[Java Code]
+```
+
+---
 
 ## Quick Start
 
-Get up and running in minutes with our step-by-step guides.
-
 <CardGrid>
-	<Card title="Setup Environment" icon="setting">
-		Install Java 21+, configure Gradle or Maven, and set up your development environment.
-
-		[Start Setup](/getting-started/setup/)
-	</Card>
-	<Card title="First Plugin" icon="rocket">
-		Create your first working plugin with event listeners, commands, and logging.
-
-		[Build Your First Plugin](/getting-started/first-plugin/)
-	</Card>
-	<Card title="Plugin Lifecycle" icon="random">
-		Understand how plugins are loaded, enabled, disabled, and unloaded by the server.
-
-		[Learn Lifecycle](/getting-started/plugin-lifecycle/)
-	</Card>
-	<Card title="Plugin Manifest" icon="document">
-		Configure your plugin.json with metadata, dependencies, and entry points.
-
-		[Configure Manifest](/getting-started/plugin-manifest/)
-	</Card>
+	<LinkCard
+		title="Setup Environment"
+		description="Install Java 21+, configure your build tools, and prepare your IDE."
+		href="/getting-started/setup/"
+	/>
+	<LinkCard
+		title="Your First Plugin"
+		description="Build a working plugin with events, commands, and logging."
+		href="/getting-started/first-plugin/"
+	/>
 </CardGrid>
 
 ---
 
-## Core Concepts
+## See It In Action
 
-Master the fundamental systems that power Hytale server plugins.
-
-<CardGrid>
-	<Card title="Event System" icon="warning">
-		Subscribe to and handle game events with priority ordering and cancellation.
-
-		[Explore Events](/plugin-development/core-concepts/event-system/)
-	</Card>
-	<Card title="Entity Component System" icon="puzzle">
-		Learn the ECS architecture: Components store data, Systems process behavior.
-
-		[Understand ECS](/plugin-development/core-concepts/ecs-overview/)
-	</Card>
-	<Card title="Commands" icon="seti:shell">
-		Create commands with argument parsing, tab completion, and permissions.
-
-		[Build Commands](/plugin-development/core-concepts/commands/)
-	</Card>
-	<Card title="Registries" icon="list-format">
-		Access game registries for blocks, items, entities, and more.
-
-		[Browse Registries](/plugin-development/core-concepts/registries/)
-	</Card>
-</CardGrid>
-
----
-
-## API Reference
-
-Comprehensive documentation for every system in the Hytale server API.
-
-<CardGrid>
-	<LinkCard
-		title="World & Chunks"
-		description="Block manipulation, chunk loading, lighting, and terrain."
-		href="/plugin-development/world/overview/"
-	/>
-	<LinkCard
-		title="Entities"
-		description="Players, NPCs, mobs, effects, and entity components."
-		href="/plugin-development/entities/overview/"
-	/>
-	<LinkCard
-		title="Networking"
-		description="Packets, handlers, and client-server synchronization."
-		href="/plugin-development/networking/overview/"
-	/>
-	<LinkCard
-		title="Physics"
-		description="Collision detection, hitboxes, and movement systems."
-		href="/plugin-development/physics/overview/"
-	/>
-</CardGrid>
-
-<details>
-<summary>**View All API Categories**</summary>
-
-| Category | Description |
-|----------|-------------|
-| [Assets](/asset-development/overview/) | Asset types, loaders, and resource management |
-| [Blocks](/plugin-development/blocks/overview/) | Block states, properties, and manipulation |
-| [ECS Components](/plugin-development/ecs/component-catalog/) | Complete component type reference |
-| [Events](/plugin-development/events/event-catalog/) | All available server events |
-| [Interaction](/plugin-development/interactions/overview/) | Player-world interaction systems |
-| [Inventory](/plugin-development/inventory/overview/) | Container types and item management |
-| [Math](/plugin-development/math/overview/) | Vectors, matrices, shapes, and raycasting |
-| [NPC](/plugin-development/npc/overview/) | Flock AI and NPC behavior |
-| [Permissions](/plugin-development/permissions/overview/) | Permission nodes and checking |
-| [Serialization](/plugin-development/serialization/overview/) | Codecs and data serialization |
-| [Server Config](/plugin-development/server/configuration/) | Server configuration options |
-| [World Generation](/plugin-development/worldgen/overview/) | Terrain and structure generation |
-
-</details>
-
----
-
-## Example Code
-
-Here's a quick taste of what Hytale plugin development looks like:
-
+<Tabs>
+	<TabItem label="Java Plugin">
 ```java title="MyPlugin.java"
 public class MyPlugin extends JavaPlugin {
     public MyPlugin(JavaPluginInit init) {
@@ -142,69 +85,71 @@ public class MyPlugin extends JavaPlugin {
 
     @Override
     protected void setup() {
-        // Register an event listener
         getEventRegistry().register(PlayerConnectEvent.class, event -> {
             getLogger().info("Welcome, " + event.getPlayerRef().getUsername() + "!");
         });
-
-        // Register a command
-        getCommandRegistry().register(new HelloCommand());
     }
 }
 ```
+	</TabItem>
+	<TabItem label="JSON Asset">
+```json title="Weapon_Sword_Custom.json"
+{
+  "Parent": "Template_Weapon_Sword",
+  "Model": "Items/Weapons/Sword/Custom.blockymodel",
+  "Quality": "Rare",
+  "MaxDurability": 150,
+  "InteractionVars": {
+    "Swing_Left_Damage": {
+      "DamageCalculator": { "BaseDamage": { "Physical": 18 } }
+    }
+  }
+}
+```
+	</TabItem>
+</Tabs>
 
 ---
 
-## Documentation Status
-
-<Aside type="note" title="About This Documentation">
-All content on this site was **curated by an LLM (Claude)** through systematic analysis of decompiled Hytale server source code. This is an unofficial, community-driven resource—not affiliated with or endorsed by Hypixel Studios. API signatures and behaviors may change between server versions.
-</Aside>
-
-| Section | Files | Status |
-|---------|-------|--------|
-| Getting Started | 4 | <span class="status-badge status-verified">Verified</span> |
-| Asset Development | 29 | <span class="status-badge status-verified">Verified</span> |
-| Plugin Development | 37 | <span class="status-badge status-verified">Verified</span> |
-| Tutorials | 3 | <span class="status-badge status-progress">In Progress</span> |
-| Appendix | 1 | <span class="status-badge status-verified">Verified</span> |
-
----
-
-## Resources
+## Explore the Docs
 
 <CardGrid>
 	<LinkCard
-		title="Built-in Plugins"
-		description="Learn from real examples in Hytale's 31 built-in plugins."
-		href="/tutorials/builtin-plugins/"
+		title="Items & Weapons"
+		description="Swords, tools, armor, recipes, and durability."
+		href="/asset-development/items/overview/"
 	/>
 	<LinkCard
-		title="Glossary"
-		description="Definitions for common Hytale modding terminology."
-		href="/appendix/glossary/"
+		title="NPCs & Behaviors"
+		description="Creature models, AI, groups, and spawning."
+		href="/asset-development/npcs/overview/"
+	/>
+	<LinkCard
+		title="Events & Commands"
+		description="React to player actions and create commands."
+		href="/plugin-development/core-concepts/event-system/"
+	/>
+	<LinkCard
+		title="World & Physics"
+		description="Blocks, collision, hitboxes, and terrain."
+		href="/plugin-development/world/overview/"
 	/>
 </CardGrid>
 
 ---
 
-## Contribute
+## Learn from Examples
 
-This documentation is open source and community-driven. Help us improve it!
+Hytale includes **31 built-in plugins**. Study real implementations.
 
-<CardGrid>
-	<LinkCard
-		title="GitHub Repository"
-		description="View the source code, report issues, or submit improvements."
-		href="https://github.com/ItsRiprod/doctale"
-	/>
-	<LinkCard
-		title="Contributing Guide"
-		description="Learn how to contribute documentation, fix errors, or add examples."
-		href="https://github.com/ItsRiprod/doctale/blob/main/CONTRIBUTING.md"
-	/>
-</CardGrid>
+<LinkCard
+	title="Built-in Plugins Reference"
+	description="Explore official plugin code and learn proven patterns."
+	href="/tutorials/builtin-plugins/"
+/>
 
-<Aside type="tip" title="Found an Error?">
-If you find inaccuracies or missing information, please [open an issue](https://github.com/ItsRiprod/doctale/issues/new/choose) or submit a pull request. All contributions are welcome!
+---
+
+<Aside type="note">
+This is an unofficial community resource curated from decompiled source analysis. Not affiliated with Hypixel Studios.
 </Aside>

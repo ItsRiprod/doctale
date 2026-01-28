@@ -15,7 +15,7 @@
 /fonts/*
   Cache-Control: public, max-age=31536000, immutable
 
-# Cache images
+# Cache images (root and all subdirectories)
 /*.svg
   Cache-Control: public, max-age=604800
 
@@ -26,6 +26,9 @@
   Cache-Control: public, max-age=604800
 
 /*.webp
+  Cache-Control: public, max-age=604800
+
+/images/*
   Cache-Control: public, max-age=604800
 
 # Search index files

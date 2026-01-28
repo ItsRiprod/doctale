@@ -4,7 +4,19 @@ title: "Blockbench Setup"
 
 {/* [VERIFIED: 2026-01-20] */}
 
-import { Aside, Card, FileTree, CardGrid, LinkCard, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
+import {
+  Aside,
+  Card,
+  FileTree,
+  CardGrid,
+  LinkCard,
+  Steps,
+  Tabs,
+  TabItem,
+  Badge,
+  Image,
+} from "@astrojs/starlight/components";
+import blockbenchRequired from "../../../../../public/images/tutorials/blockbench/blockbench_required_install.png";
 
 Blockbench is the official tool for creating 3D models and animations for Hytale. This guide walks you through installing Blockbench and the Hytale plugin to start creating custom assets.
 
@@ -16,64 +28,73 @@ Blockbench is the official tool for creating 3D models and animations for Hytale
 
 ## Installation
 
-<Steps>
+### 1. Download Blockbench
 
-1. **Download Blockbench**
+Visit the [blockbench downloads page](https://www.blockbench.net/downloads) and download the installer
 
-   Visit [blockbench.net](https://blockbench.net) and download the installer for your operating system.
+<Tabs>
+<TabItem label="Windows">
+Download the `.exe` installer and run it. Follow the installation prompts.
+</TabItem>
+<TabItem label="macOS">
+Download the `.dmg` file. Open it and drag Blockbench to your Applications folder.
+</TabItem>
+<TabItem label="Linux">
+Download the `.AppImage` file. Make it executable with `chmod +x` and run it.
 
-   <Tabs>
-     <TabItem label="Windows">
-       Download the `.exe` installer and run it. Follow the installation prompts.
-     </TabItem>
-     <TabItem label="macOS">
-       Download the `.dmg` file. Open it and drag Blockbench to your Applications folder.
-     </TabItem>
-     <TabItem label="Linux">
-       Download the `.AppImage` file. Make it executable with `chmod +x` and run it.
-     </TabItem>
-   </Tabs>
+<Aside type="caution" title="Package Manager Warning">
+  You cannot install via package managers like APT or Snap as Hytale won't
+  detect those installations. ![Hytale stating the
+  requirement](/images/tutorials/blockbench/blockbench_required_install.png) *I
+  haven't been able to get this working personally - any advice would be
+  appreciated for getting this to work on Linux!*
+</Aside>
 
-2. **Install the Hytale Plugin**
+</TabItem>
+</Tabs>
 
-   The Hytale Blockbench plugin adds support for Hytale's model format and constraints.
+### 2. Install the Hytale Plugin
 
-   **Option A: From Blockbench (Recommended)**
-   - Open Blockbench
-   - Go to **File** > **Plugins**
-   - Search for "Hytale"
-   - Click **Install** on the Hytale Model plugin
+The Hytale Blockbench plugin adds support for Hytale's model format and constraints.
 
-   **Option B: Manual Installation**
-   - Download from [GitHub](https://github.com/JannisX11/hytale-blockbench-plugin)
-   - In Blockbench, go to **File** > **Plugins** > **Load Plugin from File**
-   - Select the downloaded `.js` file
+**Option A: From Blockbench (Recommended)**
 
-3. **Verify Installation**
+- Open Blockbench
+- Go to **File** > **Plugins**
+- Search for "Hytale"
+- Click **Install** on the Hytale Model plugin
+  ![Blockbench Plugin Location](/images/tutorials/blockbench/blockbench_install_plugin.png)
 
-   After installing the plugin, verify it's working:
-   - Go to **File** > **New**
-   - You should see **Hytale Model** as an option in the model type list
+**Option B: Manual Installation**
 
-   <Aside type="tip">
-   If you don't see "Hytale Model", restart Blockbench and check that the plugin is enabled in **File** > **Plugins**.
-   </Aside>
+- Download from [GitHub](https://github.com/JannisX11/hytale-blockbench-plugin)
+- In Blockbench, go to **File** > **Plugins** > **Load Plugin from File**
+- Select the downloaded `.js` file
 
-4. **Configure Settings (Optional)**
+### 3. Verify Installation
 
-   For the best experience, configure these Blockbench settings:
-   - **Settings** > **Grid** > Set snap to `1` for precise alignment
-   - **Settings** > **Preview** > Enable "Show Axes" for orientation reference
-   - Consider setting up your preferred keybindings
+After installing the plugin, verify it's working:
 
-</Steps>
+- Go to **File** > **New**
+- You should see **Hytale Model** as an option in the model type list
+
+<Aside type="tip">
+If you don't see "Hytale Model", restart Blockbench and check that the plugin is enabled in **File** > **Plugins**.
+</Aside>
+
+### 4. Configure Settings (Optional)
+
+For the best experience, configure these Blockbench settings:
+
+- **Settings** > **Grid** > Set snap to `1` for precise alignment
+- **Settings** > **Preview** > Enable "Show Axes" for orientation reference
+- Consider setting up your preferred keybindings
 
 ## Creating Your First Model
 
 <Steps>
 
 1. **Create a New Hytale Model**
-
    - Go to **File** > **New** > **Hytale Model**
    - Enter a model name (e.g., `My_Custom_Sword`)
    - Choose the appropriate scale:
@@ -81,19 +102,16 @@ Blockbench is the official tool for creating 3D models and animations for Hytale
      - **Characters/NPCs**: 64px = 1 block
 
 2. **Add Geometry**
-
    - Use the **Add Cube** tool to create basic shapes
    - Only cubes and flat quads are supported
    - Maximum 255 nodes per model
 
 3. **Apply Textures**
-
    - Create or import a texture (must be multiples of 32px)
    - Use the **Paint** tab to apply textures to faces
    - UV map faces for precise texture alignment
 
 4. **Export Your Model**
-
    - Go to **File** > **Export** > **Export Hytale Model**
    - Save as `.blockymodel` file
    - Export texture as `.png` separately
@@ -104,46 +122,45 @@ Blockbench is the official tool for creating 3D models and animations for Hytale
 
 Hytale models have specific technical constraints:
 
-| Constraint | Value | Notes |
-|------------|-------|-------|
-| **Max Nodes** | 255 | Includes cubes, groups, and bones |
-| **Geometry Types** | Cubes, Flat Quads | No triangles or complex meshes |
-| **Texture Sizes** | Multiples of 32px | 32, 64, 96, 128, 256, etc. |
-| **Grid Scale (Props)** | 32px = 1 block | Standard items and blocks |
-| **Grid Scale (Characters)** | 64px = 1 block | Player models and NPCs |
-| **Geometry Stretching** | 0.7x - 1.3x | Limited scaling per axis |
+| Constraint                  | Value             | Notes                             |
+| --------------------------- | ----------------- | --------------------------------- |
+| **Max Nodes**               | 255               | Includes cubes, groups, and bones |
+| **Geometry Types**          | Cubes, Flat Quads | No triangles or complex meshes    |
+| **Texture Sizes**           | Multiples of 32px | 32, 64, 96, 128, 256, etc.        |
+| **Grid Scale (Props)**      | 32px = 1 block    | Standard items and blocks         |
+| **Grid Scale (Characters)** | 64px = 1 block    | Player models and NPCs            |
+| **Geometry Stretching**     | 0.7x - 1.3x       | Limited scaling per axis          |
 
 <Aside type="danger">
-Exceeding the 255 node limit or using non-compliant geometry will cause export failures.
-Monitor your node count in the Outliner panel.
+  Exceeding the 255 node limit or using non-compliant geometry will cause export
+  failures. Monitor your node count in the Outliner panel.
 </Aside>
 
 ## File Types
 
 Blockbench with the Hytale plugin exports these file types:
 
-| Extension | Description | Usage |
-|-----------|-------------|-------|
-| `.blockymodel` | 3D model data | Model geometry and UV mapping |
-| `.blockyanim` | Animation data | Keyframe animations |
-| `.png` | Texture files | Model textures (32px multiples) |
+| Extension      | Description    | Usage                           |
+| -------------- | -------------- | ------------------------------- |
+| `.blockymodel` | 3D model data  | Model geometry and UV mapping   |
+| `.blockyanim`  | Animation data | Keyframe animations             |
+| `.png`         | Texture files  | Model textures (32px multiples) |
 
 ## Project Structure
 
 When creating assets for a plugin, organize files like this:
 
 <FileTree>
-- my-plugin/
-  - assets/
-    - item/
-      - MyPlugin_Custom_Sword.json
-    - model/
-      - MyPlugin/
-        - Weapons/
-          - Sword/
+  - my-plugin/
+      - assets/
+         - item/
+            - MyPlugin_Custom_Sword.json
+      - model/
+         - Weapons/
+            - Sword/
             - Custom.blockymodel
             - Custom_Texture.png
-  - plugin.json
+      - plugin.json
 </FileTree>
 
 ## Common Issues
@@ -160,19 +177,16 @@ When creating assets for a plugin, organize files like this:
 ### Export Fails
 
 <Aside type="tip" title="Solution">
-1. Verify node count is under 255
-2. Check all geometry is cubes or flat quads
-3. Ensure textures are multiples of 32px
-4. Remove any invalid geometry types
+  1. Verify node count is under 255 2. Check all geometry is cubes or flat quads
+  3. Ensure textures are multiples of 32px 4. Remove any invalid geometry types
 </Aside>
 
 ### Textures Look Wrong In-Game
 
 <Aside type="tip" title="Solution">
-1. Verify texture dimensions are 32px multiples
-2. Check UV mapping is correct
-3. Ensure texture path in JSON matches file location
-4. Use PNG format without transparency issues
+  1. Verify texture dimensions are 32px multiples 2. Check UV mapping is correct
+  3. Ensure texture path in JSON matches file location 4. Use PNG format without
+  transparency issues
 </Aside>
 
 ## Best Practices
@@ -195,6 +209,12 @@ To create animations:
    - Create a bone hierarchy in the Outliner
    - Name bones descriptively (e.g., `Handle`, `Blade`, `Guard`)
 
+   <Aside type="tip" title="Animation Tip">
+     Bones must be properly parented for animations to work correctly in Hytale.
+     Hytale animations rely on bone names to map actions!
+     Use an example from Assets that will have the same animations as your model to get the names
+   </Aside>
+
 2. **Open the Animation tab**
    - Click the **Animate** tab in Blockbench
    - Create a new animation
@@ -214,15 +234,15 @@ To create animations:
 
 For weapons, use these naming patterns:
 
-| Animation | Purpose |
-|-----------|---------|
-| `Idle` | Default held position |
-| `Swing_Left` | Left swing attack |
-| `Swing_Right` | Right swing attack |
-| `Swing_Down` | Overhead attack |
-| `Thrust` | Stabbing motion |
-| `Guard` | Blocking stance |
-| `Dropped` | Dropped on ground |
+| Animation     | Purpose               |
+| ------------- | --------------------- |
+| `Idle`        | Default held position |
+| `Swing_Left`  | Left swing attack     |
+| `Swing_Right` | Right swing attack    |
+| `Swing_Down`  | Overhead attack       |
+| `Thrust`      | Stabbing motion       |
+| `Guard`       | Blocking stance       |
+| `Dropped`     | Dropped on ground     |
 
 ## Resources
 

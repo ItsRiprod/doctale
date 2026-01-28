@@ -31,6 +31,9 @@ export default defineConfig({
 				src: './public/logo.svg',
 				alt: 'Hytale Server Modding',
 			},
+			components: {
+				ThemeSelect: './src/components/ThemeSelect.astro',
+			},
 			plugins: [
 				starlightImageZoom({
 					showCaptions: true
@@ -41,6 +44,20 @@ export default defineConfig({
 			],
 			favicon: '/favicon.svg',
 			head: [
+				{
+					tag: 'script',
+					attrs: { 'is:inline': true },
+					content: `
+						(function() {
+							var stored = localStorage.getItem('starlight-theme');
+							if (stored) {
+								document.documentElement.setAttribute('data-theme', stored);
+							} else if (window.matchMedia('(prefers-color-scheme: light)').matches) {
+								document.documentElement.setAttribute('data-theme', 'light');
+							}
+						})();
+					`,
+				},
 				{
 					tag: 'script',
 					content: `
