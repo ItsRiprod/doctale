@@ -25,7 +25,7 @@ export default defineConfig({
 		}),
 		starlight({
 			title: 'Hytale Server Modding',
-			description: 'AI-generated documentation for Hytale server plugin development, curated from decompiled source code analysis. Unofficial community resource.',
+			description: 'Documentation for Hytale server plugin development, curated from decompiled source code analysis. Unofficial community resource.',
 			credits: true,
 			logo: {
 				src: './public/logo.svg',
