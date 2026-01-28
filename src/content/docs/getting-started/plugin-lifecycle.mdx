@@ -15,14 +15,10 @@ Hytale plugins follow a well-defined lifecycle with distinct states and phases. 
 
 A plugin transitions through the following states during its lifecycle:
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                                                                 │
-│   NONE ──► SETUP ──► START ──► ENABLED ──► SHUTDOWN ──► DISABLED│
-│     ▲                                                      │    │
-│     └──────────────────────────────────────────────────────┘    │
-│                     (can be re-enabled)                         │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    NONE --> SETUP --> START --> ENABLED --> SHUTDOWN --> DISABLED
+    DISABLED -->|can be re-enabled| NONE
 ```
 
 ### State Definitions
