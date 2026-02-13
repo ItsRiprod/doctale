@@ -3,7 +3,7 @@ title: "Armor"
 description: "Create armor pieces with damage resistance and health bonuses that equip to head, chest, hands, and legs slots."
 ---
 
-{/* [VERIFIED: 2026-01-20] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 import { Aside, Card, CardGrid, LinkCard, Tabs, TabItem, FileTree, Badge } from '@astrojs/starlight/components';
 
@@ -97,10 +97,15 @@ Each armor piece equips to one of four slots:
 | `Armor` | `object` | Armor configuration block |
 | `Armor.ArmorSlot` | `string` | Equipment slot: `Head`, `Chest`, `Hands`, `Legs` |
 | `Armor.BaseDamageResistance` | `number` | Base resistance value (usually 0) |
-| `Armor.DamageResistance` | `object` | Damage reduction by type |
+| `Armor.DamageResistance` | `object` | Damage reduction by type (keyed by DamageCause id) |
+| `Armor.DamageEnhancement` | `object` | Outgoing damage enhancement by DamageCause type |
+| `Armor.DamageClassEnhancement` | `object` | Damage class buffs (`Light`, `Charged`, `Signature`) |
 | `Armor.StatModifiers` | `object` | Stat bonuses (Health, etc.) |
-| `Armor.CosmeticsToHide` | `string[]` | Cosmetic slots hidden by armor |
-| `Armor.DamageClassEnhancement` | `object` | Damage type buffs |
+| `Armor.CosmeticsToHide` | `Cosmetic[]` | Cosmetic enum values hidden by armor |
+| `Armor.KnockbackResistances` | `object` | Knockback reduction by DamageCause type |
+| `Armor.KnockbackEnhancements` | `object` | Knockback increase by DamageCause type |
+| `Armor.Regenerating` | `object` | Stat regeneration config by EntityStatType |
+| `Armor.InteractionModifiers` | `object` | Modifier overrides for specific interactions |
 
 ### Durability Properties
 
@@ -554,35 +559,48 @@ Higher-tier materials require higher bench tiers:
 ```java title="ArmorExample.java"
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.asset.type.item.config.ItemArmor;
+import com.hypixel.hytale.protocol.ItemArmorSlot;
+import com.hypixel.hytale.protocol.Cosmetic;
+import com.hypixel.hytale.server.core.modules.entity.damage.DamageCause;
+import com.hypixel.hytale.server.core.modules.entitystats.modifier.StaticModifier;
+import com.hypixel.hytale.server.core.modules.interaction.interaction.config.server.combat.DamageClass;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import java.util.Map;
 
 public class ArmorExample {
     public void accessArmor() {
         Item chestplate = Item.getAssetMap().get("Armor_Iron_Chest");
 
         if (chestplate != null) {
-            // Get armor configuration
             ItemArmor armorConfig = chestplate.getArmor();
 
             if (armorConfig != null) {
-                // Get slot
-                String slot = armorConfig.getArmorSlot();  // "Chest"
+                ItemArmorSlot slot = armorConfig.getArmorSlot();
 
-                // Get damage resistance
-                Map<String, List<Modifier>> resistance = armorConfig.getDamageResistance();
+                double baseResistance = armorConfig.getBaseDamageResistance();
 
-                // Get stat modifiers
-                Map<String, List<Modifier>> stats = armorConfig.getStatModifiers();
+                Map<DamageCause, StaticModifier[]> resistance = armorConfig.getDamageResistanceValues();
 
-                // Get cosmetics to hide
-                String[] hiddenCosmetics = armorConfig.getCosmeticsToHide();
+                Int2ObjectMap<StaticModifier[]> stats = armorConfig.getStatModifiers();
+
+                Map<DamageCause, StaticModifier[]> dmgEnhancement = armorConfig.getDamageEnhancementValues();
+
+                Map<DamageClass, StaticModifier[]> classEnhancement = armorConfig.getDamageClassEnhancement();
+
+                Map<DamageCause, Float> kbResistances = armorConfig.getKnockbackResistances();
+
+                Map<DamageCause, Float> kbEnhancements = armorConfig.getKnockbackEnhancements();
             }
 
-            // Get durability
             double maxDurability = chestplate.getMaxDurability();
         }
     }
 }
 ```
+
+<Aside type="caution">
+  The `cosmeticsToHide` field is a `Cosmetic[]` (enum array) on the internal class, but there is no public getter for it. It is serialized to the protocol packet directly. The `StatModifiers` getter returns an `Int2ObjectMap` where the integer key is the resolved index of the EntityStatType, not the original string key from JSON.
+</Aside>
 
 ## Creating Custom Armor
 

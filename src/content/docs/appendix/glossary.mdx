@@ -17,6 +17,9 @@ This glossary defines terms commonly used throughout the Hytale Server Modding d
 ### Archetype
 A specific combination of components that defines an entity type. Entities with the same set of components share the same archetype. Archetypes enable efficient storage and querying.
 
+### ArchetypeChunk
+A batch of entities that share the same archetype, stored contiguously in memory. Systems iterate over archetype chunks for cache-friendly access. Not to be confused with world Chunks.
+
 ### Asset
 Game content defined in JSON files, such as block types, items, sounds, and particles. Assets are loaded from asset packs and can be modified or extended by plugins.
 
@@ -43,7 +46,7 @@ A type of codec that uses a builder pattern for defining serialization. It allow
 ## C
 
 ### Chunk
-A 32x320x32 block column in the world (`ChunkUtil.SIZE=32`, `ChunkUtil.HEIGHT=320`). Chunks are the fundamental unit of world loading and saving.
+A 32x320x32 block column in the world (`ChunkUtil.SIZE=32`, `ChunkUtil.HEIGHT=320`), divided into 10 sections of 32x32x32 each. Chunks are the fundamental unit of world loading and saving.
 
 ### ChunkStore
 The ECS store that manages chunk-level components and data, such as block states.
@@ -51,11 +54,17 @@ The ECS store that manages chunk-level components and data, such as block states
 ### Codec
 A serialization/deserialization mechanism used throughout Hytale for converting objects to/from BSON or JSON format.
 
+### CodecMapCodec
+A codec that dispatches to different sub-codecs based on a type discriminator field. Used for polymorphic serialization (e.g., different action types sharing a base class).
+
 ### CommandBuffer
 A buffer that collects ECS operations during system execution. Operations are applied atomically after system processing completes.
 
 ### Component
 A data container attached to entities or chunks in the ECS. Components hold state but no behavior.
+
+### ComponentAccessor
+A common interface for reading and writing components on entities. Both `Store` and `CommandBuffer` implement it.
 
 ### ComponentType
 A type descriptor that identifies and provides metadata for a component class.
@@ -79,6 +88,9 @@ The central dispatcher that manages event listeners and delivers events to regis
 
 ### EventPriority
 The order in which event listeners are called. Priorities range from FIRST (-21844) to LAST (21844).
+
+### ExtraInfo
+Context object passed through codec encode/decode operations. Tracks the current path, collects validation errors, and carries contextual state.
 
 ## F
 
@@ -134,6 +146,9 @@ An NPC component that handles movement calculations for different locomotion typ
 
 ## N
 
+### NetworkId
+An ECS component that assigns a network identifier to an entity, allowing it to be sent to and tracked by clients. Entities without a NetworkId exist only server-side.
+
 ### NPC (Non-Player Character)
 An AI-controlled entity with a Role that defines its behavior.
 
@@ -143,10 +158,10 @@ An AI-controlled entity with a Role that defines its behavior.
 The primary interface for working with connected players. It bridges network connections with in-world entities.
 
 ### Plugin
-A server extension that adds or modifies functionality. Plugins are packaged as JAR files with a plugin.json manifest.
+A server extension that adds or modifies functionality. Plugins are packaged as JAR files with a manifest.json manifest.
 
 ### PluginManifest
-The metadata file (plugin.json) that describes a plugin, including its name, version, dependencies, and entry point.
+The metadata file (manifest.json) that describes a plugin, including its name, version, dependencies, and entry point.
 
 ### Prefab
 A pre-built structure that can be placed in the world during generation or at runtime.
@@ -174,6 +189,9 @@ A type descriptor that identifies and provides metadata for a resource class.
 An NPC behavior configuration that defines AI, stats, and appearance.
 
 ## S
+
+### Section
+A 32x32x32 block sub-unit of a chunk. Each chunk column contains 10 sections stacked vertically (`ChunkUtil.HEIGHT_SECTIONS=10`). Lighting and block storage operate at the section level.
 
 ### Semver
 Semantic versioning format (MAJOR.MINOR.PATCH) used for plugin versions.

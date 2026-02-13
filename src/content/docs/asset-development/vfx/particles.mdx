@@ -49,7 +49,7 @@ Particle textures are in `Assets/Common/Particles/Textures/`.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `RenderMode` | `string` | Rendering type (`Erosion`, `Additive`, etc.) |
+| `RenderMode` | `string` | Rendering type (`BlendLinear`, `BlendAdd`, `Erosion`, `Distortion`) |
 | `Particle` | `object` | Particle appearance configuration |
 | `SpawnRate` | `MinMax` | Particles per second |
 | `ParticleLifeSpan` | `MinMax` | Particle duration (seconds) |
@@ -308,15 +308,16 @@ Attractors apply forces to particles:
 
 | Mode | Description |
 |------|-------------|
-| `Erosion` | Standard blending |
-| `Additive` | Light emission effect |
-| `Multiply` | Darkening effect |
+| `BlendLinear` | Standard linear blending (default) |
+| `BlendAdd` | Additive blending for light emission effects like fire and sparks |
+| `Erosion` | Erosion-based dissolve effect |
+| `Distortion` | Screen-space distortion for heat haze and refraction effects |
 
 ## Creating Custom Particles
 
 ```json title="MyPlugin_CustomEffect.particlespawner"
 {
-  "RenderMode": "Additive",
+  "RenderMode": "BlendAdd",
   "EmitOffset": {
     "X": { "Min": -0.5, "Max": 0.5 },
     "Y": { "Min": 0, "Max": 1 },

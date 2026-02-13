@@ -1,6 +1,6 @@
 ---
 title: "Packet Types Catalog"
-description: "Complete catalog of all 354 packet types in the Hytale protocol organized by category and direction."
+description: "Complete catalog of all 268 packet types in the Hytale protocol organized by category and direction."
 ---
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
@@ -9,7 +9,7 @@ import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight
 
 # Packet Types Catalog
 
-Complete catalog of all 354 packet types in the Hytale protocol, organized by category.
+Complete catalog of all 268 packet types in the Hytale protocol, organized by category.
 
 ## Package Location
 
@@ -416,24 +416,25 @@ Complete catalog of all 354 packet types in the Hytale protocol, organized by ca
 |----------|-------|-------------------|
 | Connection | 4 | Bidirectional |
 | Authentication | 9 | S→C |
-| Setup | 16 | S→C |
+| Setup | 15 | S→C |
 | Assets | 46 | S→C |
 | Player | 20 | Mixed |
-| World | 32 | S→C |
+| World | 28 | S→C |
 | Entities | 7 | S→C |
 | Inventory | 10 | Mixed |
 | Window | 5 | S→C |
 | Interface | 23 | S→C |
 | World Map | 6 | Mixed |
-| Server Access | 4 | Mixed |
+| Server Access | 3 | Mixed |
 | Machinima | 3 | S→C |
 | Camera | 4 | Mixed |
 | Interaction | 5 | Mixed |
 | Asset Editor | 56 | Mixed |
-| Builder Tools | 23 | C→S |
-| **Total** | **354** | |
+| Builder Tools | 24 | C→S |
+| **Total** | **268** | |
 
 ## Related
 
-- [Networking Overview](/plugin-development/entities/overview/) - Packet system architecture
-- [Event System](/plugin-development/core-concepts/event-system/) - Server events
+- [Networking Overview](/plugin-development/networking/overview/) - Packet system architecture
+- [Packet Handlers](/plugin-development/networking/packet-handlers/) - Handler types and usage
+- [Client Sync](/plugin-development/networking/client-sync/) - Client-server synchronization

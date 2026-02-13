@@ -45,7 +45,7 @@ Create a new project with this structure:
               - commands/
                 - GreetCommand.java
       - resources/
-        - plugin.json
+        - manifest.json
 </FileTree>
 
 ### build.gradle
@@ -74,7 +74,7 @@ dependencies {
 
 jar {
     from('src/main/resources') {
-        include 'plugin.json'
+        include 'manifest.json'
     }
 }
 ```
@@ -87,7 +87,7 @@ rootProject.name = 'greeter-plugin'
 
 ## Step 2: Plugin Manifest
 
-Create `src/main/resources/plugin.json`:
+Create `src/main/resources/manifest.json`:
 
 ```json
 {
@@ -118,7 +118,7 @@ import javax.annotation.Nonnull;
 
 public class GreeterConfig {
 
-    // Define the codec for serialization/deserialization
+    // codec for serialization/deserialization
     @Nonnull
     public static final BuilderCodec<GreeterConfig> CODEC = BuilderCodec
         .builder(GreeterConfig.class, GreeterConfig::new)
@@ -142,7 +142,7 @@ public class GreeterConfig {
         .add()
         .build();
 
-    // Configuration fields with defaults
+    // fields with defaults
     private String welcomeMessage = "Welcome to the server, %s!";
     private String greetMessage = "%s says hello to %s!";
     private boolean enableWelcome = true;
@@ -189,7 +189,7 @@ public class GreetCommand extends AbstractPlayerCommand {
         super("greet", "Greet another player");
         this.plugin = plugin;
 
-        // Add a required player argument using ArgTypes.PLAYER_REF
+        // add a required player argument using ArgTypes.PLAYER_REF
         this.targetArg = addArgument("target", ArgTypes.PLAYER_REF);
     }
 
@@ -201,7 +201,7 @@ public class GreetCommand extends AbstractPlayerCommand {
             @Nonnull PlayerRef playerRef,
             @Nonnull World world) {
 
-        // Get the target player from the argument
+        // get the target player from the argument
         PlayerRef target = context.get(targetArg);
 
         if (target == null) {
@@ -214,14 +214,14 @@ public class GreetCommand extends AbstractPlayerCommand {
             return;
         }
 
-        // Format and broadcast the greeting
+        // format and broadcast the greeting
         String message = String.format(
             plugin.getConfig().getGreetMessage(),
             playerRef.getUsername(),
             target.getUsername()
         );
 
-        // Send success message
+        // send success message
         context.sendSuccess(message);
     }
 }
@@ -247,7 +247,6 @@ public class GreeterPlugin extends JavaPlugin {
 
     private static GreeterPlugin instance;
 
-    // Configuration holder
     private final Config<GreeterConfig> config;
 
     public static GreeterPlugin getInstance() {
@@ -256,7 +255,7 @@ public class GreeterPlugin extends JavaPlugin {
 
     public GreeterPlugin(@Nonnull JavaPluginInit init) {
         super(init);
-        // Register config in constructor (before setup)
+        // register config in constructor (before setup)
         this.config = withConfig(GreeterConfig.CODEC);
     }
 
@@ -264,10 +263,10 @@ public class GreeterPlugin extends JavaPlugin {
     protected void setup() {
         instance = this;
 
-        // Register the greet command
+        // register the greet command
         getCommandRegistry().register(new GreetCommand(this));
 
-        // Register player connect event listener
+        // register player connect event listener
         getEventRegistry().register(
             EventPriority.NORMAL,
             PlayerConnectEvent.class,
@@ -292,23 +291,17 @@ public class GreeterPlugin extends JavaPlugin {
         instance = null;
     }
 
-    /**
-     * Get the plugin configuration.
-     */
     @Nonnull
     public GreeterConfig getConfig() {
         return config.get();
     }
 
-    /**
-     * Handle player connection events.
-     */
     private void onPlayerConnect(PlayerConnectEvent event) {
         if (!getConfig().isEnableWelcome()) {
             return;
         }
 
-        // Use getPlayerRef() instead of deprecated getPlayer()
+        // use getPlayerRef() instead of deprecated getPlayer()
         String welcomeMessage = String.format(
             getConfig().getWelcomeMessage(),
             event.getPlayerRef().getUsername()

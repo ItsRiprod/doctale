@@ -65,6 +65,32 @@ Consumables are items that are used up when activated, providing effects such as
 | `DropOnDeath` | `boolean` | `true` | Whether item drops when player dies |
 | `Scale` | `number` | `1.0` | Model display scale |
 
+### BlockType (World Placement)
+
+Every consumable defines a `BlockType` that controls how the item looks and behaves when placed as a block in the world (dropped on surfaces, set on tables, etc.). The item's `BlockType` creates an inline block definition — its block ID is automatically set to the item's own ID.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Material` | `string` | Block material type (typically `"Empty"` for consumables) |
+| `DrawType` | `string` | How the block is rendered (`"Model"` for all consumables) |
+| `HitboxType` | `string` | Collision shape (`"Food_Large"`, `"Food_Medium"`, `"Potion"`) |
+| `CustomModel` | `string` | Path to the `.blockymodel` used when placed |
+| `CustomModelTexture` | `object[]` | Texture entries with `Texture` path and `Weight` |
+| `CustomModelScale` | `number` | Scale of the model when rendered as a block |
+| `ParticleColor` | `string` | Hex color for break/interact particles |
+| `RandomRotation` | `string` | Rotation behavior when placed (e.g. `"YawStep1"`) |
+| `Gathering` | `object` | Gathering configuration (typically `{ "Harvest": {}, "Soft": {} }`) |
+| `Opacity` | `string` | Transparency level (`"Transparent"`, `"Semitransparent"`) |
+| `Support` | `object` | Placement support rules (e.g. requires a full face below) |
+| `Light` | `object` | Light emitted by the block (potions glow with `{ "Color": "#522" }`) |
+| `BlockParticleSetId` | `string` | Particle set for interactions (`"Dust"`, `"GlassMagic"`) |
+| `BlockSoundSetId` | `string` | Sound set for block interactions (`"Glass"`) |
+| `Flags` | `object` | Block flags like `{ "IsUsable": true }` |
+
+<Aside type="tip">
+Food items typically only need `Material`, `DrawType`, `CustomModel`, `CustomModelTexture`, and `ParticleColor`. Potions are more complex — they add `Opacity`, `Support`, `Light`, and `Flags` for their glass bottle appearance.
+</Aside>
+
 ### Effect Properties (InteractionVars)
 
 | Field | Type | Description |

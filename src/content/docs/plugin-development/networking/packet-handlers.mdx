@@ -5,7 +5,7 @@ description: "Process incoming packets and manage connection state with PacketHa
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 # Packet Handlers
 
@@ -129,7 +129,7 @@ public abstract class PacketHandler implements IPacketReceiver {
     public abstract void accept(@Nonnull Packet packet);
 
     // Disconnect
-    public void disconnect(Disconnect.Type type, @Nullable String reason);
+    public void disconnect(@Nonnull String message);
 }
 ```
 
@@ -140,8 +140,7 @@ Routes packets to registered consumers using O(1) array lookup:
 ```java
 package com.hypixel.hytale.server.core.io.handlers;
 
-public abstract class GenericPacketHandler extends PacketHandler
-        implements IPacketHandler {
+public abstract class GenericPacketHandler extends PacketHandler {
 
     // Register handler for packet ID
     public void registerHandler(int packetId, @Nonnull Consumer<Packet> handler);
@@ -375,6 +374,6 @@ public class ChatFilterHandler implements SubPacketHandler {
 
 ## Related
 
-- [Networking Overview](/plugin-development/entities/overview/) - Packet system architecture
+- [Networking Overview](/plugin-development/networking/overview/) - Packet system architecture
 - [Packet Types](/plugin-development/networking/packet-types/) - All packet type IDs
 - [Event System](/plugin-development/core-concepts/event-system/) - Server events

@@ -3,7 +3,7 @@ title: "Item System Overview"
 description: "Define weapons, tools, armor, consumables, and placeable blocks with custom models, textures, interactions, and crafting recipes."
 ---
 
-{/* [VERIFIED: 2026-01-20] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 import { Aside, Card, CardGrid, LinkCard, Tabs, TabItem, FileTree, Badge } from '@astrojs/starlight/components';
 
@@ -45,7 +45,7 @@ The Item System is the core framework for defining all holdable objects in Hytal
 
 ## Item Categories
 
-Hytale organizes items into 39 distinct categories:
+Hytale organizes items into data-driven categories (defined in `Assets/Server/Item/Items/Categories/`):
 
 <CardGrid>
   <Card title="Weapons" icon="warning">
@@ -117,12 +117,13 @@ Hytale organizes items into 39 distinct categories:
 | `Light` | `object` | - | Emitted light color/intensity |
 | `Reticle` | `string` | - | Crosshair type when held |
 
-### Durability Properties
+### Durability & Fuel Properties
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `MaxDurability` | `number` | `0` | Maximum durability (0 = unbreakable) |
 | `DurabilityLossOnHit` | `number` | `0` | Durability lost per hit |
+| `FuelQuality` | `number` | `1.0` | Fuel efficiency multiplier for processing benches (e.g. sticks = 4, tree sap = 6) |
 
 ### Interaction Properties
 
@@ -142,6 +143,7 @@ Hytale organizes items into 39 distinct categories:
 | `Glider` | `object` | Glider configuration |
 | `Utility` | `object` | Utility item settings |
 | `Consumable` | `boolean` | Whether item is consumed on use |
+| `State` | `map<string, Item>` | Defines named item variants that inherit from this item (e.g. a bucket with `Filled_Water` and `Filled_Milk` states) |
 
 ## Quality Tiers
 

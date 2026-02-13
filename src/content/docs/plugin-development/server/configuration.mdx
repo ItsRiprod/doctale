@@ -5,7 +5,7 @@ description: "Configure server settings, world options, and runtime parameters t
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 # Server Configuration
 
@@ -31,30 +31,26 @@ Main server configuration (loaded from `config.json`):
 package com.hypixel.hytale.server.core;
 
 public class HytaleServerConfig {
-    // Basic settings
     String serverName = "Hytale Server";
     String motd = "";
     String password = "";
     int maxPlayers = 100;
     int maxViewRadius = 32;
 
-    // Nested configs
     Defaults defaults;
-    ConnectionTimeouts connectionTimeouts;
-    RateLimitConfig rateLimit;
+    TimeoutProfile connectionTimeouts;
+    RateLimitConfig rateLimitConfig;
+    UpdateConfig updateConfig;
 
-    // Plugin/module configuration
     Map<String, Module> modules;
-    Map<PluginIdentifier, ModConfig> mods;
+    Map<PluginIdentifier, ModConfig> modConfig;
     Map<String, Level> logLevels;
 
-    // Storage
-    PlayerStorageProvider playerStorage;
-    BsonDocument authCredentialStore;
+    PlayerStorageProvider playerStorageProvider;
+    BsonDocument authCredentialStoreConfig;
 
-    // Loading
     public static HytaleServerConfig load();
-    public void save();
+    public static CompletableFuture<Void> save(@Nonnull HytaleServerConfig hytaleServerConfig);
 }
 ```
 
@@ -73,30 +69,99 @@ public class HytaleServerConfig {
 ```java
 public static class Defaults {
     String world = "default";
-    GameMode gameMode = GameMode.ADVENTURE;
+    GameMode gameMode = GameMode.Adventure;
 }
 ```
 
-### ConnectionTimeouts Config
+### TimeoutProfile Config
+
+The `TimeoutProfile` class (serialized under the `"ConnectionTimeouts"` JSON key) controls how long the server waits at each stage of a player's connection before timing them out. All fields are `Duration` types and use ISO-8601 format in JSON (e.g., `"PT30S"` for 30 seconds).
+
+Defaults vary depending on whether the server is running in singleplayer or multiplayer mode:
 
 ```java
-public static class ConnectionTimeouts {
-    Duration initialTimeout = Duration.ofSeconds(10);
-    Duration authTimeout = Duration.ofSeconds(30);
-    Duration playTimeout = Duration.ofMinutes(1);
-    Map<String, Duration> joinTimeouts = new HashMap<>();
+public static class TimeoutProfile {
+    Duration initial;
+    Duration auth;
+    Duration authGrant;
+    Duration authToken;
+    Duration authServerExchange;
+    Duration password;
+    Duration play;
+    Duration setupWorldSettings;
+    Duration setupAssetsRequest;
+    Duration setupSendAssets;
+    Duration setupAddToUniverse;
 }
 ```
+
+| JSON Key | Field | Singleplayer Default | Multiplayer Default | Description |
+|----------|-------|---------------------|---------------------|-------------|
+| `InitialTimeout` | initial | 30s | 15s | Initial connection window |
+| `AuthTimeout` | auth | 60s | 30s | Authentication handshake |
+| `AuthGrantTimeout` | authGrant | 60s | 30s | Auth grant response |
+| `AuthTokenTimeout` | authToken | 60s | 30s | Auth token exchange |
+| `AuthServerExchangeTimeout` | authServerExchange | 30s | 15s | Auth server exchange |
+| `PasswordTimeout` | password | 60s | 45s | Password entry |
+| `PlayTimeout` | play | 120s | 60s | Active play timeout |
+| `SetupWorldSettings` | setupWorldSettings | 30s | 15s | World settings setup |
+| `SetupAssetsRequest` | setupAssetsRequest | 300s | 120s | Asset request phase |
+| `SetupSendAssets` | setupSendAssets | 300s | 120s | Asset transfer phase |
+| `SetupAddToUniverse` | setupAddToUniverse | 120s | 60s | Adding player to universe |
+
+<Aside type="tip">
+Which set of defaults gets used is determined by `Constants.SINGLEPLAYER` (the `--singleplayer` flag). You can override any individual timeout in your `config.json` -- unset fields just fall back to the appropriate profile.
+</Aside>
 
 ### RateLimitConfig
 
 ```java
 public static class RateLimitConfig {
-    boolean enabled = true;
-    int packetsPerSecond = 2000;
-    int burstCapacity = 500;
+    Boolean enabled;
+    Integer packetsPerSecond;
+    Integer burstCapacity;
 }
 ```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `Enabled` | Boolean | true | Enable rate limiting |
+| `PacketsPerSecond` | Integer | 2000 | Max packets per second |
+| `BurstCapacity` | Integer | 500 | Burst packet allowance |
+
+### UpdateConfig
+
+The `UpdateConfig` class controls automatic server update behavior. It lets you configure update checking, notifications, backups before updating, and auto-apply behavior.
+
+```java
+public static class UpdateConfig {
+    Boolean enabled;
+    Integer checkIntervalSeconds;
+    Boolean notifyPlayersOnAvailable;
+    String patchline;
+    Boolean runBackupBeforeUpdate;
+    Boolean backupConfigBeforeUpdate;
+    AutoApplyMode autoApplyMode;
+    Integer autoApplyDelayMinutes;
+
+    public static enum AutoApplyMode {
+        DISABLED,
+        WHEN_EMPTY,
+        SCHEDULED;
+    }
+}
+```
+
+| JSON Key | Type | Default | Description |
+|----------|------|---------|-------------|
+| `Enabled` | Boolean | true | Enable update checking |
+| `CheckIntervalSeconds` | Integer | 3600 | How often to check for updates (in seconds) |
+| `NotifyPlayersOnAvailable` | Boolean | true | Notify online players when an update is available |
+| `Patchline` | String | null | Target patchline for updates (nullable) |
+| `RunBackupBeforeUpdate` | Boolean | true | Run a universe backup before applying an update |
+| `BackupConfigBeforeUpdate` | Boolean | true | Back up config files before applying an update |
+| `AutoApplyMode` | AutoApplyMode | DISABLED | When to auto-apply updates: `DISABLED`, `WHEN_EMPTY`, or `SCHEDULED` |
+| `AutoApplyDelayMinutes` | Integer | 30 | Delay in minutes before a scheduled auto-apply kicks in |
 
 ### Example config.json
 
@@ -112,14 +177,31 @@ public static class RateLimitConfig {
     "GameMode": "Adventure"
   },
   "ConnectionTimeouts": {
-    "InitialTimeout": "PT10S",
+    "InitialTimeout": "PT15S",
     "AuthTimeout": "PT30S",
-    "PlayTimeout": "PT1M"
+    "AuthGrantTimeout": "PT30S",
+    "AuthTokenTimeout": "PT30S",
+    "AuthServerExchangeTimeout": "PT15S",
+    "PasswordTimeout": "PT45S",
+    "PlayTimeout": "PT60S",
+    "SetupWorldSettings": "PT15S",
+    "SetupAssetsRequest": "PT120S",
+    "SetupSendAssets": "PT120S",
+    "SetupAddToUniverse": "PT60S"
   },
   "RateLimit": {
     "Enabled": true,
     "PacketsPerSecond": 2000,
     "BurstCapacity": 500
+  },
+  "Update": {
+    "Enabled": true,
+    "CheckIntervalSeconds": 3600,
+    "NotifyPlayersOnAvailable": true,
+    "RunBackupBeforeUpdate": true,
+    "BackupConfigBeforeUpdate": true,
+    "AutoApplyMode": "DISABLED",
+    "AutoApplyDelayMinutes": 30
   },
   "LogLevels": {},
   "Modules": {},
@@ -138,41 +220,34 @@ Per-world configuration (in `worlds/{name}/config.json`):
 package com.hypixel.hytale.server.core.universe.world;
 
 public class WorldConfig {
-    // Identity
     UUID uuid = UUID.randomUUID();
     String displayName;
     long seed = System.currentTimeMillis();
 
-    // Providers
     ISpawnProvider spawnProvider;
     IWorldGenProvider worldGen;
     IWorldMapProvider worldMap;
     IChunkStorageProvider chunkStorage;
 
-    // World rules
     boolean isTicking = true;
     boolean isBlockTicking = true;
     boolean isPvpEnabled = false;
     boolean isFallDamageEnabled = true;
     GameMode gameMode;
 
-    // Time and weather
     boolean isGameTimePaused = false;
-    Instant gameTime;  // Default: 5:30 AM
+    Instant gameTime;
     String forcedWeather;
 
-    // Spawning
     boolean isSpawningNPC = true;
     boolean isSpawnMarkersEnabled = true;
     boolean isAllNPCFrozen = false;
 
-    // Saving
     boolean isSavingPlayers = true;
     boolean isSavingChunks = true;
     boolean saveNewChunks = true;
     boolean isUnloadingChunks = true;
 
-    // Cleanup
     boolean deleteOnUniverseStart = false;
     boolean deleteOnRemove = false;
 }
@@ -196,8 +271,8 @@ public class WorldConfig {
 
 ```java
 public static class ChunkConfig {
-    Box2D pregenerateRegion;  // Default: -512 to +512
-    Box2D keepLoadedRegion;   // Chunks to keep loaded
+    Box2D pregenerateRegion;
+    Box2D keepLoadedRegion;
 }
 ```
 
@@ -269,11 +344,11 @@ package com.hypixel.hytale.server.core;
 
 public class Constants {
     public static final boolean DEBUG = true;
-    public static final boolean SINGLEPLAYER;  // From --singleplayer
-    public static final boolean ALLOWS_SELF_OP_COMMAND;  // From --allow-op
-    public static final boolean FRESH_UNIVERSE;  // True if new universe
-    public static final Path UNIVERSE_PATH;  // From --universe
-    public static final PluginManifest[] CORE_PLUGINS;  // 32 built-in plugins
+    public static final boolean SINGLEPLAYER;
+    public static final boolean ALLOWS_SELF_OP_COMMAND;
+    public static final boolean FRESH_UNIVERSE;
+    public static final Path UNIVERSE_PATH;
+    public static final PluginManifest[] CORE_PLUGINS;
 }
 ```
 
@@ -286,10 +361,9 @@ public interface PlayerStorageProvider {
     String getId();
 }
 
-// Default implementation
 public class DiskPlayerStorageProvider implements PlayerStorageProvider {
     public static final String ID = "Disk";
-    Path path;  // Default: {universe}/players/
+    Path path;
 }
 ```
 
@@ -316,18 +390,18 @@ public class DiskPlayerStorageProvider implements PlayerStorageProvider {
 import com.hypixel.hytale.server.HytaleServer;
 import com.hypixel.hytale.server.core.HytaleServerConfig;
 
-// Get server config
 HytaleServerConfig config = HytaleServer.get().getConfig();
 
-// Access fields
 String serverName = config.getServerName();
 int maxPlayers = config.getMaxPlayers();
 
-// Modify and save
 config.setMotd("New MOTD");
-config.markChanged();
-config.save();
+HytaleServerConfig.save(config);
 ```
+
+<Aside type="note">
+Setters like `setMotd()` already call `markChanged()` internally, so you don't need to call it yourself. And `save()` is a static method -- you pass the config instance to `HytaleServerConfig.save(config)` rather than calling it on the instance.
+</Aside>
 
 ### World Config
 
@@ -335,11 +409,9 @@ config.save();
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.WorldConfig;
 
-// Get world config
 World world = Universe.get().getWorld("default");
 WorldConfig worldConfig = world.getConfig();
 
-// Access fields
 boolean pvpEnabled = worldConfig.isPvpEnabled();
 GameMode gameMode = worldConfig.getGameMode();
 ```
@@ -352,7 +424,7 @@ Extensible module configuration:
 public static class Module {
     Boolean enabled;
     Map<String, Module> modules;
-    BsonDocument document;  // Raw BSON for custom config
+    BsonDocument document;
 }
 ```
 
@@ -378,9 +450,9 @@ public static class Module {
 
 1. **Use Duration strings**: Use ISO-8601 format for durations (e.g., "PT10S")
 2. **Don't modify core constants**: Constants class values are read-only
-3. **Mark changes**: Call `markChanged()` before save
-4. **Use providers**: Use storage providers for custom backends
-5. **Validate config**: Check values after loading
+3. **Use providers**: Use storage providers for custom backends
+4. **Validate config**: Check values after loading
+5. **Save is static**: Always use `HytaleServerConfig.save(config)` -- setters handle `markChanged()` for you
 
 ## Related
 

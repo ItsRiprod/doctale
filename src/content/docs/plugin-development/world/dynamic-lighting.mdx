@@ -3,7 +3,7 @@ title: "Dynamic Lighting"
 description: "Attach moving lights to entities with temporary or persistent dynamic light components for effects and objects."
 ---
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
@@ -35,16 +35,13 @@ Runtime light component for entities:
 package com.hypixel.hytale.server.core.modules.entity.component;
 
 public class DynamicLight implements Component<EntityStore> {
-    // Get current light color and radius
+    public DynamicLight();
+    public DynamicLight(ColorLight colorLight);
+
     public ColorLight getColorLight();
-
-    // Update light (marks network dirty)
     public void setColorLight(ColorLight colorLight);
-
-    // Check and reset network dirty flag
     public boolean consumeNetworkOutdated();
 
-    // Get component type for ECS queries
     public static ComponentType<EntityStore, DynamicLight> getComponentType();
 }
 ```
@@ -57,16 +54,13 @@ Serializable light component that persists with entity data:
 package com.hypixel.hytale.server.core.modules.entity.component;
 
 public class PersistentDynamicLight implements Component<EntityStore> {
-    // Codec key for serialization
-    public static final String CODEC_KEY = "Light";
+    public static final BuilderCodec<PersistentDynamicLight> CODEC;
 
-    // Constructor
     public PersistentDynamicLight(ColorLight colorLight);
 
-    // Get light configuration
     public ColorLight getColorLight();
+    public void setColorLight(ColorLight colorLight);
 
-    // Get component type
     public static ComponentType<EntityStore, PersistentDynamicLight> getComponentType();
 }
 ```
@@ -79,15 +73,16 @@ Light color and radius definition:
 package com.hypixel.hytale.protocol;
 
 public class ColorLight {
-    public int radius;  // Light reach in blocks (0-255)
-    public int red;     // Red intensity (0-15)
-    public int green;   // Green intensity (0-15)
-    public int blue;    // Blue intensity (0-15)
+    public byte radius;
+    public byte red;
+    public byte green;
+    public byte blue;
 
-    public ColorLight(int radius, int red, int green, int blue);
+    public ColorLight();
+    public ColorLight(byte radius, byte red, byte green, byte blue);
+    public ColorLight(ColorLight other);
 
-    // Common presets
-    public static final ColorLight NONE = new ColorLight(0, 0, 0, 0);
+    public ColorLight clone();
 }
 ```
 
@@ -101,17 +96,16 @@ Contains systems for managing dynamic lights:
 package com.hypixel.hytale.server.core.modules.entity.dynamiclight;
 
 public class DynamicLightSystems {
-    // Setup System: Creates DynamicLight from PersistentDynamicLight on spawn
-    public static class Setup implements SpawnSystem<EntityStore> {
-        // Query: Has PersistentDynamicLight AND NOT DynamicLight
-        // On spawn: Creates DynamicLight component
+    // creates DynamicLight from PersistentDynamicLight when entity is added
+    public static class Setup extends HolderSystem<EntityStore> {
+        // query: has PersistentDynamicLight AND NOT DynamicLight
+        // onEntityAdd: creates DynamicLight from persistent light
     }
 
-    // EntityTrackerRemove System: Notifies clients when light removed
+    // notifies clients when a DynamicLight component is removed
     public static class EntityTrackerRemove
         extends RefChangeSystem<EntityStore, DynamicLight> {
-        // Tracks DynamicLight removal
-        // Sends ComponentUpdateType.DynamicLight to trackers
+        // onComponentRemoved: sends ComponentUpdateType.DynamicLight to trackers
     }
 }
 ```
@@ -123,18 +117,12 @@ public class DynamicLightSystems {
 ```java
 import com.hypixel.hytale.server.core.modules.entity.component.DynamicLight;
 import com.hypixel.hytale.protocol.ColorLight;
-import com.hypixel.hytale.server.core.modules.entity.EntityModule;
 
-// Create light (radius 8, warm orange glow)
-ColorLight torchLight = new ColorLight(8, 15, 10, 5);
+// create light (radius 8, warm orange glow)
+ColorLight torchLight = new ColorLight((byte) 8, (byte) 15, (byte) 10, (byte) 5);
 
-// Get entity and add component
-EntityStore store = world.getEntityStore();
-Ref<EntityStore> entityRef = /* your entity reference */;
-
-// Add dynamic light component
-DynamicLight light = new DynamicLight();
-light.setColorLight(torchLight);
+// add dynamic light component to entity
+DynamicLight light = new DynamicLight(torchLight);
 store.addComponent(entityRef, DynamicLight.getComponentType(), light);
 ```
 
@@ -144,11 +132,11 @@ store.addComponent(entityRef, DynamicLight.getComponentType(), light);
 import com.hypixel.hytale.server.core.modules.entity.component.PersistentDynamicLight;
 import com.hypixel.hytale.protocol.ColorLight;
 
-// Create persistent light (survives respawn/reload)
-ColorLight lanternLight = new ColorLight(12, 15, 15, 12);
+// create persistent light (survives respawn/reload)
+ColorLight lanternLight = new ColorLight((byte) 12, (byte) 15, (byte) 15, (byte) 12);
 PersistentDynamicLight persistentLight = new PersistentDynamicLight(lanternLight);
 
-// Add to entity (DynamicLight will be auto-created by Setup system)
+// add to entity — DynamicLight will be auto-created by the Setup system
 store.addComponent(entityRef, PersistentDynamicLight.getComponentType(), persistentLight);
 ```
 
@@ -158,19 +146,17 @@ store.addComponent(entityRef, PersistentDynamicLight.getComponentType(), persist
 import com.hypixel.hytale.server.core.modules.entity.component.DynamicLight;
 import com.hypixel.hytale.protocol.ColorLight;
 
-// Get existing light component
+// get existing light component
 DynamicLight light = store.getComponent(entityRef, DynamicLight.getComponentType());
 
-// Update to new color (flickering effect)
+// update to new color (flickering effect)
 ColorLight flickerLight = new ColorLight(
     light.getColorLight().radius,
-    random.nextInt(12, 16),  // Varying red
-    random.nextInt(8, 12),   // Varying green
-    random.nextInt(3, 7)     // Varying blue
+    (byte) random.nextInt(12, 16),
+    (byte) random.nextInt(8, 12),
+    (byte) random.nextInt(3, 7)
 );
 light.setColorLight(flickerLight);
-
-// Network update happens automatically (consumeNetworkOutdated() called by system)
 ```
 
 ### Removing Dynamic Light
@@ -178,10 +164,8 @@ light.setColorLight(flickerLight);
 ```java
 import com.hypixel.hytale.server.core.modules.entity.component.DynamicLight;
 
-// Remove light component
+// remove light component — EntityTrackerRemove system will notify clients
 store.removeComponent(entityRef, DynamicLight.getComponentType());
-
-// EntityTrackerRemove system will notify clients
 ```
 
 ### Querying Entities with Lights
@@ -190,40 +174,44 @@ store.removeComponent(entityRef, DynamicLight.getComponentType());
 import com.hypixel.hytale.server.core.modules.entity.component.DynamicLight;
 import com.hypixel.hytale.component.query.Query;
 
-// Create query for entities with dynamic lights
+// query for entities with dynamic lights
 Query<EntityStore> lightQuery = Query.builder(EntityStore.class)
     .with(DynamicLight.getComponentType())
     .build();
 
-// Iterate light-emitting entities
 for (ArchetypeChunk<EntityStore> chunk : store.query(lightQuery)) {
     DynamicLight[] lights = chunk.getComponentArray(DynamicLight.getComponentType());
     for (int i = 0; i < chunk.getEntityCount(); i++) {
         ColorLight color = lights[i].getColorLight();
-        // Process light...
     }
 }
 ```
 
-## Light Presets
+## Light Values
 
-Common light configurations:
+`ColorLight` has no built-in presets. You define your own values using the `byte` fields directly.
 
-| Light Type | Radius | R | G | B | Description |
-|------------|--------|---|---|---|-------------|
-| Torch | 8 | 15 | 10 | 5 | Warm orange |
-| Lantern | 12 | 15 | 15 | 12 | Bright warm |
-| Glowstone | 15 | 15 | 14 | 8 | Yellow-white |
-| Redstone | 7 | 15 | 0 | 0 | Red glow |
-| Soul Fire | 10 | 5 | 12 | 15 | Blue-cyan |
-| Magic | 6 | 10 | 5 | 15 | Purple |
-| Moonlight | 4 | 8 | 10 | 15 | Cool blue |
+<Aside type="tip">
+  The `radius` field controls how far the light reaches in blocks. The `red`, `green`, and `blue` fields control color intensity. All fields are bytes.
+</Aside>
+
+Here are some illustrative examples to get you started:
+
+<Aside type="caution">
+  These are **not** real presets from the game. They're just example configurations to show how the values work.
+</Aside>
+
+| Example | Radius | R | G | B | Description |
+|---------|--------|---|---|---|-------------|
+| Warm torch | 8 | 15 | 10 | 5 | Orange glow |
+| Bright lantern | 12 | 15 | 15 | 12 | Warm white |
+| Red glow | 7 | 15 | 0 | 0 | Pure red |
+| Cool blue | 10 | 5 | 12 | 15 | Blue-cyan |
 
 ```java
-// Example presets
-public static final ColorLight TORCH = new ColorLight(8, 15, 10, 5);
-public static final ColorLight LANTERN = new ColorLight(12, 15, 15, 12);
-public static final ColorLight SOUL_FIRE = new ColorLight(10, 5, 12, 15);
+// illustrative — define your own presets
+ColorLight warmTorch = new ColorLight((byte) 8, (byte) 15, (byte) 10, (byte) 5);
+ColorLight brightLantern = new ColorLight((byte) 12, (byte) 15, (byte) 15, (byte) 12);
 ```
 
 ## Network Synchronization
@@ -261,7 +249,7 @@ The client combines both light sources for final illumination.
 }
 ```
 
-**Codec:** Uses `ProtocolCodecs.COLOR_LIGHT` via `BuilderCodec`
+The codec is defined on `PersistentDynamicLight.CODEC` and uses `ProtocolCodecs.COLOR_LIGHT` via `BuilderCodec` with the key `"Light"`.
 
 ## Best Practices
 

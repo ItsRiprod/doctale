@@ -5,7 +5,7 @@ description: "Get what a player is looking at via raycast, handle mouse input, a
 
 import { Aside, Tabs, TabItem, Steps } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-01-25] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 # Player Targeting
 
@@ -20,32 +20,31 @@ Getting what a player is looking at, handling mouse input, and implementing targ
 
 ## TargetUtil
 
-The primary utility class for raycast-based targeting. Use this to determine what entity or block a player is looking at.
+The primary utility class for raycast-based targeting. Use this to determine what entity or block a player is looking at. All methods take a `Ref<EntityStore>` as the entity reference (works for players and any entity with the right components).
 
 ### Methods
 
 | Method | Return Type | Description |
 |--------|-------------|-------------|
-| `getTargetEntity(playerRef, accessor)` | `Ref<EntityStore>` | Entity player is looking at (8-block range) |
-| `getTargetBlock(playerRef, distance, accessor)` | `Vector3i` | Block player is looking at |
-| `getTargetLocation(playerRef, accessor)` | `Vector3d` | Precise hit location with decimals |
-| `getLook(playerRef, accessor)` | `Transform` | Player's eye position and look direction |
+| `getTargetEntity(Ref<EntityStore> ref, ComponentAccessor<EntityStore> componentAccessor)` | `Ref<EntityStore>` | Entity the ref is looking at (default 8-block radius) |
+| `getTargetEntity(Ref<EntityStore> ref, float radius, ComponentAccessor<EntityStore> componentAccessor)` | `Ref<EntityStore>` | Entity the ref is looking at (custom radius) |
+| `getTargetBlock(Ref<EntityStore> ref, double maxDistance, ComponentAccessor<EntityStore> componentAccessor)` | `Vector3i` | Block the ref is looking at |
+| `getTargetLocation(Ref<EntityStore> ref, double maxDistance, ComponentAccessor<EntityStore> componentAccessor)` | `Vector3d` | Precise hit location with decimals |
+| `getLook(Ref<EntityStore> ref, ComponentAccessor<EntityStore> componentAccessor)` | `Transform` | Eye position and look direction |
 
 ### Basic Usage
 
 ```java title="Getting target entity and block"
-// Get the entity a player is looking at (within 8 blocks)
 Ref<EntityStore> targetEntity = TargetUtil.getTargetEntity(playerRef, componentAccessor);
 if (targetEntity != null) {
-    // Player is looking at an entity
     processTarget(targetEntity);
 }
 
-// Get target block within 30 blocks
+Ref<EntityStore> closerTarget = TargetUtil.getTargetEntity(playerRef, 4.0f, componentAccessor);
+
 Vector3i targetBlock = TargetUtil.getTargetBlock(playerRef, 30.0, componentAccessor);
 
-// Get precise hit location (with decimal coordinates)
-Vector3d targetLocation = TargetUtil.getTargetLocation(playerRef, componentAccessor);
+Vector3d targetLocation = TargetUtil.getTargetLocation(playerRef, 30.0, componentAccessor);
 ```
 
 ### Custom Raycasting
@@ -55,9 +54,34 @@ Transform look = TargetUtil.getLook(playerRef, componentAccessor);
 Vector3d eyePosition = look.getPosition();
 Vector3d direction = look.getDirection();
 
-// Use for custom raycast calculations
 Vector3d endPoint = eyePosition.add(direction.mul(50.0));
 ```
+
+### Area Queries
+
+These methods find all entities within a given shape. Useful for AoE attacks, proximity checks, or any mechanic that needs to know about nearby entities.
+
+| Method | Return Type | Description |
+|--------|-------------|-------------|
+| `getAllEntitiesInSphere(Vector3d position, double radius, ComponentAccessor<EntityStore> componentAccessor)` | `List<Ref<EntityStore>>` | All entities within a sphere |
+| `getAllEntitiesInCylinder(Vector3d position, double radius, double height, ComponentAccessor<EntityStore> componentAccessor)` | `List<Ref<EntityStore>>` | All entities within a cylinder |
+| `getAllEntitiesInBox(Vector3d min, Vector3d max, ComponentAccessor<EntityStore> componentAccessor)` | `List<Ref<EntityStore>>` | All entities within an axis-aligned box |
+
+```java title="Area query examples"
+Vector3d center = new Vector3d(100.0, 64.0, 200.0);
+
+List<Ref<EntityStore>> nearby = TargetUtil.getAllEntitiesInSphere(center, 10.0, componentAccessor);
+
+List<Ref<EntityStore>> inCylinder = TargetUtil.getAllEntitiesInCylinder(center, 5.0, 3.0, componentAccessor);
+
+Vector3d min = new Vector3d(90.0, 60.0, 190.0);
+Vector3d max = new Vector3d(110.0, 70.0, 210.0);
+List<Ref<EntityStore>> inBox = TargetUtil.getAllEntitiesInBox(min, max, componentAccessor);
+```
+
+<Aside type="tip">
+These area queries collect from both the entity spatial resource and the player spatial resource internally, so you get both players and non-player entities in the results.
+</Aside>
 
 ## Mouse Events
 
@@ -116,7 +140,6 @@ public class EntityDragHandler {
     private Map<UUID, Ref<EntityStore>> draggingEntities = new HashMap<>();
 
     public void setup(EventRegistry eventRegistry) {
-        // Detect right-click on entity to start drag
         eventRegistry.register(PlayerMouseButtonEvent.class, event -> {
             if (event.getMouseButton() != MouseButton.SECONDARY) {
                 return;
@@ -135,7 +158,6 @@ public class EntityDragHandler {
             }
         });
 
-        // Track mouse movement during drag
         eventRegistry.register(PlayerMouseMotionEvent.class, event -> {
             UUID playerUuid = event.getPlayerRef().getUuid();
             Ref<EntityStore> draggedEntity = draggingEntities.get(playerUuid);
@@ -144,11 +166,9 @@ public class EntityDragHandler {
                 return;
             }
 
-            // Get current target position from mouse
             TargetBlock targetBlock = event.getTargetBlock();
             if (targetBlock != null) {
                 Vector3i blockPos = targetBlock.getPosition();
-                // Move entity to target position (offset up by 1 block)
                 Vector3d newPos = blockPos.toVector3d().add(0.5, 1.0, 0.5);
                 moveEntityTo(draggedEntity, newPos);
             }
@@ -160,12 +180,10 @@ public class EntityDragHandler {
     }
 
     private boolean isDraggable(Ref<EntityStore> entity) {
-        // Check if entity has draggable tag/component
         return true;
     }
 
     private void moveEntityTo(Ref<EntityStore> entity, Vector3d position) {
-        // Set entity position using ECS
     }
 }
 ```
@@ -201,16 +219,12 @@ Within interaction handlers, access targets via the context metadata store:
 public void handleInteraction(InteractionContext context) {
     DynamicMetaStore<InteractionContext> meta = context.getMetaStore();
 
-    // Get target entity
     Ref<EntityStore> targetEntity = meta.get(Interaction.TARGET_ENTITY);
 
-    // Get target block
     BlockPosition targetBlock = meta.get(Interaction.TARGET_BLOCK);
 
-    // Get precise hit location (Vector4d)
     Vector4d hitLocation = meta.get(Interaction.HIT_LOCATION);
 
-    // Get additional hit detail info
     String hitDetail = meta.get(Interaction.HIT_DETAIL);
 }
 ```
@@ -235,13 +249,10 @@ public class RaycastSelector implements Selector {
     public String BlockTag;             // Filter blocks by tag
     public boolean IgnoreFluids = true; // Skip fluid blocks
 
-    // Select target position
     public Vector3d selectTargetPosition(InteractionContext context);
 
-    // Get entities hit by raycast
     public List<Ref<EntityStore>> selectTargetEntities(InteractionContext context);
 
-    // Get blocks hit by raycast
     public List<BlockPosition> selectTargetBlocks(InteractionContext context);
 }
 ```
@@ -251,9 +262,13 @@ public class RaycastSelector implements Selector {
 | Need | Solution |
 |------|----------|
 | Get targeted entity | `TargetUtil.getTargetEntity()` |
+| Get targeted entity (custom range) | `TargetUtil.getTargetEntity(ref, radius, accessor)` |
 | Get targeted block | `TargetUtil.getTargetBlock()` |
 | Get precise hit location | `TargetUtil.getTargetLocation()` |
 | Get look direction | `TargetUtil.getLook()` |
+| All entities in sphere | `TargetUtil.getAllEntitiesInSphere()` |
+| All entities in cylinder | `TargetUtil.getAllEntitiesInCylinder()` |
+| All entities in box | `TargetUtil.getAllEntitiesInBox()` |
 | Detect click on entity | `PlayerMouseButtonEvent.getTargetEntity()` |
 | Track cursor movement | `PlayerMouseMotionEvent` |
 | Client raycast data | `InteractionSyncData` |
@@ -262,7 +277,7 @@ public class RaycastSelector implements Selector {
 ## Best Practices
 
 <Steps>
-1. **Always null-check targets** - Both `getTargetEntity()` and `getTargetBlock()` can return null if player isn't looking at anything valid
+1. **Always null-check targets** - Both `getTargetEntity()` and `getTargetBlock()` can return null if the entity isn't looking at anything valid
 
 2. **Validate distance** - Verify the target is within an acceptable range for your mechanic
 
@@ -272,6 +287,34 @@ public class RaycastSelector implements Selector {
 
 5. **Use TargetUtil for simplicity** - Prefer `TargetUtil` methods over manual raycast calculations
 </Steps>
+
+## HeadRotation vs TransformComponent
+
+`TransformComponent.getRotation()` returns the **body rotation** (which way the entity's body is facing), not where they are actually looking. Players can look around without rotating their body.
+
+Use `HeadRotation` for look direction:
+
+```java title="Correct - HeadRotation"
+HeadRotation headRotation = store.getComponent(playerRef, HeadRotation.getComponentType());
+Vector3f rotation = headRotation.getRotation();
+float pitch = rotation.getPitch();
+float yaw = rotation.getYaw();
+float roll = rotation.getRoll();
+```
+
+```java title="Wrong - TransformComponent gives body rotation"
+TransformComponent transform = store.getComponent(playerRef, TransformComponent.getComponentType());
+float yaw = transform.getRotation().y;
+```
+
+This is exactly what `TargetUtil.getLook()` does internally -- it reads the `HeadRotation` component and builds a `Transform` from the eye position and head rotation:
+
+```java title="How getLook() works"
+HeadRotation headRotationComponent = componentAccessor.getComponent(ref, HeadRotation.getComponentType());
+Vector3f headRotation = headRotationComponent.getRotation();
+return new Transform(position.getX(), position.getY() + eyeHeight, position.getZ(),
+    headRotation.getPitch(), headRotation.getYaw(), headRotation.getRoll());
+```
 
 ## Related
 

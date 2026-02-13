@@ -5,7 +5,7 @@ description: "Automate server updates with version checking, downloading, and ap
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-01-24] - Added in Update 2 */}
+{/* [VERIFIED: 2026-02-13] - Added in Update 2 */}
 
 <Aside type="note" title="New in Update 2">
 The Server Update System was introduced in Update 2. This module provides automated server update capabilities.
@@ -31,6 +31,29 @@ The update system runs as a core server module that:
 
 ## Configuration
 
+### UpdateConfig
+
+The update system is configured through the `Update` section of `HytaleServerConfig`. These fields control how the server handles updates:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `Enabled` | `boolean` | `true` | Whether the update checker is active |
+| `CheckIntervalSeconds` | `int` | `3600` | How often (in seconds) to check for updates |
+| `AutoApplyMode` | `AutoApplyMode` | `DISABLED` | Controls automatic update behavior |
+| `AutoApplyDelayMinutes` | `int` | `30` | Minutes to wait before auto-applying when players are online (only used with `SCHEDULED`) |
+| `Patchline` | `String` | `null` | Override the update channel (falls back to JAR manifest, then `"release"`) |
+| `NotifyPlayersOnAvailable` | `boolean` | `true` | Whether to message players with the `hytale.system.update.notify` permission when an update is found |
+| `RunBackupBeforeUpdate` | `boolean` | `true` | Run a server backup before applying the update |
+| `BackupConfigBeforeUpdate` | `boolean` | `true` | Back up the config before applying the update |
+
+#### AutoApplyMode
+
+| Mode | Behavior |
+|------|----------|
+| `DISABLED` | Updates must be manually downloaded and applied via commands |
+| `WHEN_EMPTY` | Auto-applies staged updates only when no players are online |
+| `SCHEDULED` | Auto-applies after `AutoApplyDelayMinutes`, even with players online (sends countdown warnings) |
+
 ### Environment Variables
 
 | Variable | Type | Description |
@@ -38,7 +61,6 @@ The update system runs as a core server module that:
 | `HYTALE_DISABLE_UPDATES` | `boolean` | Set to `true` to completely disable the update system |
 
 ```bash
-# Disable auto-updates
 export HYTALE_DISABLE_UPDATES=true
 ```
 
@@ -87,9 +109,8 @@ Applying an update will restart the server. All players will be disconnected. Th
 
 **Behavior**:
 - Sends warnings to all online players
-- Schedules server shutdown
-- Applies the downloaded update
-- Restarts with new version
+- Schedules server shutdown via `ShutdownReason.UPDATE`
+- The launcher script (`start.sh`/`start.bat`) handles moving files from `updater/staging/` and restarting
 
 ### /update cancel
 
@@ -128,92 +149,134 @@ Manage patch line configuration for update channels.
 
 ## Architecture
 
-### UpdateModule
-
-The main plugin class that manages the update lifecycle:
-
-```java
-public class UpdateModule extends JavaPlugin {
-    // Scheduled executor for background tasks
-    private final ScheduledExecutorService scheduler;
-
-    // Scheduled update check task
-    private ScheduledFuture<?> updateCheckTask;
-
-    // Auto-apply countdown task
-    private ScheduledFuture<?> autoApplyTask;
-
-    // Latest known version from update server
-    private final AtomicReference<UpdateService.VersionManifest> latestKnownVersion;
-
-    // Active download future
-    private final AtomicReference<CompletableFuture<?>> activeDownload;
-
-    // Download progress tracking
-    private final AtomicLong downloadedBytes;
-    private final AtomicLong totalBytes;
-}
-```
-
 ### UpdateService
 
-Handles communication with the update server:
+Handles communication with the update server. Uses authenticated requests through `ServerAuthManager` to fetch version manifests and download update packages.
 
 ```java
 public class UpdateService {
-    // Fetch version manifest from update server
-    public VersionManifest fetchVersionManifest();
+    public CompletableFuture<VersionManifest> checkForUpdate(String patchline);
 
-    // Download update package
-    public void downloadUpdate(VersionManifest version, ProgressCallback callback);
+    public DownloadTask downloadUpdate(VersionManifest manifest, Path stagingDir, ProgressCallback progressCallback);
 
-    // Apply downloaded update
-    public void applyUpdate();
+    public static String getEffectivePatchline();
 
-    public record VersionManifest(
-        String version,
-        String downloadUrl,
-        long fileSize,
-        String checksum
-    ) {}
+    public static boolean isValidUpdateLayout();
+
+    public static Path getStagingDir();
+
+    public static Path getBackupDir();
+
+    public static String getStagedVersion();
+
+    public static boolean deleteStagedUpdate();
+
+    public static boolean deleteBackupDir();
 }
 ```
+
+The server doesn't have an `applyUpdate()` method — applying an update is done by shutting down the server with `HytaleServer.get().shutdownServer(ShutdownReason.UPDATE)`, and the launcher script handles file replacement on restart.
+
+### VersionManifest
+
+A class representing the version information returned by the update server:
+
+```java
+public static class VersionManifest {
+    public String version;
+    public String downloadUrl;
+    public String sha256;
+}
+```
+
+The `sha256` hash is used to verify download integrity. If the manifest provides a hash, the downloaded file's SHA-256 is compared against it after download.
+
+### DownloadTask
+
+Returned by `downloadUpdate()`, bundles the async result with the thread handle so downloads can be cancelled:
+
+```java
+public record DownloadTask(CompletableFuture<Boolean> future, Thread thread) {}
+```
+
+### ProgressCallback
+
+A functional interface for tracking download progress:
+
+```java
+@FunctionalInterface
+public interface ProgressCallback {
+    void onProgress(int percent, long downloaded, long total);
+}
+```
+
+### UpdateModule
+
+The main plugin class that manages the update lifecycle. Extends `JavaPlugin` and coordinates checking, downloading, and auto-applying updates.
+
+```java
+public class UpdateModule extends JavaPlugin {
+    private final ScheduledExecutorService scheduler;
+
+    private ScheduledFuture<?> updateCheckTask;
+    private ScheduledFuture<?> autoApplyTask;
+
+    private final AtomicReference<UpdateService.VersionManifest> latestKnownVersion;
+    private final AtomicReference<CompletableFuture<?>> activeDownload;
+    private final AtomicReference<Thread> activeDownloadThread;
+    private final AtomicBoolean downloadLock;
+    private final AtomicLong downloadStartTime;
+    private final AtomicLong downloadedBytes;
+    private final AtomicLong totalBytes;
+    private final AtomicLong autoApplyScheduledTime;
+    private final AtomicLong lastWarningTime;
+}
+```
+
+The `downloadLock` ensures only one download runs at a time. `activeDownloadThread` is kept so that `/update cancel` can interrupt it directly.
+
+### DownloadProgress
+
+A record returned by `UpdateModule.getDownloadProgress()` with computed stats:
+
+```java
+public record DownloadProgress(int percent, long downloadedBytes, long totalBytes, long etaSeconds) {}
+```
+
+The `etaSeconds` field is calculated from elapsed time and bytes downloaded so far. Returns `-1` when there isn't enough data to estimate.
 
 ## Update Flow
 
 <Steps>
-1. **Check for Updates**: System periodically queries update server for new versions
+1. **Check for Updates**: System periodically queries update server for new versions via `checkForUpdate(patchline)`
 2. **Notify Operators**: If update available, operators are notified via console/chat
-3. **Download**: Operator runs `/update download` to fetch the update
+3. **Download**: Operator runs `/update download` or auto-download kicks in (if `AutoApplyMode` is not `DISABLED`)
 4. **Monitor Progress**: Use `/update status` to track download
-5. **Schedule Apply**: Run `/update apply` to schedule restart
-6. **Player Warnings**: System sends countdown warnings to all players
-7. **Restart**: Server shuts down and applies update
-8. **Start New Version**: Server restarts with updated version
+5. **Stage**: Downloaded update is extracted to `updater/staging/`
+6. **Schedule Apply**: Run `/update apply` to schedule restart (or wait for auto-apply)
+7. **Player Warnings**: System sends countdown warnings to all players
+8. **Shutdown**: Server shuts down with `ShutdownReason.UPDATE`
+9. **Apply and Restart**: Launcher script moves staged files into place and restarts the server
 </Steps>
 
 ## Automatic Updates
 
-The system supports scheduled automatic updates:
+When `AutoApplyMode` is set to `WHEN_EMPTY` or `SCHEDULED`, the system will auto-download updates when they're detected. Once staged:
 
-```java
-// Auto-apply scheduling
-private final AtomicLong autoApplyScheduledTime = new AtomicLong(0L);
+- **WHEN_EMPTY**: Waits until no players are online, then triggers shutdown immediately.
+- **SCHEDULED**: Starts a countdown of `AutoApplyDelayMinutes`. Players receive periodic warnings — every 5 minutes normally, every 30 seconds in the last minute. When the timer expires, the server shuts down.
 
-// Warning interval before auto-apply
-private final AtomicLong lastWarningTime = new AtomicLong(0L);
-```
-
-**Warning Schedule**: Players receive warnings at configurable intervals before automatic restart.
+If players all leave while a scheduled countdown is running, the server applies immediately without waiting.
 
 ## Error Handling
 
 | Error | Cause | Resolution |
 |-------|-------|------------|
 | Download failed | Network issue | Retry with `/update download` |
-| Checksum mismatch | Corrupted download | Re-download the update |
+| Checksum mismatch | Corrupted download (SHA-256 mismatch) | Re-download the update |
 | Apply failed | File permissions | Check server write permissions |
 | Kill switch active | `HYTALE_DISABLE_UPDATES=true` | Remove environment variable |
+| Invalid folder layout | Missing `Assets.zip` or `start.sh`/`start.bat` in parent directory | Ensure the server is set up with the expected directory structure |
 
 ## Permissions
 
@@ -232,7 +295,7 @@ Update commands require appropriate operator permissions:
 
 1. **Test updates on staging**: Apply updates to a test server before production
 2. **Schedule during low activity**: Apply updates when fewer players are online
-3. **Backup before update**: Ensure world backups exist before applying
+3. **Backup before update**: Ensure world backups exist before applying (or leave `RunBackupBeforeUpdate` enabled)
 4. **Monitor logs**: Check server logs after update for any issues
 5. **Use kill switch for custom builds**: Set `HYTALE_DISABLE_UPDATES=true` if running modified server
 

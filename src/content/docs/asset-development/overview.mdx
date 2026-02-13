@@ -5,7 +5,7 @@ description: "Learn how Hytale's asset system manages blocks, items, entities, s
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 # Asset System Overview
 
@@ -21,7 +21,7 @@ Asset packs follow a specific directory structure:
 
 <FileTree>
 - my-plugin.jar/
-  - plugin.json
+  - manifest.json
   - assets/
     - blocktype/ Block definitions
     - item/ Item definitions
@@ -46,14 +46,26 @@ Define block behavior and properties:
 ```json
 {
   "Id": "MyPlugin_CustomBlock",
-  "DisplayName": "Custom Block",
-  "Model": "MyPlugin/custom_block",
-  "Material": "Stone",
-  "Hardness": 2.0,
-  "LightLevel": 0,
-  "IsOpaque": true,
-  "IsSolid": true,
-  "BlockSound": "Hytale/Stone"
+  "Group": "MyBlocks",
+  "DrawType": "Cube",
+  "Material": "Solid",
+  "Opacity": "Solid",
+  "Textures": [
+    {
+      "Up": "textures/block_top.png",
+      "Down": "textures/block_bottom.png",
+      "North": "textures/block_side.png",
+      "South": "textures/block_side.png",
+      "East": "textures/block_side.png",
+      "West": "textures/block_side.png"
+    }
+  ],
+  "HitboxType": "Full",
+  "BlockSoundSetId": "Hytale/Stone",
+  "Light": {
+    "Color": "#FFAA00",
+    "Intensity": 10
+  }
 }
 ```
 
@@ -61,13 +73,14 @@ Define block behavior and properties:
 | Property | Type | Description |
 |----------|------|-------------|
 | `Id` | `string` | Unique block identifier |
-| `DisplayName` | `string` | Localized display name |
-| `Model` | `string` | Model asset reference |
-| `Material` | `string` | Material for tools/damage |
-| `Hardness` | `float` | Mining difficulty |
-| `LightLevel` | `int` | Emitted light (0-15) |
-| `IsOpaque` | `bool` | Blocks light completely |
-| `IsSolid` | `bool` | Has collision |
+| `Group` | `string` | Grouping for organization |
+| `DrawType` | `enum` | Rendering type (`Empty`, `Cube`, `Model`, `CubeWithModel`, `GizmoCube`) |
+| `Material` | `enum` | Physical material (`Empty` or `Solid`) |
+| `Opacity` | `enum` | Light blocking (`Solid`, `Transparent`, `SemiTransparent`) |
+| `Textures` | `array` | Per-face texture definitions |
+| `HitboxType` | `string` | Collision hitbox type |
+| `BlockSoundSetId` | `string` | Sound set reference |
+| `Light` | `object` | Emitted light with `Color` and `Intensity` |
 
 ### Items (`item/`)
 
@@ -98,25 +111,50 @@ Define items and their behavior:
 
 ### Sound Events (`soundevent/`)
 
-Define sounds that can be played:
+Sound events use a layered system where each layer contains a list of audio files (one chosen at random), with per-layer volume, looping, and randomization settings.
 
 ```json
 {
-  "Id": "MyPlugin_CustomSound",
-  "Sounds": [
+  "Layers": [
     {
-      "Path": "sounds/custom_sound.ogg",
-      "Volume": 1.0,
-      "Pitch": 1.0
+      "Files": [
+        "Sounds/Items/Chest/Chest_Open.ogg"
+      ]
     }
   ],
-  "Category": "Master"
+  "Volume": 2.0,
+  "Parent": "SFX_Attn_Quiet"
 }
 ```
+
+**Top-level properties:**
+| Property | Type | Description |
+|----------|------|-------------|
+| `Volume` | `float` | Volume adjustment in decibels (-100 to 10) |
+| `Pitch` | `float` | Pitch adjustment in semitones (-12 to 12) |
+| `Layers` | `SoundEventLayer[]` | Layered sounds that make up this event |
+| `AudioCategory` | `string` | Audio category for volume routing |
+| `MaxInstance` | `int` | Max concurrent instances (1-100, default 50) |
+| `PreventSoundInterruption` | `bool` | Prevent overlap interruption |
+| `StartAttenuationDistance` | `float` | Distance (blocks) to begin attenuation |
+| `MaxDistance` | `float` | Max audible distance in blocks |
+
+**Layer properties:**
+| Property | Type | Description |
+|----------|------|-------------|
+| `Files` | `string[]` | Audio file paths (one chosen at random) |
+| `Volume` | `float` | Layer volume offset in dB |
+| `Looping` | `bool` | Whether this layer loops |
+| `Probability` | `int` | Chance of playing (percentage) |
+| `RandomSettings` | `object` | Randomization (`MinVolume`, `MaxVolume`, `MinPitch`, `MaxPitch`, `MaxStartOffset`) |
 
 ### Particles (`particle/`)
 
 Define particle systems:
+
+<Aside type="caution">
+The exact particle codec has not been fully verified. The example below is illustrative based on observed patterns.
+</Aside>
 
 ```json
 {
@@ -135,58 +173,129 @@ Define particle systems:
 
 ### Entity Effects (`entityeffect/`)
 
-Define status effects for entities:
+Entity effects are status effects that modify stats, deal damage over time, change visuals, and more. They use a stat modifier system rather than simple key-value effects.
 
 ```json
 {
   "Id": "MyPlugin_CustomEffect",
-  "DisplayName": "Custom Effect",
-  "Duration": 300,
-  "Icon": "icons/custom_effect.png",
-  "Effects": {
-    "Speed": 1.5,
-    "Health": -1.0
+  "Name": "effect.custom",
+  "Duration": 10.0,
+  "Debuff": true,
+  "StatModifiers": {
+    "MovementSpeed": -0.3
+  },
+  "ApplicationEffects": {
+    "EntityBottomTint": "#00FF00",
+    "HorizontalSpeedMultiplier": 0.7,
+    "WorldSoundEventId": "SFX_Effect_Poison"
+  },
+  "StatusEffectIcon": "ui/icons/custom_effect"
+}
+```
+
+**Key properties:**
+| Property | Type | Description |
+|----------|------|-------------|
+| `Name` | `string` | Localization key for display name |
+| `Duration` | `float` | Default duration in seconds |
+| `Infinite` | `bool` | Whether the effect lasts forever |
+| `Debuff` | `bool` | Whether this is a negative effect |
+| `StatModifiers` | `map<string, float>` | Stat modifications to apply |
+| `ValueType` | `enum` | `Absolute` or `Percent` for stat modifiers |
+| `ApplicationEffects` | `object` | Visual/audio effects on application (tints, particles, sounds) |
+| `DamageCalculator` | `object` | Damage-over-time configuration |
+| `StatusEffectIcon` | `string` | Icon shown in the UI |
+| `OverlapBehavior` | `enum` | `IGNORE`, `EXTEND`, or `OVERWRITE` |
+| `Invulnerable` | `bool` | Makes entity invulnerable while active |
+
+### Weather (`weather/`)
+
+Weather assets control visual sky, fog, and lighting properties using **time-based keyframes**. Each property is an array of `{ Hour, Color/Value }` entries that interpolate across the 24-hour day cycle.
+
+```json
+{
+  "Id": "MyPlugin_ClearWeather",
+  "Stars": "textures/sky/stars_default",
+  "FogDistance": [-96.0, 1024.0],
+  "SunlightColors": [
+    { "Hour": 6.0, "Color": "#FFCC88" },
+    { "Hour": 12.0, "Color": "#FFFFFF" }
+  ],
+  "SkyTopColors": [
+    { "Hour": 0.0, "Color": "#112244FF" },
+    { "Hour": 12.0, "Color": "#4488CCFF" }
+  ],
+  "FogColors": [
+    { "Hour": 0.0, "Color": "#1A1A2E" },
+    { "Hour": 12.0, "Color": "#C0C8D0" }
+  ],
+  "Clouds": [
+    {
+      "Texture": "textures/sky/clouds_default",
+      "Colors": [
+        { "Hour": 0.0, "Color": "#333344AA" },
+        { "Hour": 12.0, "Color": "#FFFFFFCC" }
+      ],
+      "Speeds": [
+        { "Hour": 0.0, "Value": 0.5 }
+      ]
+    }
+  ],
+  "Particle": {
+    "SystemId": "Hytale:RainParticle",
+    "Color": "#AABBCC",
+    "Scale": 1.0,
+    "OvergroundOnly": true
   }
 }
 ```
 
-### Weather (`weather/`)
+Weather uses three keyframe types:
+- **TimeColor**: `{ "Hour": 0.0-24.0, "Color": "#RRGGBB" }`
+- **TimeColorAlpha**: `{ "Hour": 0.0-24.0, "Color": "#RRGGBBAA" }`
+- **TimeFloat**: `{ "Hour": 0.0-24.0, "Value": float }`
 
-Define weather configurations:
-
-```json
-{
-  "Id": "MyPlugin_CustomWeather",
-  "DisplayName": "Custom Weather",
-  "Fog": {
-    "Color": "#808080",
-    "Density": 0.5
-  },
-  "Clouds": {
-    "Enabled": true,
-    "Density": 0.8
-  },
-  "Precipitation": "Rain"
-}
-```
+See [Weather](/asset-development/world/weather/) for the full property reference.
 
 ### Gameplay (`gameplay/`)
 
-Configure gameplay mechanics:
+GameplayConfig is a composite asset containing sub-configurations for many gameplay systems:
 
 ```json
 {
   "Id": "MyPlugin_GameplayConfig",
-  "Combat": {
-    "DamageMultiplier": 1.0,
-    "DisplayHealthBars": true
-  },
-  "Death": {
-    "DropItems": true,
-    "DropExperience": true
-  }
+  "Gathering": { },
+  "World": { },
+  "Death": { },
+  "Respawn": { },
+  "Combat": { },
+  "Player": { },
+  "ItemDurability": { },
+  "ItemEntity": { },
+  "Crafting": { },
+  "Spawn": { },
+  "Plugin": { },
+  "CameraEffects": { },
+  "ShowItemPickupNotifications": true,
+  "MaxEnvironmentalNPCSpawns": 500
 }
 ```
+
+**Sub-configurations:**
+| Key | Config Class | Description |
+|-----|-------------|-------------|
+| `Gathering` | `GatheringConfig` | Block gathering/mining settings |
+| `World` | `WorldConfig` | World behavior settings |
+| `Death` | `DeathConfig` | Death behavior and drops |
+| `Respawn` | `RespawnConfig` | Respawn mechanics |
+| `Combat` | `CombatConfig` | Combat mechanics |
+| `Player` | `PlayerConfig` | Player settings |
+| `ItemDurability` | `ItemDurabilityConfig` | Durability rules |
+| `ItemEntity` | `ItemEntityConfig` | Dropped item entity settings |
+| `Crafting` | `CraftingConfig` | Crafting system settings |
+| `Spawn` | `SpawnConfig` | Spawn mechanics |
+| `Plugin` | `map` | Plugin-specific config (extensible) |
+| `CameraEffects` | `CameraEffectsConfig` | Camera effect settings |
 
 ## Accessing Assets in Code
 
@@ -230,7 +339,7 @@ int index = blockTypes.getIndex("Block_Key");
 
 ### In Plugin Manifest
 
-Set `IncludesAssetPack` in `plugin.json`:
+Set `IncludesAssetPack` in `manifest.json`:
 
 ```json
 {
@@ -382,7 +491,7 @@ All 35 asset types organized by category:
 
 ## Related
 
-- [Block Types](/plugin-development/blocks/overview/) - Detailed block documentation
-- [Items](/asset-development/overview/) - Detailed item documentation
-- [Sounds](/asset-development/overview/) - Audio system
-- [Particles](/asset-development/overview/) - Particle system
+- [Block Types](/asset-development/blocks/block-types/) - Detailed block documentation
+- [Items](/asset-development/items/overview/) - Item system overview
+- [Sound Events](/asset-development/audio/sound-events/) - Audio system
+- [Particles](/asset-development/vfx/particles/) - Particle system

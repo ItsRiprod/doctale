@@ -5,7 +5,7 @@ description: "Manage player item storage including hotbar, main storage, armor s
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 # Player Inventory
 
@@ -105,7 +105,10 @@ public class Inventory {
     // Combined containers
     public CombinedItemContainer getCombinedHotbarFirst();
     public CombinedItemContainer getCombinedStorageFirst();
+    public CombinedItemContainer getCombinedBackpackStorageHotbar();
     public CombinedItemContainer getCombinedArmorHotbarStorage();
+    public CombinedItemContainer getCombinedArmorHotbarUtilityStorage();
+    public CombinedItemContainer getCombinedHotbarUtilityConsumableStorage();
     public CombinedItemContainer getCombinedEverything();
 }
 ```
@@ -192,7 +195,7 @@ inventory.moveItem(
 ### Smart Move
 
 ```java
-import com.hypixel.hytale.server.core.inventory.SmartMoveType;
+import com.hypixel.hytale.protocol.SmartMoveType;
 
 // Auto-equip armor or merge stacks
 inventory.smartMoveItem(
@@ -201,11 +204,11 @@ inventory.smartMoveItem(
     SmartMoveType.EquipOrMergeStack
 );
 
-// Move to hotbar if possible, otherwise storage
+// Move to hotbar or open window container
 inventory.smartMoveItem(
     Inventory.STORAGE_SECTION_ID, 20,
     1,
-    SmartMoveType.ToHotbar
+    SmartMoveType.PutInHotbarOrWindow
 );
 ```
 
@@ -237,10 +240,19 @@ CombinedItemContainer hotbarFirst = inventory.getCombinedHotbarFirst();
 // Search storage first, then hotbar
 CombinedItemContainer storageFirst = inventory.getCombinedStorageFirst();
 
+// Search backpack, storage, hotbar
+CombinedItemContainer backpackFirst = inventory.getCombinedBackpackStorageHotbar();
+
 // Search armor, hotbar, storage
 CombinedItemContainer armorHotbarStorage = inventory.getCombinedArmorHotbarStorage();
 
-// Search everything
+// Search armor, hotbar, utility, storage
+CombinedItemContainer armorHotbarUtility = inventory.getCombinedArmorHotbarUtilityStorage();
+
+// Search hotbar, utility, storage (consumable-focused)
+CombinedItemContainer hotbarUtility = inventory.getCombinedHotbarUtilityConsumableStorage();
+
+// Search everything (armor, hotbar, utility, storage, backpack)
 CombinedItemContainer everything = inventory.getCombinedEverything();
 
 // Find item in combined container
@@ -295,12 +307,11 @@ if (heldItem != null) {
 
 Options for intelligent item placement:
 
-| Type | Description |
-|------|-------------|
-| `EquipOrMergeStack` | Auto-equip armor/tools, or merge with existing stacks |
-| `ToHotbar` | Move to hotbar if possible |
-| `ToStorage` | Move to main storage |
-| `ToArmor` | Equip in appropriate armor slot |
+| Value | Type | Description |
+|-------|------|-------------|
+| 0 | `EquipOrMergeStack` | Try to equip as armor first, then merge with existing stacks across hotbar and storage |
+| 1 | `PutInHotbarOrWindow` | Move to hotbar or open window container; swaps between hotbar and storage if already in one of those |
+| 2 | `PutInHotbarOrBackpack` | Move to hotbar first, falls back to backpack/storage/hotbar combined |
 
 ## Slot Indices
 

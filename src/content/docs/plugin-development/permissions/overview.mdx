@@ -5,7 +5,7 @@ description: "Control access to commands and features with hierarchical nodes, g
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 # Permission System Overview
 
@@ -118,6 +118,9 @@ public class PermissionsModule extends JavaPlugin {
     public void addGroupPermission(String group, Set<String> permissions);
     public void removeGroupPermission(String group, Set<String> permissions);
 
+    // Virtual groups (used by game modes like Creative to grant permissions)
+    public void setVirtualGroups(Map<String, Set<String>> virtualGroups);
+
     // Provider management
     public void addProvider(PermissionProvider provider);
     public void removeProvider(PermissionProvider provider);
@@ -142,14 +145,15 @@ Permission nodes use a dot-separated hierarchical structure:
 
 ### Matching Algorithm
 
-For permission check `hytale.command.teleport`:
+For a permission check like `hytale.command.teleport`, the system checks in this order:
 
-1. Check exact match: `hytale.command.teleport`
-2. Check parent wildcard: `hytale.command.*`
-3. Check grandparent wildcard: `hytale.*`
-4. Check root wildcard: `*`
+1. Global wildcard: `*` (grant all) or `-*` (deny all)
+2. Exact match: `hytale.command.teleport` or `-hytale.command.teleport`
+3. Hierarchy wildcards, built from least specific to most specific:
+   - `hytale.*` or `-hytale.*`
+   - `hytale.command.*` or `-hytale.command.*`
 
-At each level, negation (`-` prefix) is also checked.
+The first match wins. This means a global `*` grant takes priority over an exact deny further down the list within the same permission set. To override a wildcard grant, use a separate provider or place denials at the user level (user permissions are checked before group permissions).
 
 ### Examples
 
@@ -183,8 +187,18 @@ Common permission nodes (from `HytalePermissions`):
 | `hytale.editor.packs.edit` | Edit asset packs |
 | `hytale.editor.packs.delete` | Delete asset packs |
 | `hytale.editor.builderTools` | Builder tools |
-| `hytale.editor.brush.*` | Brush editor |
+| `hytale.editor.brush.use` | Use brushes |
+| `hytale.editor.brush.config` | Configure brushes |
+| `hytale.editor.prefab.use` | Use prefabs |
+| `hytale.editor.prefab.manage` | Manage prefabs |
+| `hytale.editor.selection.use` | Use selection tools |
+| `hytale.editor.selection.clipboard` | Selection clipboard (copy/paste) |
+| `hytale.editor.selection.modify` | Modify selections |
+| `hytale.editor.history` | History/undo |
 | `hytale.camera.flycam` | Fly camera |
+| `hytale.world_map.teleport.coordinate` | World map coordinate teleport |
+| `hytale.world_map.teleport.marker` | World map marker teleport |
+| `hytale.system.update.notify` | Update notifications |
 
 ## Default Groups
 

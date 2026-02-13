@@ -5,7 +5,7 @@ description: "Overview of the Hytale interaction system for handling player inte
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge, LinkCard, CardGrid } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-01-25] - Restructured for clarity */}
+{/* [VERIFIED: 2026-02-13] - Added missing InteractionContext methods */}
 
 The interaction system handles all player interactions with blocks, entities, and items through a chain-based execution model with server-client synchronization.
 
@@ -164,12 +164,20 @@ public class InteractionContext {
     public ItemStack getHeldItem();
     public byte getHeldItemSlot();
     public DynamicMetaStore<InteractionContext> getMetaStore();
+    public DynamicMetaStore<Interaction> getInstanceStore();
     public InteractionChain getChain();
+    public InteractionSyncData getState();
+    @Nullable
+    public InteractionSyncData getClientState();
 
-    // Fork into a new chain
     public InteractionChain fork(
-        RootInteraction forkedRootInteraction
+        InteractionContext context,
+        RootInteraction rootInteraction,
+        boolean predicted
     );
+
+    public void jump(Label label);
+    public Label getLabel(int index);
 }
 ```
 

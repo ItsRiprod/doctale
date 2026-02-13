@@ -55,8 +55,8 @@ The `BlockType` object is embedded within item definitions:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `Material` | `string` | Physical material type (`Solid`, `Empty`, `Liquid`) |
-| `DrawType` | `string` | Rendering method (`Cube`, `Model`, `CubeWithModel`, `Empty`) |
+| `Material` | `string` | Physical material type (`Solid`, `Empty`) |
+| `DrawType` | `string` | Rendering method (`Empty`, `GizmoCube`, `Cube`, `Model`, `CubeWithModel`) |
 
 ### Rendering Properties
 
@@ -86,7 +86,7 @@ The `BlockType` object is embedded within item definitions:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `VariantRotation` | `string` | - | Rotation variant type (`NESW`, `UpDownNESW`, `DoublePipe`) |
+| `VariantRotation` | `string` | - | Rotation variant type (`None`, `Wall`, `UpDown`, `Pipe`, `DoublePipe`, `NESW`, `UpDownNESW`, `All`) |
 | `RandomRotation` | `string` | - | Random rotation on placement (`YawStep90`) |
 | `PlacementSettings` | `object` | - | Placement rules and rotation mode |
 | `FlipType` | `string` | - | Flip behavior for mirrored variants |
@@ -97,7 +97,7 @@ The `BlockType` object is embedded within item definitions:
 |-------|------|-------------|
 | `Support` | `object` | Required support per face (e.g., `Down: [{}]`) |
 | `Supporting` | `object` | Support provided to neighbors per face |
-| `SupportDropType` | `string` | Behavior when support lost (`BREAK`, `DROP`, `NONE`) |
+| `SupportDropType` | `string` | Behavior when support lost (`BREAK`, `DESTROY`) |
 
 ### Sound & Particles
 
@@ -130,10 +130,11 @@ The `BlockType` object is embedded within item definitions:
 
 | Value | Description | Use Case |
 |-------|-------------|----------|
+| `Empty` | Invisible, no rendering | Air, triggers |
+| `GizmoCube` | Gizmo cube rendering | Debug/editor gizmos |
 | `Cube` | Standard 6-faced cube | Stone, dirt, most blocks |
 | `Model` | Custom 3D model only | Furniture, decorations |
 | `CubeWithModel` | Cube base with model overlay | Ores (rock + ore chunks) |
-| `Empty` | Invisible, no rendering | Air, triggers |
 
 ## Examples
 
@@ -562,9 +563,14 @@ Higher weight values make that texture variant more likely to appear. In the exa
 
 | Value | Description |
 |-------|-------------|
-| `NESW` | 4 rotations (North, East, South, West) |
-| `UpDownNESW` | 6 rotations (all faces) |
-| `DoublePipe` | 2 rotations (horizontal pipe) |
+| `None` | No variant rotation |
+| `Wall` | Wall-mounted rotation |
+| `UpDown` | Up/down rotation (2 orientations) |
+| `Pipe` | Pipe-style rotation (3 orientations) |
+| `DoublePipe` | Double pipe rotation (6 orientations) |
+| `NESW` | Cardinal direction rotation (4 orientations) |
+| `UpDownNESW` | Up/down + cardinal rotation (8 orientations) |
+| `All` | All rotation variants (64 orientations) |
 
 ## Flags Object
 

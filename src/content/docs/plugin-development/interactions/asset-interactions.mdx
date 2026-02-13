@@ -428,32 +428,16 @@ Complete signature ability with stat cost:
 
 ### Parallel Interactions
 
-Run multiple interactions simultaneously:
+Run multiple interactions simultaneously by forking into concurrent chains. Each entry in `Interactions` must be a **RootInteraction** string ID (not an inline object):
 
 ```json title="Parallel execution example"
 {
   "Type": "Parallel",
   "Interactions": [
-    {
-      "Interactions": [
-        "MyPlugin_Force_Effect"
-      ]
-    },
-    {
-      "Interactions": [
-        "MyPlugin_Selector"
-      ]
-    },
-    {
-      "Interactions": [
-        "MyPlugin_Particle_Effect"
-      ]
-    }
-  ],
-  "Next": {
-    "Type": "Simple",
-    "RunTime": 0.25
-  }
+    "Root_MyPlugin_Force_Effect",
+    "Root_MyPlugin_Selector",
+    "Root_MyPlugin_Particle_Effect"
+  ]
 }
 ```
 

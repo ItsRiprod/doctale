@@ -5,7 +5,7 @@ description: "Serialize data to BSON and JSON with type-safe codecs, versioning,
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 # Serialization (Codec) System Overview
 
@@ -76,16 +76,19 @@ package com.hypixel.hytale.codec;
 public class KeyedCodec<T> {
     public KeyedCodec(String key, Codec<T> codec);
 
-    // Get value from document (throws if missing)
-    public T get(BsonDocument doc, ExtraInfo info);
+    // get value from document (returns Optional.empty() if missing)
+    public Optional<T> get(BsonDocument doc, ExtraInfo info);
 
-    // Get value or null if missing
+    // get value from document (throws if missing)
+    public T getNow(BsonDocument doc, ExtraInfo info);
+
+    // get value or null if missing
     public T getOrNull(BsonDocument doc, ExtraInfo info);
 
-    // Get with default value
+    // get with default value
     public T getOrDefault(BsonDocument doc, ExtraInfo info, T defaultValue);
 
-    // Put value into document
+    // put value into document
     public void put(BsonDocument doc, T value, ExtraInfo info);
 }
 ```
@@ -279,7 +282,7 @@ public class DerivedConfig extends BaseConfig {
 ### Polymorphic Types
 
 ```java
-import com.hypixel.hytale.codec.polymorphic.CodecMapCodec;
+import com.hypixel.hytale.codec.lookup.CodecMapCodec;
 
 public abstract class ActionConfig {
     // Polymorphic dispatch by "Type" field
@@ -376,17 +379,24 @@ Context passed during serialization:
 package com.hypixel.hytale.codec;
 
 public class ExtraInfo {
-    // Get thread-local instance
-    public static ExtraInfo get();
+    // thread-local instance
+    public static final ThreadLocal<ExtraInfo> THREAD_LOCAL;
 
-    // Current decode path
-    public List<String> getPath();
+    // push/pop keys to track current decode path
+    public void pushKey(String key);
+    public void popKey();
 
-    // Add validation error
-    public void addError(String message);
+    // peek at current path, line, and column
+    public String peekKey();
+    public int peekLine();
+    public int peekColumn();
 
-    // Check for errors
-    public boolean hasErrors();
+    // track unknown keys encountered during decode
+    public void addUnknownKey(String key);
+    public List<String> getUnknownKeys();
+
+    // access validation results
+    public ValidationResults getValidationResults();
 }
 ```
 

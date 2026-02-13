@@ -3,96 +3,129 @@ title: "Block Ticking"
 description: "Enable time-based block behavior like crop growth, decay, and state changes with TickProcedure."
 ---
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-02-12] */}
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 
-# Block Ticking
-
-The block tick system enables time-based behavior for blocks, such as crop growth, decay, or state changes.
+Block ticking lets blocks do things over time — growing crops, decaying leaves, spreading moss, that kind of thing. Each block type can have a `TickProcedure` attached in its JSON definition, and the server will call it periodically for every instance of that block.
 
 ## Package Location
 
 `com.hypixel.hytale.server.core.asset.type.blocktick.config.TickProcedure`
 
-## TickProcedure Class
+## TickProcedure
 
-```java title="TickProcedure base class"
+The base class all tick procedures extend. It provides a thread-local random number generator and one abstract method you need to implement:
+
+```java title="TickProcedure.java"
 public abstract class TickProcedure {
-    // Called when block should tick
+    public static final CodecMapCodec<TickProcedure> CODEC = new CodecMapCodec<>("Type");
+    public static final BuilderCodec<TickProcedure> BASE_CODEC =
+        BuilderCodec.abstractBuilder(TickProcedure.class).build();
+
+    protected static final SplittableRandom BASE_RANDOM = new SplittableRandom();
+    protected static final ThreadLocal<SplittableRandom> RANDOM =
+        ThreadLocal.withInitial(BASE_RANDOM::split);
+
+    protected SplittableRandom getRandom() {
+        return RANDOM.get();
+    }
+
     public abstract BlockTickStrategy onTick(
-        World world,
-        WorldChunk chunk,
-        int x, int y, int z,
-        int blockId
+        World world, WorldChunk chunk,
+        int x, int y, int z, int blockId
     );
 }
 ```
 
+The `CODEC` field is a `CodecMapCodec` — meaning the JSON `"Type"` key determines which procedure subclass gets deserialized. Procedures register themselves against this codec during plugin setup.
+
 ## BlockTickStrategy
 
-Return value indicating what happened during the tick:
+The return value from `onTick` tells the tick system what to do next with that block:
 
 | Strategy | Description |
 |----------|-------------|
-| `NONE` | No change occurred |
-| `CHANGED` | Block was modified |
-| `REMOVED` | Block was removed |
+| `CONTINUE` | Keep ticking this block on future ticks |
+| `IGNORED` | Tick was ignored (no procedure found, or ticking disabled) |
+| `SLEEP` | Stop ticking this block until something wakes it up |
+| `WAIT_FOR_ADJACENT_CHUNK_LOAD` | Pause ticking until neighboring chunks are loaded |
 
-```java title="Returning tick strategies"
-@Override
-public BlockTickStrategy onTick(World world, WorldChunk chunk,
-                                 int x, int y, int z, int blockId) {
-    // No change
-    return BlockTickStrategy.NONE;
-
-    // Block modified (triggers updates)
-    return BlockTickStrategy.CHANGED;
-
-    // Block removed
-    return BlockTickStrategy.REMOVED;
-}
-```
+<Aside type="tip">
+Most growth procedures return `CONTINUE` when the chance roll fails (so the block keeps trying) and either `CONTINUE` or `SLEEP` after successfully growing, depending on the `NextTicking` flag.
+</Aside>
 
 ## Built-in Procedures
 
-### BasicChanceBlockGrowthProcedure
+The `BlockTickPlugin` registers two built-in procedures:
 
-Grows block to next stage with configurable chance:
+```java title="BlockTickPlugin.java (registration)"
+TickProcedure.CODEC.register("BasicChance",
+    BasicChanceBlockGrowthProcedure.class,
+    BasicChanceBlockGrowthProcedure.CODEC);
+TickProcedure.CODEC.register("SplitChance",
+    SplitChanceBlockGrowthProcedure.class,
+    SplitChanceBlockGrowthProcedure.CODEC);
+```
 
-```json title="Basic growth procedure"
+So in JSON, you use `"Type": "BasicChance"` or `"Type": "SplitChance"` — not the full class names.
+
+### BasicChance
+
+Rolls a random chance each tick. If it succeeds, the block transforms into a different block.
+
+```json title="BasicChance procedure"
 {
   "TickProcedure": {
-    "Type": "BasicChanceBlockGrowthProcedure",
-    "GrowChance": 0.1,
-    "GrowToBlock": "MyPlugin_MaturePlant"
+    "Type": "BasicChance",
+    "NextId": "MyPlugin_MaturePlant",
+    "ChanceMin": 1,
+    "Chance": 10,
+    "NextTicking": false
   }
 }
 ```
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `GrowChance` | `float` | Chance per tick (0.0 - 1.0) |
-| `GrowToBlock` | `string` | Block ID to transform into |
+| `NextId` | `string` | Block ID to transform into |
+| `ChanceMin` | `int` | Minimum threshold for the random roll to succeed |
+| `Chance` | `int` | Upper bound of the random range (rolls `0` to `Chance - 1`) |
+| `NextTicking` | `boolean` | If `true`, the new block continues ticking. If `false`, it sleeps after transforming |
 
-### SplitChanceBlockGrowthProcedure
+The chance logic works like this: a random int in `[0, Chance)` is generated, and if it's less than `ChanceMin`, the growth triggers. So `ChanceMin: 1, Chance: 10` gives a 1-in-10 chance per tick.
 
-Different growth chances for each stage:
+### SplitChance
 
-```json title="Split chance growth"
+Extends `BasicChance` but instead of a single target block, it picks randomly from a weighted map of possible outcomes.
+
+```json title="SplitChance procedure"
 {
   "TickProcedure": {
-    "Type": "SplitChanceBlockGrowthProcedure",
-    "Stages": [
-      { "GrowChance": 0.2, "GrowToBlock": "Crop_Stage2" },
-      { "GrowChance": 0.15, "GrowToBlock": "Crop_Stage3" },
-      { "GrowChance": 0.1, "GrowToBlock": "Crop_Mature" }
-    ]
+    "Type": "SplitChance",
+    "NextIds": {
+      "MyPlugin_Crop_Mature_A": 3,
+      "MyPlugin_Crop_Mature_B": 1
+    },
+    "ChanceMin": 1,
+    "Data": 10,
+    "NextTicking": false
   }
 }
 ```
 
+| Property | Type | Description |
+|----------|------|-------------|
+| `NextIds` | `object` | Map of block IDs to their relative weights |
+| `ChanceMin` | `int` | Minimum threshold for the random roll |
+| `Data` | `int` | Upper bound of the random range (same role as `Chance` in BasicChance) |
+| `NextTicking` | `boolean` | Whether the resulting block continues ticking |
+
+In the example above, when the growth triggers, there's a 3/4 chance of becoming `Mature_A` and a 1/4 chance of `Mature_B`.
+
 ## JSON Configuration
+
+The `TickProcedure` field goes directly in your block type JSON:
 
 <Tabs>
   <TabItem label="Simple Growth">
@@ -102,9 +135,11 @@ Different growth chances for each stage:
   "DrawType": "Model",
   "CustomModel": "models/plant_stage1.blockymodel",
   "TickProcedure": {
-    "Type": "BasicChanceBlockGrowthProcedure",
-    "GrowChance": 0.1,
-    "GrowToBlock": "MyPlugin_MaturePlant"
+    "Type": "BasicChance",
+    "NextId": "MyPlugin_MaturePlant",
+    "ChanceMin": 1,
+    "Chance": 10,
+    "NextTicking": false
   }
 }
 ```
@@ -116,9 +151,11 @@ Different growth chances for each stage:
   "DrawType": "Model",
   "CustomModel": "models/crop_stage1.blockymodel",
   "TickProcedure": {
-    "Type": "BasicChanceBlockGrowthProcedure",
-    "GrowChance": 0.15,
-    "GrowToBlock": "MyPlugin_Crop_Stage2"
+    "Type": "BasicChance",
+    "NextId": "MyPlugin_Crop_Stage2",
+    "ChanceMin": 1,
+    "Chance": 8,
+    "NextTicking": true
   }
 }
 ```
@@ -128,67 +165,96 @@ Different growth chances for each stage:
 {
   "Id": "MyPlugin_DecayingBlock",
   "TickProcedure": {
-    "Type": "BasicChanceBlockGrowthProcedure",
-    "GrowChance": 0.05,
-    "GrowToBlock": "Air"
+    "Type": "BasicChance",
+    "NextId": "Air",
+    "ChanceMin": 1,
+    "Chance": 20,
+    "NextTicking": false
   }
 }
 ```
   </TabItem>
 </Tabs>
 
+<Aside type="note">
+For multi-stage growth (like crops), set `NextTicking` to `true` on intermediate stages so the next block keeps ticking. Set it to `false` on the final stage so it stops.
+</Aside>
+
+## How Block Ticking Works
+
+The tick system runs as part of the chunk processing pipeline:
+
+1. **Discovery** — When a chunk is first generated, `BlockTickPlugin` scans every block in the chunk. Any block with a `TickProcedure` on its `BlockType` gets flagged as ticking in its `BlockSection`.
+
+2. **PreTick** — The `ChunkBlockTickSystem.PreTick` system runs first, preparing the chunk's timing state.
+
+3. **Ticking** — The `ChunkBlockTickSystem.Ticking` system iterates all flagged blocks, looks up their `TickProcedure` via `BlockTickPlugin.getTickProcedure(blockId)`, and calls `onTick`. The returned `BlockTickStrategy` determines what happens next.
+
+4. **Error handling** — If a tick procedure throws, the system logs a warning and returns `SLEEP` for that block, preventing it from crashing the tick loop.
+
+Ticking can be enabled or disabled per-world via `WorldConfig.isBlockTicking()`.
+
 ## Custom Tick Procedures
 
-Create custom tick procedures by extending `TickProcedure`:
+You can create your own by extending `TickProcedure` and registering it:
 
-```java title="CustomTickProcedure.java"
-public class SpreadingMossTickProcedure extends TickProcedure {
-    private float spreadChance;
-    private int maxSpreadDistance;
+```java title="SpreadingMossProcedure.java"
+public class SpreadingMossProcedure extends TickProcedure {
+    public static final BuilderCodec<SpreadingMossProcedure> CODEC =
+        BuilderCodec.builder(SpreadingMossProcedure.class,
+            SpreadingMossProcedure::new, TickProcedure.BASE_CODEC)
+        .addField(
+            new KeyedCodec<>("SpreadChance", Codec.INTEGER),
+            (proc, v) -> proc.spreadChance = v,
+            proc -> proc.spreadChance
+        )
+        .build();
+
+    private int spreadChance = 10;
 
     @Override
     public BlockTickStrategy onTick(World world, WorldChunk chunk,
                                      int x, int y, int z, int blockId) {
-        if (Math.random() > spreadChance) {
-            return BlockTickStrategy.NONE;
+        if (getRandom().nextInt(spreadChance) != 0) {
+            return BlockTickStrategy.CONTINUE;
         }
 
-        // Find adjacent stone blocks and spread
-        for (Direction dir : Direction.HORIZONTAL) {
-            int nx = x + dir.getOffsetX();
-            int nz = z + dir.getOffsetZ();
+        BlockType stone = BlockType.getAssetMap().get("Rock_Stone");
+        BlockType mossy = BlockType.getAssetMap().get("MossyStone");
 
-            BlockType neighbor = world.getBlockType(nx, y, nz);
-            if (neighbor.getId().equals("Rock_Stone")) {
-                world.setBlock(nx, y, nz,
-                    BlockType.getAssetMap().get("MossyStone"));
-                return BlockTickStrategy.CHANGED;
-            }
+        int nx = x + getRandom().nextInt(3) - 1;
+        int nz = z + getRandom().nextInt(3) - 1;
+
+        if (world.getBlockType(nx, y, nz) == stone) {
+            world.setBlock(nx, y, nz, mossy);
         }
 
-        return BlockTickStrategy.NONE;
+        return BlockTickStrategy.CONTINUE;
     }
 }
 ```
 
-## Tick Rate
+Then register it in your plugin's `setup()`:
 
-Block ticks occur at regular intervals determined by the server. The tick rate affects how quickly growth/decay happens.
+```java title="Registration"
+TickProcedure.CODEC.register("SpreadingMoss",
+    SpreadingMossProcedure.class,
+    SpreadingMossProcedure.CODEC);
+```
 
-<Aside type="note">
-Tick procedures are called randomly, not every game tick. The `GrowChance` compounds with this randomness.
-</Aside>
+And use it in JSON:
 
-## Best Practices
-
-1. **Keep ticks lightweight**: Tick procedures run frequently; avoid heavy computation
-2. **Use appropriate chances**: Lower chances for rare events, higher for fast growth
-3. **Consider neighbors**: Check adjacent blocks for context-aware behavior
-4. **Return correct strategy**: Always return the appropriate `BlockTickStrategy`
-5. **Test thoroughly**: Tick timing can be unpredictable; test various scenarios
+```json title="MyPlugin_MossyBlock.json"
+{
+  "Id": "MyPlugin_MossyBlock",
+  "TickProcedure": {
+    "Type": "SpreadingMoss",
+    "SpreadChance": 15
+  }
+}
+```
 
 ## Related
 
-- [Block Types](/plugin-development/blocks/block-types/) - BlockType properties
-- [Block States](/plugin-development/blocks/block-states/) - Per-block data
-- [Farming (Assets)](/asset-development/world/prefabs/) - Farming system assets
+- [Block Types](/plugin-development/blocks/block-types/) — BlockType properties and configuration
+- [Block States](/plugin-development/blocks/block-states/) — Per-block instance data

@@ -36,7 +36,7 @@ Before starting, you should understand:
 
 <FileTree>
 - my-plugin/
-  - plugin.json
+  - manifest.json
   - assets/
     - Server/
       - Item/
@@ -76,7 +76,7 @@ The RootInteraction is the entry point that items reference.
   "ClickQueuingTimeout": 0.3,
   "Cooldown": {
     "Cooldown": 0.5,
-    "SharedCooldownId": "Staff_Channeling"
+    "Id": "Staff_Channeling"
   },
   "Interactions": [
     "Staff_Channeling_Primary"
@@ -88,7 +88,7 @@ The RootInteraction is the entry point that items reference.
 |-------|-------------|
 | `RequireNewClick` | Must click again, not hold |
 | `ClickQueuingTimeout` | Window to queue next click |
-| `SharedCooldownId` | Shares cooldown with other staff abilities |
+| `Id` | Cooldown identifier shared across staff abilities |
 
 ---
 
@@ -104,7 +104,8 @@ This is the core of our staff - the charging mechanic with three tiers.
   "Effects": {
     "ItemAnimationId": "Channel",
     "WorldSoundEventId": "SFX_Staff_Charge_Loop",
-    "MouseSensitivity": 0.5
+    "MouseSensitivityAdjustmentTarget": 0.5,
+    "MouseSensitivityAdjustmentDuration": 0.3
   },
   "Delay": {
     "MinDelay": 0.1,
@@ -339,7 +340,7 @@ Create a secondary spell that can be cast while channeling:
   "RequireNewClick": true,
   "Cooldown": {
     "Cooldown": 1.0,
-    "SharedCooldownId": "Staff_QuickCast"
+    "Id": "Staff_QuickCast"
   },
   "Interactions": [
     "Staff_Channeling_QuickCast"
@@ -484,7 +485,7 @@ This assumes you have a `Template_Weapon_Staff` parent template. If not, you may
   "ClickQueuingTimeout": 0.3,
   "Cooldown": {
     "Cooldown": 0.5,
-    "SharedCooldownId": "Staff_Channeling"
+    "Id": "Staff_Channeling"
   },
   "Interactions": ["Staff_Channeling_Primary"]
 }
@@ -507,7 +508,8 @@ This assumes you have a `Template_Weapon_Staff` parent template. If not, you may
   "Effects": {
     "ItemAnimationId": "Channel",
     "WorldSoundEventId": "SFX_Staff_Charge_Loop",
-    "MouseSensitivity": 0.5
+    "MouseSensitivityAdjustmentTarget": 0.5,
+    "MouseSensitivityAdjustmentDuration": 0.3
   },
   "Delay": {
     "MinDelay": 0.1,

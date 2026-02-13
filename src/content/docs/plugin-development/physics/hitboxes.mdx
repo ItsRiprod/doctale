@@ -5,7 +5,7 @@ description: "Manage collision bounds with simple bounding boxes or complex mult
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 # Hitbox System
 
@@ -315,24 +315,25 @@ public boolean hitboxesIntersect(Box hitboxA, Vector3d posA,
 }
 ```
 
-### Getting Hitbox from Config
+### Getting Collision Config from Entity
 
 ```java
 import com.hypixel.hytale.server.core.modules.entity.hitboxcollision.HitboxCollision;
 import com.hypixel.hytale.server.core.modules.entity.hitboxcollision.HitboxCollisionConfig;
+import com.hypixel.hytale.protocol.CollisionType;
 
-public Box getEntityHitbox(Ref<EntityStore> entityRef,
-                           IComponentAccessor accessor) {
+public CollisionType getEntityCollisionType(Ref<EntityStore> entityRef,
+                                            IComponentAccessor accessor) {
     HitboxCollision hitbox = accessor.getComponent(entityRef,
         HitboxCollision.getComponentType());
 
     int configIndex = hitbox.getHitboxCollisionConfigIndex();
 
-    // Get config from asset map
+    // look up config from the indexed asset map
     HitboxCollisionConfig config = HitboxCollisionConfig.getAssetMap()
         .get(configIndex);
 
-    return config.getBoundingBox();
+    return config.getCollisionType();
 }
 ```
 
@@ -355,7 +356,7 @@ Hitbox changes are synchronized to clients:
 
 ## Related
 
-- [Physics Overview](/plugin-development/entities/overview/) - Physics system
+- [Physics Overview](/plugin-development/physics/overview/) - Physics system
 - [Collision System](/plugin-development/physics/collision/) - Collision detection
 - [Entity System](/plugin-development/entities/overview/) - Entity components
 - [Block System](/plugin-development/blocks/overview/) - Block hitboxes

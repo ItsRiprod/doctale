@@ -1,38 +1,66 @@
 ---
 title: "Block Events"
-description: "React to and modify block breaks, placements, and interactions through the block event system."
+description: "React to and modify block breaks, placements, damage, and interactions through the ECS event system."
 ---
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-02-12] */}
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 
-# Block Events
-
-Block events allow plugins to react to and modify block-related actions in the world.
+Block events let your plugin react when blocks are broken, placed, damaged, or interacted with. Unlike the pub-sub event system used for player events, block events are **ECS events** — they're dispatched on entities via `EntityEventSystem` and handled through the component system.
 
 ## Package Location
 
-`com.hypixel.hytale.server.core.event.world.*`
+`com.hypixel.hytale.server.core.event.events.ecs`
+
+All four block events live here:
+- `BreakBlockEvent`
+- `PlaceBlockEvent`
+- `DamageBlockEvent`
+- `UseBlockEvent` (with `Pre` and `Post` subtypes)
+
+## How ECS Events Work
+
+Block events extend `EcsEvent` (or `CancellableEcsEvent`) instead of implementing `IEvent`. They're dispatched directly on entities via `entityStore.invoke(ref, event)` and handled by registering an `EntityEventSystem` with the entity store registry.
+
+```java title="Registering a block event system"
+@Override
+protected void setup() {
+    getEntityStoreRegistry().registerSystem(new MyBreakBlockSystem());
+}
+```
+
+<Aside type="note">
+ECS block events are invoked on the entity performing the action (the player), not broadcast globally. Your system's `handle` method receives the entity reference along with the event.
+</Aside>
 
 ## BreakBlockEvent
 
-Fired when a block is about to be broken.
+Fired when an entity is about to break a block. Extends `CancellableEcsEvent`, so you can cancel it.
 
 ```java title="Handling block breaks"
-getEventRegistry().register(BreakBlockEvent.class, event -> {
-    BlockType blockType = event.getBlockType();
-    Vector3i position = event.getPosition();
-    PlayerRef player = event.getPlayerRef();
-
-    // Log the break
-    getLogger().info("Player breaking " + blockType.getId() + " at " + position);
-
-    // Cancel to prevent breaking
-    if (blockType.getId().equals("Protected_Block")) {
-        event.setCancelled(true);
+public class MyBreakBlockSystem extends EntityEventSystem<EntityStore, BreakBlockEvent> {
+    public MyBreakBlockSystem() {
+        super(BreakBlockEvent.class);
     }
-});
+
+    @Override
+    public void handle(int index, ArchetypeChunk<EntityStore> chunk,
+            Store<EntityStore> store, CommandBuffer<EntityStore> commandBuffer,
+            BreakBlockEvent event) {
+        BlockType blockType = event.getBlockType();
+        Vector3i position = event.getTargetBlock();
+
+        if (blockType.getId().equals("Protected_Block")) {
+            event.setCancelled(true);
+        }
+    }
+
+    @Override
+    public Query<EntityStore> getQuery() {
+        return Archetype.empty();
+    }
+}
 ```
 
 ### BreakBlockEvent Methods
@@ -40,59 +68,79 @@ getEventRegistry().register(BreakBlockEvent.class, event -> {
 | Method | Return Type | Description |
 |--------|-------------|-------------|
 | `getBlockType()` | `BlockType` | The block being broken |
-| `getPosition()` | `Vector3i` | World position |
-| `getPlayerRef()` | `PlayerRef` | Player breaking the block (may be null) |
-| `getWorld()` | `World` | The world |
+| `getTargetBlock()` | `Vector3i` | World position of the block |
+| `setTargetBlock(Vector3i)` | `void` | Redirect the break to a different position |
+| `getItemInHand()` | `ItemStack` | Item the entity is holding (may be null) |
 | `setCancelled(boolean)` | `void` | Cancel the break |
 | `isCancelled()` | `boolean` | Check if cancelled |
 
 ## PlaceBlockEvent
 
-Fired when a block is about to be placed.
+Fired when an entity is about to place a block. Also extends `CancellableEcsEvent`.
 
 ```java title="Handling block placement"
-getEventRegistry().register(PlaceBlockEvent.class, event -> {
-    BlockType blockType = event.getBlockType();
-    Vector3i position = event.getPosition();
-    PlayerRef player = event.getPlayerRef();
-
-    // Prevent placement in certain areas
-    if (isProtectedArea(position)) {
-        event.setCancelled(true);
-        return;
+public class MyPlaceBlockSystem extends EntityEventSystem<EntityStore, PlaceBlockEvent> {
+    public MyPlaceBlockSystem() {
+        super(PlaceBlockEvent.class);
     }
 
-    // Log placement
-    getLogger().info("Player placed " + blockType.getId() + " at " + position);
-});
+    @Override
+    public void handle(int index, ArchetypeChunk<EntityStore> chunk,
+            Store<EntityStore> store, CommandBuffer<EntityStore> commandBuffer,
+            PlaceBlockEvent event) {
+        Vector3i position = event.getTargetBlock();
+
+        if (isProtectedArea(position)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @Override
+    public Query<EntityStore> getQuery() {
+        return Archetype.empty();
+    }
+}
 ```
 
 ### PlaceBlockEvent Methods
 
 | Method | Return Type | Description |
 |--------|-------------|-------------|
-| `getBlockType()` | `BlockType` | The block being placed |
-| `getPosition()` | `Vector3i` | Target position |
-| `getPlayerRef()` | `PlayerRef` | Player placing the block |
-| `getWorld()` | `World` | The world |
-| `getReplacedBlockType()` | `BlockType` | Block being replaced |
+| `getTargetBlock()` | `Vector3i` | Target position for the block |
+| `setTargetBlock(Vector3i)` | `void` | Redirect placement to a different position |
+| `getItemInHand()` | `ItemStack` | Item being placed (may be null) |
+| `getRotation()` | `RotationTuple` | Block rotation |
+| `setRotation(RotationTuple)` | `void` | Change the block rotation |
 | `setCancelled(boolean)` | `void` | Cancel the placement |
+| `isCancelled()` | `boolean` | Check if cancelled |
+
+<Aside type="tip">
+Unlike `BreakBlockEvent`, `PlaceBlockEvent` doesn't expose a `getBlockType()` — the block type comes from the item being placed. Use `getItemInHand()` to inspect what's being placed.
+</Aside>
 
 ## DamageBlockEvent
 
-Fired during mining progression (each hit while mining).
+Fired each tick while a block is being mined. Extends `CancellableEcsEvent`. This is where you can modify mining speed or prevent damage entirely.
 
-```java title="Tracking mining progress"
-getEventRegistry().register(DamageBlockEvent.class, event -> {
-    BlockType blockType = event.getBlockType();
-    float damage = event.getDamage();
-    float progress = event.getProgress();
+```java title="Modifying mining damage"
+public class MyDamageBlockSystem extends EntityEventSystem<EntityStore, DamageBlockEvent> {
+    public MyDamageBlockSystem() {
+        super(DamageBlockEvent.class);
+    }
 
-    // Custom mining speed logic
-    if (hasEnchantment(event.getPlayerRef(), "FastMining")) {
+    @Override
+    public void handle(int index, ArchetypeChunk<EntityStore> chunk,
+            Store<EntityStore> store, CommandBuffer<EntityStore> commandBuffer,
+            DamageBlockEvent event) {
+        float damage = event.getDamage();
         event.setDamage(damage * 1.5f);
     }
-});
+
+    @Override
+    public Query<EntityStore> getQuery() {
+        return Archetype.empty();
+    }
+}
 ```
 
 ### DamageBlockEvent Methods
@@ -100,123 +148,114 @@ getEventRegistry().register(DamageBlockEvent.class, event -> {
 | Method | Return Type | Description |
 |--------|-------------|-------------|
 | `getBlockType()` | `BlockType` | Block being mined |
-| `getPosition()` | `Vector3i` | World position |
-| `getDamage()` | `float` | Damage this tick |
-| `setDamage(float)` | `void` | Modify damage amount |
-| `getProgress()` | `float` | Total mining progress (0-1) |
-| `getPlayerRef()` | `PlayerRef` | Player mining |
+| `getTargetBlock()` | `Vector3i` | World position |
+| `setTargetBlock(Vector3i)` | `void` | Redirect damage to a different position |
+| `getItemInHand()` | `ItemStack` | Tool being used (may be null) |
+| `getCurrentDamage()` | `float` | Accumulated damage on the block so far |
+| `getDamage()` | `float` | Damage being dealt this tick |
+| `setDamage(float)` | `void` | Modify the damage amount |
+| `setCancelled(boolean)` | `void` | Cancel the damage tick |
+| `isCancelled()` | `boolean` | Check if cancelled |
 
 ## UseBlockEvent
 
-Fired when a player interacts with a usable block (right-click).
+Fired when an entity interacts with a usable block. Unlike the other block events, `UseBlockEvent` is **abstract** with two concrete subtypes:
+
+| Subtype | Parent | Cancellable | When |
+|---------|--------|-------------|------|
+| `UseBlockEvent.Pre` | `EcsEvent` | Yes | Before the interaction executes |
+| `UseBlockEvent.Post` | `EcsEvent` | No | After the interaction completes |
 
 ```java title="Handling block interactions"
-getEventRegistry().register(UseBlockEvent.class, event -> {
-    BlockType blockType = event.getBlockType();
-    Vector3i position = event.getPosition();
-    PlayerRef player = event.getPlayerRef();
-
-    // Custom interaction logic
-    if (blockType.getId().equals("MyPlugin_SpecialBlock")) {
-        openCustomUI(player, position);
-        event.setCancelled(true);  // Prevent default behavior
+public class MyUseBlockPreSystem extends EntityEventSystem<EntityStore, UseBlockEvent.Pre> {
+    public MyUseBlockPreSystem() {
+        super(UseBlockEvent.Pre.class);
     }
-});
+
+    @Override
+    public void handle(int index, ArchetypeChunk<EntityStore> chunk,
+            Store<EntityStore> store, CommandBuffer<EntityStore> commandBuffer,
+            UseBlockEvent.Pre event) {
+        BlockType blockType = event.getBlockType();
+
+        if (blockType.getId().equals("MyPlugin_LockedChest")) {
+            event.setCancelled(true);
+        }
+    }
+
+    @Override
+    public Query<EntityStore> getQuery() {
+        return Archetype.empty();
+    }
+}
 ```
 
 ### UseBlockEvent Methods
 
+These methods are available on both `Pre` and `Post`:
+
 | Method | Return Type | Description |
 |--------|-------------|-------------|
-| `getBlockType()` | `BlockType` | Block being used |
-| `getPosition()` | `Vector3i` | World position |
-| `getPlayerRef()` | `PlayerRef` | Player interacting |
-| `getWorld()` | `World` | The world |
-| `setCancelled(boolean)` | `void` | Cancel the interaction |
+| `getBlockType()` | `BlockType` | Block being interacted with |
+| `getTargetBlock()` | `Vector3i` | World position |
+| `getInteractionType()` | `InteractionType` | Type of interaction (Primary, Secondary, Use, etc.) |
+| `getContext()` | `InteractionContext` | Full interaction context |
 
-## Event Cancellation Patterns
+`UseBlockEvent.Pre` additionally implements `ICancellableEcsEvent`:
+
+| Method | Return Type | Description |
+|--------|-------------|-------------|
+| `setCancelled(boolean)` | `void` | Cancel the interaction |
+| `isCancelled()` | `boolean` | Check if cancelled |
+
+## Registering Multiple Systems
+
+You can register multiple block event systems in your plugin's `setup()`:
+
+```java title="Registering block event systems"
+@Override
+protected void setup() {
+    ComponentRegistryProxy<EntityStore> entityStoreRegistry = getEntityStoreRegistry();
+    entityStoreRegistry.registerSystem(new MyBreakBlockSystem());
+    entityStoreRegistry.registerSystem(new MyPlaceBlockSystem());
+    entityStoreRegistry.registerSystem(new MyDamageBlockSystem());
+    entityStoreRegistry.registerSystem(new MyUseBlockPreSystem());
+}
+```
+
+## ECS Events vs Pub-Sub Events
 
 <Tabs>
-  <TabItem label="Protection">
-```java title="Area protection"
-getEventRegistry().register(BreakBlockEvent.class, event -> {
-    if (isProtectedRegion(event.getPosition())) {
-        event.setCancelled(true);
-        sendMessage(event.getPlayerRef(), "This area is protected!");
-    }
-});
-
-getEventRegistry().register(PlaceBlockEvent.class, event -> {
-    if (isProtectedRegion(event.getPosition())) {
-        event.setCancelled(true);
-    }
-});
-```
+  <TabItem label="ECS Events (Block Events)">
+- Extend `EcsEvent` or `CancellableEcsEvent`
+- Dispatched on a specific entity via `entityStore.invoke(ref, event)`
+- Handled by `EntityEventSystem` subclasses
+- Registered via `getEntityStoreRegistry().registerSystem()`
+- Your handler receives the entity context (archetype chunk, store, command buffer)
   </TabItem>
-  <TabItem label="Permissions">
-```java title="Permission-based blocking"
-getEventRegistry().register(BreakBlockEvent.class, event -> {
-    PlayerRef player = event.getPlayerRef();
-    if (player != null && !hasPermission(player, "blocks.break")) {
-        event.setCancelled(true);
-    }
-});
-```
-  </TabItem>
-  <TabItem label="Logging">
-```java title="Block change logging"
-getEventRegistry().register(BreakBlockEvent.class, event -> {
-    logBlockChange(
-        event.getPlayerRef(),
-        "BREAK",
-        event.getBlockType(),
-        event.getPosition()
-    );
-});
-
-getEventRegistry().register(PlaceBlockEvent.class, event -> {
-    logBlockChange(
-        event.getPlayerRef(),
-        "PLACE",
-        event.getBlockType(),
-        event.getPosition()
-    );
-});
-```
+  <TabItem label="Pub-Sub Events (Player Events, etc.)">
+- Implement `IEvent<KeyType>` or `IAsyncEvent<KeyType>`
+- Dispatched globally via the event bus
+- Handled by lambda/method reference callbacks
+- Registered via `getEventRegistry().register()`
+- Support priorities (`FIRST`, `EARLY`, `NORMAL`, `LATE`, `LAST`)
   </TabItem>
 </Tabs>
 
-## Event Priority
-
-Register with priority to control execution order:
-
-```java title="Event priority"
-// High priority - runs first
-getEventRegistry().register(BreakBlockEvent.class, event -> {
-    // Security checks
-}, EventPriority.HIGH);
-
-// Normal priority
-getEventRegistry().register(BreakBlockEvent.class, event -> {
-    // Standard handling
-}, EventPriority.NORMAL);
-
-// Low priority - runs last
-getEventRegistry().register(BreakBlockEvent.class, event -> {
-    // Logging, cleanup
-}, EventPriority.LOW);
-```
+<Aside type="caution">
+The block event system doesn't use `getEventRegistry().register()`. If you try to register for `BreakBlockEvent` that way, it won't work — these events are dispatched through the ECS, not the pub-sub event bus.
+</Aside>
 
 ## Best Practices
 
-1. **Check for null**: Player references may be null for non-player block changes
-2. **Use priority wisely**: Security checks at HIGH, logging at LOW
-3. **Avoid heavy work**: Events fire frequently; keep handlers fast
-4. **Consider batching**: For bulk operations, batch your logic
-5. **Test cancellation**: Ensure cancelled events don't have side effects
+1. **Return `Archetype.empty()`** from `getQuery()` if your system doesn't need specific components — it will receive all entity events of that type
+2. **Keep handlers fast** — block damage events fire every tick during mining
+3. **Use `Pre` for cancellation** — `UseBlockEvent.Post` fires after the interaction already happened
+4. **Check `getItemInHand()` for null** — the entity may not be holding anything
+5. **Use `setTargetBlock()` carefully** — redirecting a break or place to a different position can have unexpected side effects with chunk boundaries
 
 ## Related
 
-- [Event System](/plugin-development/core-concepts/event-system/) - Event handling basics
-- [Event Catalog](/plugin-development/events/event-catalog/) - All available events
+- [Event System](/plugin-development/core-concepts/event-system/) - Pub-sub event handling
+- [ECS Overview](/plugin-development/core-concepts/ecs-overview/) - Entity Component System basics
 - [Block Types](/plugin-development/blocks/block-types/) - BlockType properties

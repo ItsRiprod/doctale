@@ -100,7 +100,7 @@ Only use registration methods during `setup()`. Registrations made after this ph
 protected void start() {
     // Plugin is about to become fully active
     // Perform any post-setup initialization
-    getLogger().info("MyPlugin has started successfully!");
+    getLogger().at(Level.INFO).log("MyPlugin has started successfully!");
 }
 ```
 

@@ -5,7 +5,7 @@ description: "Implement hold-to-charge interactions with multi-tier release, for
 
 import { Aside, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-01-25] - From ChargingInteraction.java and WieldingInteraction.java */}
+{/* [VERIFIED: 2026-02-13] - From ChargingInteraction.java and WieldingInteraction.java */}
 
 Charging interactions allow players to hold a button to charge up an action, then release to execute based on charge level.
 
@@ -139,6 +139,7 @@ When `FailOnDamage` is enabled, taking damage interrupts the charge:
   "Delay": {
     "MinDelay": 0.1,
     "MaxDelay": 0.5,
+    "MaxTotalDelay": 1.0,
     "MinHealth": 0.2,
     "MaxHealth": 0.8
   },
@@ -154,6 +155,7 @@ Damage cancellation delay varies based on current health:
 |-------|-------------|
 | `MinDelay` | Delay at `MaxHealth` ratio (short delay when healthy) |
 | `MaxDelay` | Delay at `MinHealth` ratio (long delay when hurt) |
+| `MaxTotalDelay` | Caps the total computed delay value |
 | `MinHealth` | Health ratio for maximum delay |
 | `MaxHealth` | Health ratio for minimum delay |
 
@@ -242,18 +244,22 @@ When stamina reaches zero, the block breaks and the player is staggered.
 
 ## Mouse Sensitivity During Charge
 
-Charging reduces mouse sensitivity for aim stability:
+Charging reduces mouse sensitivity for aim stability. This is controlled by two fields on ChargingInteraction:
 
 ```json
 {
   "Type": "Charging",
-  "Effects": {
-    "MouseSensitivity": 0.4
-  }
+  "MouseSensitivityAdjustmentTarget": 0.4,
+  "MouseSensitivityAdjustmentDuration": 0.3
 }
 ```
 
-Lower values = less sensitivity while charging. Useful for:
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `MouseSensitivityAdjustmentTarget` | `float` | `1.0` | Target sensitivity multiplier (lower = less sensitive) |
+| `MouseSensitivityAdjustmentDuration` | `float` | `1.0` | Time in seconds to ease into the adjusted sensitivity |
+
+These fields also exist on `ApplicationEffects`, so they can be set inside `Effects` as well. Useful for:
 - Bow aiming
 - Heavy attack wind-ups
 - Channeled spells
@@ -310,10 +316,11 @@ public InteractionState state;      // Finished/Failed
   "Type": "Charging",
   "DisplayProgress": true,
   "FailOnDamage": false,
+  "MouseSensitivityAdjustmentTarget": 0.6,
+  "MouseSensitivityAdjustmentDuration": 0.3,
   "Effects": {
     "ItemAnimationId": "Draw",
-    "WorldSoundEventId": "SFX_Bow_Draw",
-    "MouseSensitivity": 0.6
+    "WorldSoundEventId": "SFX_Bow_Draw"
   },
   "Next": {
     "0.0": "Bow_Release_Quick",
@@ -370,9 +377,10 @@ public InteractionState state;      // Finished/Failed
     "Physical": 0.1,
     "Explosive": 0.3
   },
+  "MouseSensitivityAdjustmentTarget": 0.8,
+  "MouseSensitivityAdjustmentDuration": 0.2,
   "Effects": {
-    "ItemAnimationId": "Guard",
-    "MouseSensitivity": 0.8
+    "ItemAnimationId": "Guard"
   },
   "BlockedEffects": {
     "WorldSoundEventId": "SFX_Shield_Block",

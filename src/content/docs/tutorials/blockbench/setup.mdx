@@ -15,9 +15,7 @@ import {
   Tabs,
   TabItem,
   Badge,
-  Image,
 } from "@astrojs/starlight/components";
-import blockbenchRequired from "../../../../../public/images/tutorials/blockbench/blockbench_required_install.png";
 
 Blockbench is the official tool for creating 3D models and animations for Hytale. This guide walks you through installing Blockbench and the Hytale plugin to start creating custom assets.
 
@@ -45,10 +43,8 @@ Download the `.AppImage` file. Make it executable with `chmod +x` and run it.
 
 <Aside type="caution" title="Package Manager Warning">
   You cannot install via package managers like APT or Snap as Hytale won't
-  detect those installations. ![Hytale stating the
-  requirement](/images/tutorials/blockbench/blockbench_required_install.png) *I
-  haven't been able to get this working personally - any advice would be
-  appreciated for getting this to work on Linux!*
+  detect those installations.
+  ![Hytale stating the requirement](/images/tutorials/blockbench/blockbench_required_install.png)
 </Aside>
 
 </TabItem>
@@ -161,7 +157,7 @@ When creating assets for a plugin, organize files like this:
             - Sword/
             - Custom.blockymodel
             - Custom_Texture.png
-      - plugin.json
+      - manifest.json
 </FileTree>
 
 ## Common Issues

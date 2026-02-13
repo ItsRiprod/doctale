@@ -72,9 +72,10 @@ Client-side models and animations are in `Assets/Common/NPC/`:
 |-------|------|---------|-------------|
 | `EyeHeight` | `float` | - | Height of eyes from ground (blocks) |
 | `CrouchOffset` | `float` | `0` | Vertical offset when crouching |
-| `MinScale` | `float` | `1.0` | Minimum random scale multiplier |
-| `MaxScale` | `float` | `1.0` | Maximum random scale multiplier |
-| `DefaultAttachments` | `array` | `[]` | Equipment/attachment slots |
+| `MinScale` | `float` | `0.95` | Minimum random scale multiplier |
+| `MaxScale` | `float` | `1.05` | Maximum random scale multiplier |
+| `DefaultAttachments` | `ModelAttachment[]` | `null` | Attachments always applied to this model |
+| `RandomAttachmentSets` | `map<string, map<string, ModelAttachment>>` | `null` | Weighted random attachment pools per slot |
 
 ### HitBox Object
 
@@ -125,6 +126,62 @@ For UI icon generation:
 }
 ```
 
+## Attachments
+
+Attachments are extra model+texture pairs layered on top of the base NPC model -- think armor pieces, accessories, hairstyles, or held items. The system supports both fixed attachments that always appear and randomized attachments that vary per NPC spawn.
+
+### ModelAttachment Object
+
+Each attachment entry has these fields:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `Model` | `string` | `null` | Path to the attachment `.blockymodel` file |
+| `Texture` | `string` | `null` | Path to the attachment texture `.png` file |
+| `GradientSet` | `string` | `null` | Gradient set for color variation |
+| `GradientId` | `string` | `null` | Specific gradient within the set |
+| `Weight` | `double` | `1.0` | Selection weight (only used in `RandomAttachmentSets`) |
+
+### DefaultAttachments
+
+An array of `ModelAttachment` objects that are always applied to the NPC. These get combined with any randomly selected attachments at spawn time.
+
+```json
+"DefaultAttachments": [
+  {
+    "Model": "NPC/Intelligent/Human/Attachments/Hair_01.blockymodel",
+    "Texture": "NPC/Intelligent/Human/Attachments/Hair_01.png"
+  }
+]
+```
+
+### RandomAttachmentSets
+
+A two-level map structure: the outer key is a slot name (like `"Hair"` or `"Armor"`), and the inner map contains named attachment options with weights. At spawn, the engine picks one option per slot using weighted random selection.
+
+```json
+"RandomAttachmentSets": {
+  "Hair": {
+    "Style_A": {
+      "Model": "NPC/Intelligent/Human/Attachments/Hair_A.blockymodel",
+      "Texture": "NPC/Intelligent/Human/Attachments/Hair_A.png",
+      "Weight": 2.0
+    },
+    "Style_B": {
+      "Model": "NPC/Intelligent/Human/Attachments/Hair_B.blockymodel",
+      "Texture": "NPC/Intelligent/Human/Attachments/Hair_B.png",
+      "Weight": 1.0
+    }
+  }
+}
+```
+
+In this example, `Style_A` is twice as likely to be selected as `Style_B`. The final attachment list sent to the client is the `DefaultAttachments` array plus one pick from each `RandomAttachmentSets` slot.
+
+<Aside type="tip">
+NPC behaviors can swap attachments at runtime using the `ActionModelAttachment` action, which takes a slot name and an attachment ID. This rebuilds the model with the new attachment configuration.
+</Aside>
+
 ## AnimationSets
 
 The `AnimationSets` object maps animation states to animation files:
@@ -149,7 +206,7 @@ The `AnimationSets` object maps animation states to animation files:
 |-------|------|---------|-------------|
 | `Animation` | `string` | - | Path to `.blockyanim` file |
 | `Speed` | `float` | `1.0` | Animation playback speed multiplier |
-| `BlendingDuration` | `float` | - | Transition blend time (seconds) |
+| `BlendingDuration` | `float` | `0.2` | Transition blend time (seconds) |
 | `Looping` | `bool` | `true` | Whether animation loops |
 | `SoundEventId` | `string` | - | Sound to play with animation |
 

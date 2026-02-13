@@ -5,7 +5,7 @@ description: "Apply status effects with duration, stacking, stat modifiers, and 
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 # Entity Effects System
 
@@ -29,14 +29,31 @@ Component that manages active effects on an entity:
 package com.hypixel.hytale.server.core.entity.effect;
 
 public class EffectControllerComponent implements Component<EntityStore> {
-    // Add effect with default duration
+    // Add effect using its asset defaults (duration, overlap, infinite)
     public boolean addEffect(
         Ref<EntityStore> ownerRef,
         EntityEffect entityEffect,
         ComponentAccessor<EntityStore> componentAccessor
     );
 
+    // Add effect with explicit index, using its asset defaults
+    public boolean addEffect(
+        Ref<EntityStore> ownerRef,
+        int entityEffectIndex,
+        EntityEffect entityEffect,
+        ComponentAccessor<EntityStore> componentAccessor
+    );
+
     // Add effect with custom duration and overlap behavior
+    public boolean addEffect(
+        Ref<EntityStore> ownerRef,
+        EntityEffect entityEffect,
+        float duration,
+        OverlapBehavior overlapBehavior,
+        ComponentAccessor<EntityStore> componentAccessor
+    );
+
+    // Add effect with explicit index, custom duration and overlap behavior
     public boolean addEffect(
         Ref<EntityStore> ownerRef,
         int entityEffectIndex,
@@ -98,8 +115,7 @@ Represents an effect currently applied to an entity:
 package com.hypixel.hytale.server.core.entity.effect;
 
 public class ActiveEntityEffect {
-    // Effect identification
-    public String getEntityEffectId();
+    // Identification
     public int getEntityEffectIndex();
 
     // Duration
@@ -109,7 +125,6 @@ public class ActiveEntityEffect {
 
     // Properties
     public boolean isDebuff();
-    public String getStatusEffectIcon();
     public boolean isInvulnerable();
 }
 ```
@@ -272,7 +287,7 @@ int[] indices = controller.getActiveEffectIndexes();
 for (int index : indices) {
     ActiveEntityEffect active = activeEffects.get(index);
 
-    String effectId = active.getEntityEffectId();
+    int effectIndex = active.getEntityEffectIndex();
     float remaining = active.getRemainingDuration();
     boolean isDebuff = active.isDebuff();
 
@@ -280,7 +295,7 @@ for (int index : indices) {
         // Effect lasts forever
     } else {
         // Effect has duration
-        System.out.println(effectId + ": " + remaining + "s remaining");
+        System.out.println("Effect " + effectIndex + ": " + remaining + "s remaining");
     }
 }
 ```
