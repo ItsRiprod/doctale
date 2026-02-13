@@ -3,7 +3,7 @@ title: "Decorative Sets"
 description: "Build themed furniture collections with consistent visual styles including doors, chests, tables, and lighting."
 ---
 
-{/* [VERIFIED: 2026-01-20] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 import { Aside, Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
 
@@ -36,7 +36,7 @@ Decorative sets have assets split between Common (client) and Server directories
 
 ## Available Decorative Sets
 
-Hytale includes 22 decorative sets organized by theme:
+Hytale includes at least 22 decorative sets organized by theme:
 
 ### Civilization Sets
 
@@ -133,6 +133,13 @@ Furniture items reference their decorative set through the `Set` field:
   }
 }
 ```
+
+### Door Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `IsDoor` | boolean | Marks this block as a door, enabling door interaction logic |
+| `HitboxType` | string | Use `"Door"` for standard doors, `"Door_Open_In"` / `"Door_Open_Out"` for open states |
 
 ## Example: Lighting with States
 

@@ -38,9 +38,12 @@ Recipes are defined within item JSON files under the `Recipe` property:
 |-------|------|----------|-------------|
 | `Input` | `array` | Yes | Required materials |
 | `Output` | `array` | No | Produced items (defaults to containing item) |
+| `PrimaryOutput` | `object` | No | Single primary output item (alternative to `Output` array) |
+| `OutputQuantity` | `int` | No | Quantity multiplier for the primary output (default: 1) |
 | `BenchRequirement` | `array` | No | Required crafting stations |
 | `TimeSeconds` | `float` | No | Crafting duration in seconds |
 | `KnowledgeRequired` | `bool` | No | Requires recipe knowledge |
+| `RequiredMemoriesLevel` | `int` | No | Minimum world Memories level needed to craft (default: 1, meaning always available) |
 
 ### Input Entry
 
@@ -71,7 +74,9 @@ Recipes are defined within item JSON files under the `Recipe` property:
 | Type | Description |
 |------|-------------|
 | `Crafting` | Standard crafting bench |
+| `Processing` | Processing bench (e.g. smelting) |
 | `DiagramCrafting` | Requires unlocked diagram |
+| `StructuralCrafting` | Structural crafting bench |
 
 ## Examples
 

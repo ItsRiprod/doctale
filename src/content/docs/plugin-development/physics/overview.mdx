@@ -5,7 +5,7 @@ description: "Handle entity movement, collision detection, and physical simulati
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 # Physics System Overview
 
@@ -122,37 +122,56 @@ Central collision detection system:
 package com.hypixel.hytale.server.core.modules.collision;
 
 public class CollisionModule extends JavaPlugin {
-    // Get singleton
+    // validation return codes
+    public static final int VALIDATE_INVALID = -1;
+    public static final int VALIDATE_OK = 0;
+    public static final int VALIDATE_ON_GROUND = 1;
+    public static final int VALIDATE_TOUCH_CEIL = 2;
+
     public static CollisionModule get();
 
-    // Find collisions along movement path
-    public static CollisionResult findCollisions(
-        Box collider,
-        Vector3d position,
-        Vector3d velocity,
-        CollisionResult result,
-        IComponentAccessor accessor
+    // find collisions along movement path, returns true if far-distance
+    public static boolean findCollisions(
+        Box collider, Vector3d position, Vector3d velocity,
+        CollisionResult result, ComponentAccessor<EntityStore> accessor
     );
 
-    // Validate position against collisions
-    public static boolean validatePosition(
-        World world,
-        Box collider,
-        Vector3d position,
+    // overload with early-out control
+    public static boolean findCollisions(
+        Box collider, Vector3d position, Vector3d velocity,
+        boolean stopOnCollisionFound,
+        CollisionResult result, ComponentAccessor<EntityStore> accessor
+    );
+
+    // validate position against block collisions (instance method)
+    public int validatePosition(
+        World world, Box collider, Vector3d position,
         CollisionResult result
     );
 
-    // Block collisions (far distance)
-    public static void findBlockCollisionsIterative(...);
+    // block collisions (far distance)
+    public static void findBlockCollisionsIterative(
+        World world, Box collider, Vector3d pos, Vector3d v,
+        boolean stopOnCollisionFound, CollisionResult result
+    );
 
-    // Block collisions (short distance)
-    public static void findBlockCollisionsShortDistance(...);
+    // block collisions (short distance)
+    public static void findBlockCollisionsShortDistance(
+        World world, Box collider, Vector3d pos, Vector3d v,
+        CollisionResult result
+    );
 
-    // Entity collisions
-    public static void findCharacterCollisions(...);
+    // entity collisions
+    public static void findCharacterCollisions(
+        Vector3d pos, Vector3d v, CollisionResult result,
+        ComponentAccessor<EntityStore> accessor
+    );
 
-    // Intersection detection
-    public static void findIntersections(...);
+    // intersection detection (instance method)
+    public void findIntersections(
+        World world, Box collider, Vector3d pos,
+        CollisionResult result, boolean triggerBlocks, boolean intersections
+    );
 }
 ```
 
@@ -271,9 +290,11 @@ public class PhysicsExample {
             TransformComponent.getComponentType());
         Vector3d position = transform.getPosition();
 
-        // Check for collisions
+        // returns true if far-distance path was used
         CollisionResult result = new CollisionResult();
-        CollisionModule.findCollisions(collider, position, movement, result, accessor);
+        boolean isFarDistance = CollisionModule.findCollisions(
+            collider, position, movement, result, accessor
+        );
 
         return result.hasBlockCollisions();
     }

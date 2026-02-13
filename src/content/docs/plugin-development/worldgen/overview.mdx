@@ -5,7 +5,7 @@ description: "Create terrain, structures, and biomes using the procedural genera
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-01-24] - Updated with Update 2 prop types */}
+{/* [VERIFIED: 2026-02-13] - Updated with Update 2 prop types */}
 
 # World Generation Overview
 
@@ -63,7 +63,7 @@ public class HytaleWorldGenProvider implements IWorldGenProvider {
 
 ```json
 {
-  "WorldGenProvider": {
+  "WorldGen": {
     "Type": "Hytale",
     "Name": "MyWorldGen",
     "Path": "path/to/worldgen/config"
@@ -593,10 +593,10 @@ public class MyWorldGenProvider implements IWorldGenProvider {
 ```java
 @Override
 protected void setup() {
-    // Register world gen provider type
-    getCodecRegistry().register(
-        IWorldGenProvider.CODEC,
+    IWorldGenProvider.CODEC.register(
+        Priority.DEFAULT,
         "MyPlugin_WorldGen",
+        MyWorldGenProvider.class,
         MyWorldGenProvider.CODEC
     );
 }

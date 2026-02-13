@@ -3,7 +3,7 @@ title: "Tools"
 description: "Define utility items for resource gathering and farming with specialized Tool configuration for block-type effectiveness."
 ---
 
-{/* [VERIFIED: 2026-01-20] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 import { Aside, Card, CardGrid, LinkCard, Tabs, TabItem, FileTree, Badge } from '@astrojs/starlight/components';
 
@@ -74,32 +74,48 @@ Hytale includes 13 tool categories with 48 total tool definitions:
 |-------|------|---------|-------------|
 | `Tool` | `object` | - | Tool configuration with `Specs` array |
 | `Tool.Specs` | `array` | - | Gathering power per block type |
+| `Tool.Speed` | `double` | `0` | Global tool speed modifier |
 | `Tool.DurabilityLossBlockTypes` | `array` | - | Durability loss per block set |
+| `Tool.HitSoundLayer` | `string` | - | Sound played when hitting a block this tool is designed to break (inherited) |
+| `Tool.IncorrectMaterialSoundLayer` | `string` | - | Sound played when hitting a block this tool cannot break (inherited) |
 | `MaxDurability` | `number` | `100` | Maximum durability |
 | `PlayerAnimationsId` | `string` | - | Animation set (Pickaxe, Hoe, etc.) |
 | `Utility` | `object` | - | Utility item settings |
 
+### Spec Fields
+
+Each entry in the `Tool.Specs` array has these fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `GatherType` | `string` | The block gather type this spec applies to |
+| `Power` | `double` | Gathering power against this type (higher = faster) |
+| `Quality` | `integer` | Quality level of the tool for this gather type |
+| `IsIncorrect` | `boolean` | Marks this spec as using the wrong tool for the block type |
+| `HitSoundLayer` | `string` | Sound played when hitting this block type (inherited) |
+
 ### GatherType Values
 
-The `Tool.Specs` array defines gathering effectiveness:
+The `GatherType` string references a named gather type defined in the block system. Common values seen in vanilla tools:
 
 | GatherType | Description | Primary Tool |
 |------------|-------------|--------------|
-| `SoftBlocks` | Soft blocks like plants | All tools (Power: 1) |
+| `SoftBlocks` | Soft blocks like plants | All tools |
 | `Soils` | Dirt, sand, gravel | Shovel |
 | `Woods` | Trees, wooden blocks | Hatchet |
 | `Rocks` | Stone, rock formations | Pickaxe |
 | `Benches` | Crafting stations | All tools |
-| `VolcanicRocks` | Volcanic stone | Pickaxe (reduced) |
+| `VolcanicRocks` | Volcanic stone | Pickaxe |
 | `Ores` | Ore deposits | Pickaxe |
 
 ## Tool Specs System
 
-The `Tool.Specs` array determines how effective a tool is against different block types:
+The `Tool.Specs` array determines how effective a tool is against different block types. The `Tool` object also supports a top-level `Speed` modifier and sound layers for hit/incorrect feedback.
 
 ```json title="Tool Specs structure"
 {
   "Tool": {
+    "Speed": 1.0,
     "Specs": [
       {
         "Power": 1,
@@ -107,8 +123,14 @@ The `Tool.Specs` array determines how effective a tool is against different bloc
       },
       {
         "Power": 0.5,
+        "Quality": 2,
         "GatherType": "Rocks",
         "HitSoundLayer": "SFX_Pickaxe_T2_Impact_Nice"
+      },
+      {
+        "Power": 0.05,
+        "GatherType": "Woods",
+        "IsIncorrect": true
       }
     ],
     "DurabilityLossBlockTypes": [
@@ -122,6 +144,8 @@ The `Tool.Specs` array determines how effective a tool is against different bloc
 ```
 
 ### Power Values
+
+These are representative power values seen in vanilla tools:
 
 | Power | Effectiveness |
 |-------|---------------|
@@ -656,18 +680,12 @@ Tools use various interaction types:
 
 ## Material Tiers
 
-Tools follow a progression through material tiers:
+Tools follow a progression through material tiers. Power values are set explicitly per spec rather than through a global modifier -- higher tier tools simply define higher `Power` values in their `Specs` array.
 
-| Material | Quality | Item Level | Durability | Power Modifier |
-|----------|---------|------------|------------|----------------|
-| Crude/Stone | Common | 1-10 | 100-150 | Base |
-| Copper | Common | 15 | 175 | +15% |
-| Iron | Uncommon | 20 | 250 | +25% |
-| Cobalt | Rare | 30 | 350 | +40% |
-| Mithril | Rare | 40 | 450 | +60% |
-| Thorium | Epic | 50 | 550 | +80% |
-| Onyxium | Epic | 60 | 650 | +100% |
-| Adamantite | Legendary | 70 | 800 | +120% |
+| Material | Quality | Item Level | Durability |
+|----------|---------|------------|------------|
+| Crude/Stone | Common | 1-10 | 100-150 |
+| Iron | Uncommon | 20 | 250 |
 
 ## Animation Sets
 
@@ -687,24 +705,25 @@ Each tool type uses a specific animation set:
 ```java title="ToolExample.java"
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.asset.type.item.config.ItemTool;
+import com.hypixel.hytale.server.core.asset.type.item.config.ItemToolSpec;
 
 public class ToolExample {
     public void accessTools() {
         Item pickaxe = Item.getAssetMap().get("Tool_Pickaxe_Iron");
 
         if (pickaxe != null) {
-            // Check if it's a tool
             ItemTool toolConfig = pickaxe.getTool();
             if (toolConfig != null) {
-                // Access tool-specific properties like Specs
+                float speed = toolConfig.getSpeed();
+                ItemToolSpec[] specs = toolConfig.getSpecs();
+
+                for (ItemToolSpec spec : specs) {
+                    String gatherType = spec.getGatherType();
+                    float power = spec.getPower();
+                    int quality = spec.getQuality();
+                    boolean incorrect = spec.isIncorrect();
+                }
             }
-
-            // Get durability
-            double maxDurability = pickaxe.getMaxDurability();
-            String animationSet = pickaxe.getPlayerAnimationsId();
-
-            // Get interactions
-            Map<InteractionType, String> interactions = pickaxe.getInteractions();
         }
     }
 }
@@ -775,11 +794,12 @@ public class ToolExample {
   "ItemLevel": 50,
   "PlayerAnimationsId": "Pickaxe",
   "Tool": {
+    "Speed": 1.0,
     "Specs": [
       { "Power": 1, "GatherType": "SoftBlocks" },
-      { "Power": 0.4, "GatherType": "Soils" },
-      { "Power": 0.4, "GatherType": "Woods" },
-      { "Power": 0.4, "GatherType": "Rocks" },
+      { "Power": 0.4, "Quality": 2, "GatherType": "Soils" },
+      { "Power": 0.4, "Quality": 2, "GatherType": "Woods" },
+      { "Power": 0.4, "Quality": 2, "GatherType": "Rocks" },
       { "Power": 0.5, "GatherType": "Benches" },
       { "Power": 0.15, "GatherType": "VolcanicRocks" }
     ],

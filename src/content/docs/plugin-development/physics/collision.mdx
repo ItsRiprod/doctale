@@ -5,11 +5,11 @@ description: "Detect and respond to entity and block collisions using swept coll
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 # Collision System
 
-The Collision System detects and responds to collisions between entities and blocks. It uses swept collision detection for continuous movement and supports multiple collision types.
+The Collision System detects and responds to collisions between entities and blocks. It uses swept collision detection for continuous movement and supports multiple collision types including solid, slide, trigger, and damage collisions.
 
 ## Package Location
 
@@ -19,256 +19,621 @@ The Collision System detects and responds to collisions between entities and blo
 
 | Class | Description |
 |-------|-------------|
-| `CollisionModule` | Main collision detection plugin |
-| `CollisionResult` | Stores collision query results |
-| `CollisionConfig` | Block collision configuration |
-| `BlockCollisionProvider` | Block collision detection |
-| `EntityCollisionProvider` | Entity collision detection |
+| `CollisionModule` | Main collision detection plugin, singleton |
+| `CollisionResult` | Stores collision query results with pooled arrays |
+| `CollisionConfig` | Per-block collision configuration and world lookup |
+| `CollisionMaterial` | Material mask constants |
+| `BasicCollisionData` | Base collision data with point and start parameter |
+| `BoxCollisionData` | Extends BasicCollisionData, adds end parameter and normal |
+| `BlockCollisionData` | Extends BoxCollisionData, adds block info |
+| `CharacterCollisionData` | Extends BasicCollisionData, entity collision data |
+| `BlockContactData` | Contact data base for evaluators (normal, point, ground state) |
+| `MovingBoxBoxCollisionEvaluator` | Swept (continuous) box collision detection |
+| `BoxBlockIntersectionEvaluator` | Static box-to-block intersection tests |
+| `CollisionMath` | AABB intersection math utilities |
+| `CollisionDataArray` | Pooled, sortable collision data list |
+| `BlockCollisionProvider` | Block collision provider |
+| `EntityCollisionProvider` | Entity collision provider |
+| `IBlockCollisionConsumer` | Callback interface for collision events |
+| `IBlockCollisionEvaluator` | Interface for collision evaluators |
+| `CollisionFilter` | Functional interface for collision filtering |
+
+## Class Hierarchy
+
+```mermaid
+classDiagram
+    BasicCollisionData <|-- BoxCollisionData
+    BasicCollisionData <|-- CharacterCollisionData
+    BoxCollisionData <|-- BlockCollisionData
+    BlockContactData <|-- MovingBoxBoxCollisionEvaluator
+    BlockContactData <|-- BoxBlockIntersectionEvaluator
+    IBlockCollisionEvaluator <|.. MovingBoxBoxCollisionEvaluator
+    IBlockCollisionEvaluator <|.. BoxBlockIntersectionEvaluator
+    JavaPlugin <|-- CollisionModule
+
+    class BasicCollisionData {
+        +Vector3d collisionPoint
+        +double collisionStart
+    }
+    class BoxCollisionData {
+        +double collisionEnd
+        +Vector3d collisionNormal
+    }
+    class BlockCollisionData {
+        +int x, y, z
+        +int blockId
+        +BlockType blockType
+        +BlockMaterial blockMaterial
+        +boolean willDamage
+    }
+    class CharacterCollisionData {
+        +Ref~EntityStore~ entityReference
+        +boolean isPlayer
+    }
+    class BlockContactData {
+        +Vector3d collisionNormal
+        +Vector3d collisionPoint
+        +double collisionStart
+        +double collisionEnd
+        +boolean onGround
+        +boolean overlapping
+    }
+```
 
 ## CollisionModule
 
-The central collision detection system:
+The central collision detection system. It extends `JavaPlugin` and is accessed as a singleton.
 
 ```java
 package com.hypixel.hytale.server.core.modules.collision;
 
 public class CollisionModule extends JavaPlugin {
-    // Singleton access
+    public static final int VALIDATE_INVALID = -1;
+    public static final int VALIDATE_OK = 0;
+    public static final int VALIDATE_ON_GROUND = 1;
+    public static final int VALIDATE_TOUCH_CEIL = 2;
+
     public static CollisionModule get();
 
-    // Main collision detection
-    public static CollisionResult findCollisions(
+    // returns true if far-distance (iterative) mode was used
+    public static boolean findCollisions(
         Box collider,
-        Vector3d position,
-        Vector3d velocity,
+        Vector3d pos,
+        Vector3d v,
         CollisionResult result,
-        IComponentAccessor accessor
+        ComponentAccessor<EntityStore> componentAccessor
     );
 
-    // Block collision (iterative, far distance)
+    // overload with stopOnCollisionFound flag
+    public static boolean findCollisions(
+        Box collider,
+        Vector3d pos,
+        Vector3d v,
+        boolean stopOnCollisionFound,
+        CollisionResult result,
+        ComponentAccessor<EntityStore> componentAccessor
+    );
+
+    // block collision (iterative, far distance)
     public static void findBlockCollisionsIterative(
-        Box collider,
-        Vector3d start,
-        Vector3d end,
-        CollisionResult result,
-        IComponentAccessor accessor
-    );
-
-    // Block collision (direct, short distance)
-    public static void findBlockCollisionsShortDistance(
-        Box collider,
-        Vector3d position,
-        Vector3d velocity,
-        CollisionResult result,
-        IComponentAccessor accessor
-    );
-
-    // Entity collision
-    public static void findCharacterCollisions(
-        Box collider,
-        Vector3d position,
-        Vector3d velocity,
-        CollisionResult result,
-        IComponentAccessor accessor
-    );
-
-    // Position validation
-    public static boolean validatePosition(
         World world,
         Box collider,
-        Vector3d position,
+        Vector3d pos,
+        Vector3d v,
+        boolean stopOnCollisionFound,
         CollisionResult result
     );
 
-    // Intersection detection
-    public static void findIntersections(
+    // block collision (direct, short distance)
+    public static void findBlockCollisionsShortDistance(
+        World world,
         Box collider,
-        Vector3d position,
-        CollisionResult result,
-        IComponentAccessor accessor
+        Vector3d pos,
+        Vector3d v,
+        CollisionResult result
     );
+
+    // entity collision
+    public static void findCharacterCollisions(
+        Vector3d pos,
+        Vector3d v,
+        CollisionResult result,
+        ComponentAccessor<EntityStore> componentAccessor
+    );
+
+    // position validation (instance method, returns int status code)
+    public int validatePosition(
+        World world,
+        Box collider,
+        Vector3d pos,
+        CollisionResult result
+    );
+
+    // intersection detection (instance method)
+    public void findIntersections(
+        World world,
+        Box collider,
+        Vector3d pos,
+        CollisionResult result,
+        boolean triggerBlocks,
+        boolean intersections
+    );
+
+    // check if velocity is below movement threshold
+    public static boolean isBelowMovementThreshold(Vector3d v);
 }
 ```
 
+<Aside type="tip">
+`findCollisions` returns a `boolean` indicating whether far-distance (iterative) mode was used -- not the collision results themselves. The results are stored in the `CollisionResult` you pass in. Also note that `validatePosition` and `findIntersections` are **instance methods**, not static.
+</Aside>
+
+<Aside type="caution">
+`findCharacterCollisions` does **not** take a `Box collider` parameter -- it works with the collision entities list already set on the `CollisionResult`.
+</Aside>
+
 ## CollisionResult
 
-Stores all collision data from a query:
+Stores all collision data from a query. Uses pooled `CollisionDataArray` instances for efficiency.
 
 ```java
 package com.hypixel.hytale.server.core.modules.collision;
 
-public class CollisionResult {
-    // Block collisions (solid blocks)
-    public BlockCollisionData[] blockCollisions;
+public class CollisionResult implements BoxBlockIterator.BoxIterationConsumer {
+    // block collisions (solid blocks)
+    private final CollisionDataArray<BlockCollisionData> blockCollisions;
+    // block slides (walkable surfaces)
+    private final CollisionDataArray<BlockCollisionData> blockSlides;
+    // block triggers (sensor/damage blocks)
+    private final CollisionDataArray<BlockCollisionData> blockTriggers;
+    // entity collisions
+    private final CollisionDataArray<CharacterCollisionData> characterCollisions;
 
-    // Block slides (walkable surfaces)
-    public BlockCollisionData[] blockSlides;
+    // evaluators
+    private final MovingBoxBoxCollisionEvaluator movingBoxBoxCollision;
+    private final BoxBlockIntersectionEvaluator boxBlockIntersection;
 
-    // Block triggers (sensor blocks)
-    public BlockCollisionData[] blockTriggers;
+    // slide state (computed by process())
+    public double slideStart;
+    public double slideEnd;
+    public boolean isSliding;
 
-    // Entity collisions
-    public CharacterCollisionData[] characterCollisions;
+    public CollisionResult();
+    public CollisionResult(boolean enableSlides, boolean enableCharacters);
 
-    // Reset for reuse
+    // reset all arrays for reuse
     public void reset();
 
-    // Process results
+    // sort results by collision start parameter
     public void process();
 
-    // Query helpers
-    public boolean hasBlockCollisions();
-    public boolean hasCharacterCollisions();
-    public BlockCollisionData getFirstBlockCollision();
+    // block collision queries
+    public int getBlockCollisionCount();
+    public BlockCollisionData getBlockCollision(int i);
+    @Nullable public BlockCollisionData getFirstBlockCollision();
+    @Nullable public BlockCollisionData forgetFirstBlockCollision();
+
+    // character collision queries
+    public int getCharacterCollisionCount();
+    @Nullable public CharacterCollisionData getFirstCharacterCollision();
+    @Nullable public CharacterCollisionData forgetFirstCharacterCollision();
+
+    // trigger block queries
+    public CollisionDataArray<BlockCollisionData> getTriggerBlocks();
+    public void pruneTriggerBlocks(double distance);
+
+    // allocators
+    public BlockCollisionData newCollision();
+    public BlockCollisionData newSlide();
+    public BlockCollisionData newTrigger();
+    public CharacterCollisionData allocCharacterCollision();
+
+    // configuration
+    public CollisionConfig getConfig();
+    public BoxBlockIntersectionEvaluator getBoxBlockIntersection();
+    public MovingBoxBoxCollisionEvaluator getMovingBoxBoxCollision();
+
+    // collision entity management
+    public List<Entity> getCollisionEntities();
+    public void setCollisionEntities(List<Entity> collisionEntities);
+
+    // slide control
+    public void enableSlides();
+    public void disableSlides();
+
+    // character collision control
+    public boolean isCheckingForCharacterCollisions();
+    public void enableCharacterCollsions();  // note: typo in source
+    public void disableCharacterCollisions();
+
+    // trigger block control
+    public void enableTriggerBlocks();
+    public void disableTriggerBlocks();
+    public boolean isCheckingTriggerBlocks();
+
+    // damage block control
+    public void enableDamageBlocks();
+    public void disableDamageBlocks();
+    public boolean isCheckingDamageBlocks();
+    public boolean setDamageBlocking(boolean blocking);
+    public boolean isDamageBlocking();
+
+    // material-based collision control
+    public void setCollisionByMaterial(int collidingMaterials);
+    public void setCollisionByMaterial(int collidingMaterials, int walkableMaterials);
+    public int getCollisionByMaterial();
+
+    // walkable configuration
+    public void setDefaultWalkableBehaviour();
+    public void setWalkableByMaterial(int walkableMaterial);
+    public void setNonWalkablePredicate(Predicate<CollisionConfig> classifier);
+
+    // presets
+    public void setDefaultCollisionBehaviour();
+    public void setDefaultPlayerSettings();
+
+    // overlap computation
+    public boolean isComputeOverlaps();
+    public void setComputeOverlaps(boolean computeOverlaps);
 }
 ```
 
 ## Collision Data Types
 
+### BasicCollisionData
+
+The base class for all collision data. Stores the collision point and start parameter (0-1 range along movement vector).
+
+```java
+public class BasicCollisionData {
+    public final Vector3d collisionPoint;
+    public double collisionStart;
+
+    public void setStart(Vector3d point, double start);
+}
+```
+
+### BoxCollisionData
+
+Extends `BasicCollisionData` with an end parameter and collision normal. Used as the base for block collisions.
+
+```java
+public class BoxCollisionData extends BasicCollisionData {
+    public double collisionEnd;
+    public final Vector3d collisionNormal;
+
+    public void setEnd(double collisionEnd, Vector3d collisionNormal);
+}
+```
+
 ### BlockCollisionData
 
-Information about a block collision:
+Full block collision information:
 
 ```java
 public class BlockCollisionData extends BoxCollisionData {
-    int blockId;           // Block type ID
-    BlockType blockType;   // Block type reference
-    BlockMaterial material; // Block material
-    Vector3i blockPos;     // Block position
-    boolean isDamage;      // Is damage block
+    public int x;                      // block world X
+    public int y;                      // block world Y
+    public int z;                      // block world Z
+    public int blockId;                // block type ID
+    public int rotation;               // block rotation index
+    @Nullable public BlockType blockType;
+    @Nullable public BlockMaterial blockMaterial;
+    public int detailBoxIndex;         // which detail hitbox was hit
+    public boolean willDamage;         // block causes damage
+    public int fluidId;                // fluid at this position
+    @Nullable public Fluid fluid;
+    public boolean touching;
+    public boolean overlapping;
 
-    // Inherited from BoxCollisionData
-    Vector3d collisionPoint;  // Point of collision
-    Vector3d collisionNormal; // Surface normal
-    double startParam;        // Start parameter (0-1)
-    double endParam;          // End parameter (0-1)
+    public void setBlockData(CollisionConfig collisionConfig);
+    public void setDetailBoxIndex(int detailBoxIndex);
+    public void setTouchingOverlapping(boolean touching, boolean overlapping);
+    public void clear();
 }
 ```
 
 ### CharacterCollisionData
 
-Information about an entity collision:
+Entity collision data. Note: this extends `BasicCollisionData` directly, **not** `BoxCollisionData` -- so it has no `collisionEnd` or `collisionNormal`.
 
 ```java
-public class CharacterCollisionData extends BoxCollisionData {
-    Ref<EntityStore> entityRef;  // Collided entity
-    Box entityBox;               // Entity bounding box
+public class CharacterCollisionData extends BasicCollisionData {
+    public Ref<EntityStore> entityReference;
+    public boolean isPlayer;
 
-    // Inherited from BoxCollisionData
-    Vector3d collisionPoint;
-    Vector3d collisionNormal;
-    double startParam;
-    double endParam;
+    public void assign(
+        Vector3d collisionPoint,
+        double collisionVectorScale,
+        Ref<EntityStore> entityReference,
+        boolean isPlayer
+    );
 }
-```
-
-## Collision Detection Flow
-
-### Block Collision
-
-```
-1. Determine distance mode (far vs short)
-   └── velocity >= threshold → iterative (far)
-   └── velocity < threshold → direct (short)
-
-2. Iterate blocks along movement path
-   └── Box.forEachBlock(start, end, callback)
-
-3. For each block:
-   ├── Check material allows collision
-   ├── Get block hitbox (with rotation)
-   ├── Perform swept box collision test
-   └── Classify result:
-       ├── Collision (solid)
-       ├── Slide (walkable)
-       ├── Trigger (sensor)
-       └── Damage (harmful)
-
-4. Sort collisions by start parameter
-5. Return collision results
-```
-
-### Entity Collision
-
-```
-1. Query spatial index (KD-Tree) for nearby entities
-2. For each nearby entity:
-   ├── Get entity bounding box
-   ├── Perform vector-AABB intersection
-   └── Record if collision occurs
-3. Sort by distance
-4. Return nearest collision
 ```
 
 ## Collision Evaluators
 
-### BoxBlockIntersectionEvaluator
+### BlockContactData
 
-Static box-to-block intersection tests:
+Base class for both evaluators. Holds contact state like ground detection and collision geometry:
 
 ```java
-package com.hypixel.hytale.server.core.modules.collision;
+public class BlockContactData {
+    protected final Vector3d collisionNormal;
+    protected final Vector3d collisionPoint;
+    protected double collisionStart;
+    protected double collisionEnd;
+    protected boolean onGround;
+    protected boolean overlapping;
+    protected int damage;
+    protected boolean isSubmergeFluid;
 
-public class BoxBlockIntersectionEvaluator {
-    // Basic intersection
-    public static boolean intersectBox(Box box, Box blockBox);
+    public Vector3d getCollisionNormal();
+    public Vector3d getCollisionPoint();
+    public double getCollisionStart();
+    public double getCollisionEnd();
+    public boolean isOnGround();
+    public boolean isOverlapping();
+    public int getDamage();
+    public boolean isSubmergeFluid();
+}
+```
 
-    // Intersection with touch detection
-    public static boolean intersectBoxComputeTouch(
-        Box box,
-        Box blockBox,
-        TouchResult result
-    );
+### IBlockCollisionEvaluator
 
-    // Intersection with ground detection
-    public static boolean intersectBoxComputeOnGround(
-        Box box,
-        Box blockBox,
-        GroundResult result
-    );
+Interface that both evaluators implement:
 
-    // Result flags
-    public boolean onGround;   // Standing on surface
-    public boolean touchCeil;  // Touching ceiling
+```java
+public interface IBlockCollisionEvaluator {
+    double getCollisionStart();
+    void setCollisionData(BlockCollisionData data, CollisionConfig collisionConfig, int hitboxIndex);
 }
 ```
 
 ### MovingBoxBoxCollisionEvaluator
 
-Swept (continuous) collision detection:
+Swept (continuous) collision detection between a moving box and stationary blocks. Extends `BlockContactData` and implements `IBlockCollisionEvaluator`.
 
 ```java
-package com.hypixel.hytale.server.core.modules.collision;
+public class MovingBoxBoxCollisionEvaluator extends BlockContactData
+        implements IBlockCollisionEvaluator {
 
-public class MovingBoxBoxCollisionEvaluator {
-    // Set the moving box
-    public void setCollider(Box collider);
+    public MovingBoxBoxCollisionEvaluator setCollider(Box collider);
 
-    // Set the movement vector
-    public void setMove(Vector3d move);
+    // set movement origin and direction
+    public MovingBoxBoxCollisionEvaluator setMove(Vector3d pos, Vector3d v);
 
-    // Check for collision with stationary box
-    public boolean isBoundingBoxColliding(Box target);
+    // test collision against a block bounding box at world position
+    public boolean isBoundingBoxColliding(Box blockBoundingBox, double x, double y, double z);
 
-    // Get collision parameters
-    public double getCollisionStart();
-    public double getCollisionEnd();
-    public Vector3d getCollisionNormal();
-    public Vector3d getCollisionPoint();
+    public boolean isTouching();
+    public void setCollisionEnd(double collisionEnd);
+    public void setCheckForOnGround(boolean checkForOnGround);
+    public boolean isCheckForOnGround();
+    public boolean isComputeOverlaps();
+    public void setComputeOverlaps(boolean computeOverlaps);
 }
 ```
 
+### BoxBlockIntersectionEvaluator
+
+Static box-to-block intersection tests (used for short-distance and position validation). Extends `BlockContactData` and implements `IBlockCollisionEvaluator`.
+
+```java
+public class BoxBlockIntersectionEvaluator extends BlockContactData
+        implements IBlockCollisionEvaluator {
+
+    // set the box and position
+    public BoxBlockIntersectionEvaluator setBox(Box box);
+    public BoxBlockIntersectionEvaluator setBox(Box box, Vector3d pos);
+    public BoxBlockIntersectionEvaluator setPosition(Vector3d pos);
+    public BoxBlockIntersectionEvaluator offsetPosition(Vector3d offset);
+    public BoxBlockIntersectionEvaluator expandBox(double radius);
+    public BoxBlockIntersectionEvaluator setStartEnd(double start, double end);
+
+    // returns int code (use CollisionMath to interpret)
+    public int intersectBox(Box otherBox, double x, double y, double z);
+    public int intersectBoxComputeTouch(Box otherBox, double x, double y, double z);
+    public int intersectBoxComputeOnGround(Box otherBox, double x, double y, double z);
+
+    // convenience
+    public boolean isBoxIntersecting(Box otherBox, double x, double y, double z);
+    public boolean isTouching();
+    public boolean touchesCeil();
+}
+```
+
+<Aside type="tip">
+The `intersectBox*` methods return an `int` code, not a boolean. Use `CollisionMath.isDisjoint(code)`, `CollisionMath.isOverlapping(code)`, and `CollisionMath.isTouching(code)` to interpret the result.
+</Aside>
+
+## CollisionMath
+
+AABB intersection utilities. All methods are static. This class cannot be instantiated.
+
+```java
+public class CollisionMath {
+    // intersection code constants
+    public static final int DISJOINT = 0;
+    public static final int TOUCH_X = 1;
+    public static final int TOUCH_Y = 2;
+    public static final int TOUCH_Z = 4;
+    public static final int TOUCH_ANY = 7;
+    public static final int OVERLAP_X = 8;
+    public static final int OVERLAP_Y = 16;
+    public static final int OVERLAP_Z = 32;
+    public static final int OVERLAP_ALL = 56;
+
+    // interpret intersection codes
+    public static boolean isDisjoint(int code);
+    public static boolean isOverlapping(int code);
+    public static boolean isTouching(int code);
+
+    // AABB-AABB intersection (returns int code)
+    public static int intersectAABBs(
+        Vector3d p, Box bbP, Vector3d q, Box bbQ
+    );
+    public static int intersectAABBs(
+        double px, double py, double pz, Box bbP,
+        double qx, double qy, double qz, Box bbQ
+    );
+
+    // vector-AABB intersection
+    public static boolean intersectVectorAABB(
+        Vector3d pos, Vector3d vec,
+        double x, double y, double z,
+        Box box, Vector2d minMax
+    );
+
+    // ray-AABB intersection
+    public static boolean intersectRayAABB(
+        Vector3d pos, Vector3d ray,
+        double x, double y, double z,
+        Box box, Vector2d minMax
+    );
+    public static double intersectRayAABB(
+        Vector3d pos, Vector3d ray,
+        double x, double y, double z,
+        Box box
+    );
+
+    // swept AABB intersection (minkowski sum approach)
+    public static boolean intersectSweptAABBs(
+        Vector3d posP, Vector3d vP, Box p,
+        Vector3d posQ, Box q,
+        Vector2d minMax, Box temp
+    );
+}
+```
+
+<Aside type="note">
+`intersectAABBs` returns an `int` intersection code, not a boolean. The code is a bitmask of touch/overlap flags per axis. `intersectVectorAABB` returns true only if the intersection happens within the vector length (t <= 1.0).
+</Aside>
+
 ## Material Masks
 
-Block materials affect collision behavior:
+Block materials affect collision behavior. Defined in `CollisionMaterial` (and mirrored in `CollisionConfig`):
 
-| Mask | Value | Description |
-|------|-------|-------------|
-| `EMPTY` | 1 | No collision (air) |
-| `FLUID` | 2 | Fluid block (water, lava) |
-| `SOLID` | 4 | Solid collision |
-| `SUBMERGED` | 8 | Fully in fluid |
-| `DAMAGE` | 16 | Damage on contact |
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `MATERIAL_EMPTY` | 1 | No collision (air) |
+| `MATERIAL_FLUID` | 2 | Fluid block (water, lava) |
+| `MATERIAL_SOLID` | 4 | Solid collision |
+| `MATERIAL_SUBMERGED` | 8 | Fully in fluid |
+| `MATERIAL_SET_ANY` | 15 | All non-damage materials |
+| `MATERIAL_DAMAGE` | 16 | Damage on contact |
+| `MATERIAL_SET_NONE` | 0 | No materials |
+
+## IBlockCollisionConsumer
+
+Callback interface for collision events:
+
+```java
+public interface IBlockCollisionConsumer {
+    enum Result {
+        CONTINUE,
+        STOP,
+        STOP_NOW
+    }
+
+    Result onCollision(int x, int y, int z,
+        Vector3d pos, BlockContactData contactData,
+        BlockData blockData, Box hitbox);
+
+    Result probeCollisionDamage(int x, int y, int z,
+        Vector3d pos, BlockContactData contactData,
+        BlockData blockData);
+
+    void onCollisionDamage(int x, int y, int z,
+        Vector3d pos, BlockContactData contactData,
+        BlockData blockData);
+
+    Result onCollisionSliceFinished();
+
+    void onCollisionFinished();
+}
+```
+
+## CollisionFilter
+
+A functional interface used for position validation filtering:
+
+```java
+@FunctionalInterface
+public interface CollisionFilter<D, T> {
+    boolean test(T t, int code, D data, CollisionConfig config);
+}
+```
+
+## Collision Detection Flow
+
+### How findCollisions Works
+
+```mermaid
+flowchart TD
+    A[findCollisions called] --> B{velocity below threshold?}
+    B -->|Yes| C[findBlockCollisionsShortDistance]
+    B -->|No| D[findBlockCollisionsIterative]
+    C --> E{checking character collisions?}
+    D --> E
+    E -->|Yes| F[findCharacterCollisions]
+    E -->|No| G[process and sort results]
+    F --> G
+    G --> H[return boolean: was far distance?]
+```
+
+### Block Collision (Iterative / Far Distance)
+
+```mermaid
+flowchart TD
+    A[Set up MovingBoxBoxCollisionEvaluator] --> B[Iterate blocks along movement path]
+    B --> C{For each block: canCollide?}
+    C -->|No| B
+    C -->|Yes| D[isBoundingBoxColliding against block hitbox]
+    D --> E{Detail boxes?}
+    E -->|1 or fewer| F[processCollisionResult]
+    E -->|Multiple| G[Test each detail box individually]
+    G --> F
+    F --> H{onGround and walkable?}
+    H -->|Yes| I[Add as slide]
+    H -->|No, but colliding| J[Add as collision]
+    F --> K{canTrigger?}
+    K -->|Yes| L[Add as trigger]
+```
+
+### Block Collision (Short Distance)
+
+```mermaid
+flowchart TD
+    A[Set up BoxBlockIntersectionEvaluator] --> B[Iterate blocks at destination]
+    B --> C{canCollide?}
+    C -->|No| B
+    C -->|Yes| D[intersectBoxComputeTouch]
+    D --> E{isDisjoint?}
+    E -->|Yes| B
+    E -->|No| F[processCollision]
+    F --> G{onGround and walkable?}
+    G -->|Yes| H[Add as slide + maybe trigger]
+    G -->|No, but colliding| I[Add as collision]
+    F --> J{canTrigger and touching/colliding?}
+    J -->|Yes| K[Add as trigger]
+```
+
+### Entity Collision
+
+```mermaid
+flowchart TD
+    A[Get collision entities list from result] --> B{velocity above threshold?}
+    B -->|No| C[Skip - no entity checks]
+    B -->|Yes| D[For each entity in list]
+    D --> E{Is projectile or dead?}
+    E -->|Yes| D
+    E -->|No| F[Get entity position + bounding box]
+    F --> G[CollisionMath.intersectVectorAABB]
+    G --> H{Intersection found?}
+    H -->|Yes| I[allocCharacterCollision with point and entity ref]
+    H -->|No| D
+```
 
 ## Collision Types
 
@@ -282,6 +647,7 @@ Standard blocking collision:
 ### Slide Collision
 
 Walkable surface collision:
+- Detected when `onGround` is true and block material is walkable
 - Allows movement along surface
 - Used for slopes and stairs
 - Entity can slide along the surface
@@ -290,68 +656,15 @@ Walkable surface collision:
 
 Non-blocking sensor collision:
 - Does not stop movement
-- Fires trigger events
-- Used for pressure plates, zones
+- Fires interaction events (`CollisionEnter`, `Collision`, `CollisionLeave`)
+- Used for pressure plates, zones, fluids
 
 ### Damage Collision
 
 Harmful surface collision:
-- May or may not block movement
-- Applies damage to entity
+- Blocks with `damageToEntities > 0` or fluids with damage
+- Added as trigger blocks, damage amount tracked
 - Used for spikes, lava, etc.
-
-## IBlockCollisionConsumer
-
-Callback interface for collision events:
-
-```java
-package com.hypixel.hytale.server.core.modules.collision;
-
-public interface IBlockCollisionConsumer {
-    enum Result { CONTINUE, STOP }
-
-    // Called on collision
-    Result onCollision(BlockCollisionData data);
-
-    // Check if block causes damage
-    boolean probeCollisionDamage(BlockCollisionData data);
-
-    // Called on damage collision
-    Result onCollisionDamage(BlockCollisionData data);
-
-    // Called when slice completes
-    void onCollisionSliceFinished();
-
-    // Called when all collisions processed
-    void onCollisionFinished();
-}
-```
-
-## CollisionMath
-
-AABB intersection utilities:
-
-```java
-package com.hypixel.hytale.server.core.modules.collision;
-
-public class CollisionMath {
-    // AABB-AABB intersection
-    public static boolean intersectAABBs(Box a, Box b);
-
-    // Vector-AABB intersection
-    public static boolean intersectVectorAABB(
-        Vector3d start,
-        Vector3d direction,
-        Box box,
-        CollisionResult result
-    );
-
-    // Spatial relationship tests
-    public static boolean isDisjoint(Box a, Box b);
-    public static boolean isOverlapping(Box a, Box b);
-    public static boolean isTouching(Box a, Box b);
-}
-```
 
 ## Usage Examples
 
@@ -360,11 +673,11 @@ public class CollisionMath {
 ```java
 import com.hypixel.hytale.server.core.modules.collision.CollisionModule;
 import com.hypixel.hytale.server.core.modules.collision.CollisionResult;
-import com.hypixel.hytale.math.Box;
-import com.hypixel.hytale.math.Vector3d;
+import com.hypixel.hytale.math.shape.Box;
+import com.hypixel.hytale.math.vector.Vector3d;
 
 public boolean wouldCollide(Box entityBox, Vector3d position, Vector3d movement,
-                            IComponentAccessor accessor) {
+                            ComponentAccessor<EntityStore> accessor) {
     CollisionResult result = new CollisionResult();
 
     CollisionModule.findCollisions(
@@ -375,7 +688,7 @@ public boolean wouldCollide(Box entityBox, Vector3d position, Vector3d movement,
         accessor
     );
 
-    return result.hasBlockCollisions();
+    return result.getBlockCollisionCount() > 0;
 }
 ```
 
@@ -383,16 +696,15 @@ public boolean wouldCollide(Box entityBox, Vector3d position, Vector3d movement,
 
 ```java
 public Vector3d clampMovement(Box entityBox, Vector3d position,
-                              Vector3d movement, IComponentAccessor accessor) {
+                              Vector3d movement, ComponentAccessor<EntityStore> accessor) {
     CollisionResult result = new CollisionResult();
 
     CollisionModule.findCollisions(entityBox, position, movement, result, accessor);
 
-    if (result.hasBlockCollisions()) {
+    if (result.getBlockCollisionCount() > 0) {
         BlockCollisionData first = result.getFirstBlockCollision();
 
-        // Clamp movement to collision point
-        double clampedT = first.startParam;
+        double clampedT = first.collisionStart;
         return movement.multiply(clampedT);
     }
 
@@ -400,33 +712,33 @@ public Vector3d clampMovement(Box entityBox, Vector3d position,
 }
 ```
 
-### Ground Detection
+### Position Validation
 
 ```java
-import com.hypixel.hytale.server.core.modules.collision.BoxBlockIntersectionEvaluator;
-
-public boolean isOnGround(Box entityBox, Vector3d position,
-                          IComponentAccessor accessor) {
-    // Slightly expand downward to detect ground
-    Box groundCheck = entityBox.expand(0, -0.01, 0);
-
-    BoxBlockIntersectionEvaluator evaluator = new BoxBlockIntersectionEvaluator();
-
-    // Check blocks below
+public boolean isPositionValid(World world, Box entityBox, Vector3d position) {
     CollisionResult result = new CollisionResult();
-    CollisionModule.findIntersections(groundCheck, position, result, accessor);
 
-    return evaluator.onGround;
+    int code = CollisionModule.get().validatePosition(world, entityBox, position, result);
+
+    if (code == CollisionModule.VALIDATE_INVALID) {
+        return false;
+    }
+
+    boolean onGround = (code & CollisionModule.VALIDATE_ON_GROUND) != 0;
+    boolean touchCeil = (code & CollisionModule.VALIDATE_TOUCH_CEIL) != 0;
+    return true;
 }
 ```
 
 ## Best Practices
 
-1. **Reuse CollisionResult**: Call `reset()` instead of creating new instances
-2. **Choose appropriate method**: Use short-distance for slow entities
-3. **Check material masks**: Not all blocks collide the same way
-4. **Handle slides separately**: Slides allow movement, collisions don't
-5. **Process triggers**: Trigger blocks fire events but don't block
+1. **Reuse CollisionResult**: Call `reset()` instead of creating new instances -- the pooled arrays avoid allocation overhead
+2. **Choose appropriate method**: Short-distance is used automatically when velocity is below threshold
+3. **Check material masks**: Use `setCollisionByMaterial()` and `setWalkableByMaterial()` to control what blocks collide
+4. **Handle slides separately**: Slides allow movement along walkable surfaces, collisions block
+5. **Process triggers**: Trigger blocks fire interaction events (`CollisionEnter`, `Collision`, `CollisionLeave`)
+6. **Understand return types**: `findCollisions` returns `boolean` (far distance flag), `validatePosition` returns `int` (status code)
+7. **Instance vs static**: `findCollisions`, `findBlockCollisions*`, and `findCharacterCollisions` are static; `validatePosition` and `findIntersections` are instance methods
 
 ## Related
 

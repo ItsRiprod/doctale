@@ -3,7 +3,7 @@ title: "Environment Configuration"
 description: "Define weather forecasts, spawn densities, and audio/visual settings for different zones and biomes."
 ---
 
-{/* [VERIFIED: 2026-01-20] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 import { Aside, Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
 
@@ -35,11 +35,14 @@ Environment configurations define weather forecasts, spawn densities, and audio/
 
 ### Core Properties
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `WeatherForecasts` | `object` | Hour-by-hour weather configuration |
-| `SpawnDensity` | `float` | NPC spawn multiplier (0-1) |
-| `Tags` | `object` | Environment classification tags |
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `WaterTint` | `color` | | Tint color applied to water in this environment |
+| `FluidParticles` | `map<string, FluidParticle>` | `{}` | Particle systems for fluids, keyed by FluidFX asset id |
+| `SpawnDensity` | `double` | | NPC spawn density multiplier |
+| `BlockModificationAllowed` | `boolean` | `true` | Whether blocks can be placed or harvested in this environment |
+| `WeatherForecasts` | `map<int, WeightedMap<WeatherForecast>>` | | Hour-keyed (0-23) weighted weather forecasts |
+| `Tags` | `object` | | Environment classification tags |
 
 ### Weather Forecasts
 
@@ -67,6 +70,26 @@ Weather is configured per hour (0-23):
 |-------|------|-------------|
 | `WeatherId` | `string` | Reference to weather definition |
 | `Weight` | `int` | Probability weight (higher = more likely) |
+
+### FluidParticle Entry
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `SystemId` | `string` | required | Reference to a ParticleSystem asset id |
+| `Color` | `color` | | Fallback color if none specified in particle settings |
+| `Scale` | `float` | `1.0` | Scale of the particle system |
+
+```json title="FluidParticles example"
+{
+  "FluidParticles": {
+    "Hytale:Water": {
+      "SystemId": "MyPlugin_WaterSplash",
+      "Color": "#0A3355",
+      "Scale": 1.0
+    }
+  }
+}
+```
 
 ### Tags
 
@@ -231,7 +254,16 @@ The `SpawnDensity` multiplier affects NPC spawning:
 
 ```json title="MyPlugin_Env_Custom.json"
 {
+  "WaterTint": "#0A5533",
   "SpawnDensity": 0.8,
+  "BlockModificationAllowed": true,
+  "FluidParticles": {
+    "Hytale:Water": {
+      "SystemId": "MyPlugin_WaterSplash",
+      "Color": "#0A5533",
+      "Scale": 1.0
+    }
+  },
   "Tags": {
     "MyPlugin": ["CustomBiome"],
     "Zone1": ["Special"]

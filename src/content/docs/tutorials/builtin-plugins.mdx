@@ -1,15 +1,15 @@
 ---
 title: "Built-in Plugins Reference"
-description: "Learn from 31 built-in Hytale plugins that demonstrate modding patterns and provide core gameplay features."
+description: "Learn from Hytale's 31 built-in plugin packages that demonstrate modding patterns and provide core gameplay features."
 ---
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
 # Built-in Plugins Reference
 
-Hytale includes 31 built-in plugins that demonstrate modding patterns and provide core gameplay features. This reference documents each plugin, its components, and how to learn from them.
+Hytale ships with 31 built-in plugin packages that demonstrate modding patterns and provide core gameplay features. Some packages (notably `adventure/`) contain multiple independent plugin classes — the actual plugin count is over 45. This reference documents each plugin, its components, and how to learn from them.
 
 ## Package Location
 
@@ -17,7 +17,7 @@ Hytale includes 31 built-in plugins that demonstrate modding patterns and provid
 
 ## Complete Plugin List
 
-All 31 built-in plugins organized by category:
+All 31 built-in plugin packages organized by category:
 
 ### Core Gameplay
 | Plugin | Directory | Description |
@@ -53,9 +53,10 @@ All 31 built-in plugins organized by category:
 | LanDiscoveryPlugin | `landiscovery/` | LAN game discovery |
 
 ### Adventure Mode
-| Plugin | Directory | Description |
-|--------|-----------|-------------|
-| AdventurePlugin | `adventure/` | Adventure mode (shops, reputation, objectives, memories, farming) |
+
+<Aside type="tip">
+The `adventure/` directory doesn't contain a single plugin — it's a package of **15 independent sub-plugins** covering shops, reputation, objectives, memories, farming, and more. See the [Adventure Mode Plugins](#adventure-mode-plugins) section below for the full breakdown.
+</Aside>
 
 ### Tools & Editors
 | Plugin | Directory | Description |
@@ -332,29 +333,25 @@ Bed interactions and spawn points.
 
 ## Adventure Mode Plugins
 
-### ShopPlugin
+The `adventure/` package contains 15 independent plugins that together form Hytale's adventure mode. Each is its own `JavaPlugin`.
 
-**Location**: `builtin/adventure/shop/`
-
-NPC shop system with items and currencies.
-
-### ReputationPlugin
-
-**Location**: `builtin/adventure/reputation/`
-
-Faction/NPC reputation tracking.
-
-### ObjectivePlugin
-
-**Location**: `builtin/adventure/objectives/`
-
-Quest and objective tracking.
-
-### MemoriesPlugin
-
-**Location**: `builtin/adventure/memories/`
-
-NPC memory of player interactions.
+| Plugin | Directory | Description |
+|--------|-----------|-------------|
+| CameraPlugin | `adventure/camera/` | Camera control and cinematic systems |
+| FarmingPlugin | `adventure/farming/` | Crop farming mechanics |
+| MemoriesPlugin | `adventure/memories/` | NPC memory of player interactions |
+| NPCObjectivesPlugin | `adventure/npcobjectives/` | NPC-driven objective assignments |
+| NPCReputationPlugin | `adventure/npcreputation/` | NPC-specific reputation effects |
+| NPCShopPlugin | `adventure/npcshop/` | NPC-specific shop bindings |
+| ObjectivePlugin | `adventure/objectives/` | Quest and objective tracking |
+| ObjectiveReputationPlugin | `adventure/objectivereputation/` | Reputation rewards from objectives |
+| ObjectiveShopPlugin | `adventure/objectiveshop/` | Shop unlocks tied to objectives |
+| ReputationPlugin | `adventure/reputation/` | Faction/NPC reputation tracking |
+| ShopPlugin | `adventure/shop/` | Shop system with items and currencies |
+| ShopReputationPlugin | `adventure/shopreputation/` | Shop pricing based on reputation |
+| StashPlugin | `adventure/stash/` | Player stash/storage system |
+| TeleporterPlugin | `adventure/teleporter/` | In-world teleporter devices |
+| WorldLocationConditionPlugin | `adventure/worldlocationcondition/` | Location-based conditions |
 
 ---
 

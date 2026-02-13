@@ -106,6 +106,14 @@ Hytale includes 23 weapon categories, each with unique mechanics:
 | `InteractionVars` | `object` | Damage values, effects, and behaviors per attack |
 | `Weapon` | `object` | Weapon-specific configuration (stats, modifiers) |
 
+### Weapon Object Properties
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `StatModifiers` | `map<string, StaticModifier[]>` | — | Stat modifiers applied while the weapon is held |
+| `EntityStatsToClear` | `string[]` | — | Entity stats to reset when switching to this weapon |
+| `RenderDualWielded` | `boolean` | `false` | Whether to render the weapon in both hands (used by daggers) |
+
 ## Weapon Templates
 
 Seven weapon types have official templates that define base mechanics:

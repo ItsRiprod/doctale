@@ -5,7 +5,7 @@ description: "Complete catalog of ECS components in the Hytale server organized 
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-01-24] - Updated with Update 2 components */}
+{/* [VERIFIED: 2026-02-13] - Updated with Update 2 components */}
 
 # Component Catalog
 
@@ -34,6 +34,10 @@ Components attached to entities in the EntityStore.
 | `ActiveAnimationComponent` | Current animation state |
 | `SnapshotBuffer` | Entity state snapshots |
 | `NewSpawnComponent` | Marker for newly spawned entities |
+| `CollisionResultComponent` | Collision calculation results |
+| `PositionDataComponent` | Position snapshot data (block standing on, block inside) |
+| `RotateObjectComponent` | Object rotation with configurable speed |
+| `PropComponent` | Prop entity marker |
 
 ### Physics Components
 
@@ -41,7 +45,6 @@ Components attached to entities in the EntityStore.
 |-----------|-------------|
 | `Velocity` | Velocity vector and instructions |
 | `PhysicsValues` | Mass, drag, gravity settings |
-| `CollisionResultComponent` | Collision calculation results |
 
 ### State Markers
 
@@ -52,6 +55,7 @@ Components attached to entities in the EntityStore.
 | `Interactable` | Can be interacted with |
 | `Frozen` | Immobilized state |
 | `RespondToHit` | Hit response behavior |
+| `HiddenFromAdventurePlayers` | Hidden from adventure mode players |
 
 ### Visual Components
 
@@ -258,20 +262,21 @@ flowchart LR
 
 | Store | Category | Count |
 |-------|----------|-------|
-| EntityStore | Core Entity | 26 |
-| EntityStore | Physics | 3 |
-| EntityStore | State Markers | 5 |
+| EntityStore | Core Entity | 13 |
+| EntityStore | Physics | 2 |
+| EntityStore | State Markers | 6 |
 | EntityStore | Visual | 5 |
 | EntityStore | Audio | 2 |
-| EntityStore | Entity System | 6 |
+| EntityStore | Entity System | 7 |
 | EntityStore | Projectile | 3 |
+| EntityStore | Origin Markers | 3 |
 | EntityStore | Player | 3 |
-| EntityStore | Builtin Plugins | 15+ |
+| EntityStore | Builtin Plugins | 14+ |
 | ChunkStore | Structure | 8 |
 | ChunkStore | Block | 5 |
 | ChunkStore | Interaction | 2 |
 | ChunkStore | Spawning | 4 |
-| ChunkStore | Builtin Plugins | 10+ |
+| ChunkStore | Builtin Plugins | 9 |
 
 ## Related
 

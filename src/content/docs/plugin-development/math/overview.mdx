@@ -5,7 +5,7 @@ description: "Use vectors, matrices, shapes, raycasts, and random utilities for 
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 # Math Utilities Overview
 
@@ -21,6 +21,8 @@ The Math library provides vectors, matrices, shapes, and utilities for 3D game m
 - Raycast: `math.raycast`
 - Utilities: `math.util`
 - Random: `math.random`
+- Ranges: `math.range`
+- Block math: `math.block`
 
 ## Vector Classes
 
@@ -187,8 +189,8 @@ public class Matrix4d {
     public Matrix4d translate(double x, double y, double z);
     public Matrix4d translate(Vector3d offset);
     public Matrix4d scale(double x, double y, double z);
-    public Matrix4d rotateAxis(double angle, double x, double y, double z);
-    public Matrix4d rotateEuler(double x, double y, double z);
+    public Matrix4d rotateAxis(double angle, double x, double y, double z, Matrix4d tmp);
+    public Matrix4d rotateEuler(double x, double y, double z, Matrix4d tmp);
 
     // Apply to vectors
     public Vector3d multiplyPosition(Vector3d position);  // With translation
@@ -324,7 +326,6 @@ public class Box {
 | `Box2D` | 2D bounding box |
 | `Rectangle` | 2D rectangle |
 | `Cylinder` | 3D cylinder |
-| `Cone` | 3D cone |
 | `Ellipsoid` | 3D ellipsoid |
 | `Triangle2d` | 2D triangle |
 | `Quad2d` | 2D quad |
@@ -375,35 +376,62 @@ public class MathUtil {
     public static final double EPSILON_DOUBLE;
     public static final float EPSILON_FLOAT;
 
-    // Fast math
-    public static int abs(int value);      // Branchless
-    public static int floor(double value); // Fast floor
-    public static int ceil(double value);  // Fast ceil
-    public static int fastFloor(double value);
-    public static int fastCeil(double value);
+    // fast math
+    public static int abs(int value);       // branchless
+    public static int floor(double value);
+    public static int ceil(double value);
+    public static int fastFloor(float value);
+    public static long fastFloor(double value);
+    public static int fastCeil(float value);
+    public static long fastCeil(double value);
+    public static int fastRound(float value);
+    public static long fastRound(double value);
 
-    // Clamping
+    // clamping
     public static double clamp(double value, double min, double max);
     public static float clamp(float value, float min, float max);
     public static int clamp(int value, int min, int max);
+    public static long clamp(long value, long min, long max);
 
-    // Range checking
+    // range checking
     public static boolean within(double value, double min, double max);
     public static boolean closeToZero(double value);
+    public static boolean closeToZero(float value);
     public static double clipToZero(double value);
+    public static float clipToZero(float value);
 
-    // Interpolation
+    // interpolation
     public static double lerp(double from, double to, double t);
+    public static float lerp(float from, float to, float t);
+    public static double lerpUnclamped(double from, double to, double t);
+    public static float lerpUnclamped(float from, float to, float t);
     public static float lerpAngle(float from, float to, float t);
 
-    // Angle utilities
-    public static double wrapAngle(double angle); // Normalize to [-π, π]
+    // angle utilities
+    public static float wrapAngle(float angle);
 
-    // Rounding
+    // rounding
     public static double round(double value, int precision);
 
-    // Vector length
+    // vector length
     public static double length(double x, double y, double z);
+    public static double length(double x, double y);
+    public static double lengthSquared(double x, double y, double z);
+    public static double lengthSquared(double x, double y);
+
+    // int packing
+    public static int packInt(int x, int z);
+    public static int unpackLeft(int packed);
+    public static int unpackRight(int packed);
+    public static long packLong(int left, int right);
+
+    // rotation
+    public static Vector3i rotateVectorYAxis(Vector3i vector, int angle, boolean clockwise);
+    public static Vector3d rotateVectorYAxis(Vector3d vector, int angle, boolean clockwise);
+
+    // mapping
+    public static float mapToRange(float value, float valueMin, float valueMax,
+                                   float rangeMin, float rangeMax);
 }
 ```
 
@@ -415,41 +443,151 @@ Optimized trigonometry:
 package com.hypixel.hytale.math.util;
 
 public class TrigMathUtil {
-    public static final double PI;
-    public static final double PI_HALF;
-    public static final double PI2;
-    public static final double radToDeg;
-    public static final double degToRad;
+    public static final float PI;
+    public static final float PI_HALF;
+    public static final float PI_QUARTER;
+    public static final float PI2;
+    public static final float PI4;
+    public static final float radToDeg;
+    public static final float degToRad;
 
-    // Lookup table trigonometry (fast)
-    public static float sin(float angle);
-    public static float cos(float angle);
-    public static double sin(double angle);
-    public static double cos(double angle);
+    // lookup table trigonometry (fast, uses Riven's tables)
+    public static float sin(float radians);
+    public static float cos(float radians);
+    public static float sin(double radians);   // casts to float internally
+    public static float cos(double radians);   // casts to float internally
 
-    // Inverse trig
+    // inverse trig (uses Icecore's lookup table)
     public static float atan2(float y, float x);
-    public static double atan2(double y, double x);
-    public static double atan(double value);
-    public static double asin(double value);
+    public static float atan2(double y, double x);
+    public static float atan(double value);
+    public static float asin(double value);
 }
 ```
 
 ### RandomExtra
 
+All methods use `ThreadLocalRandom` internally -- no `Random` parameter needed.
+
 ```java
 package com.hypixel.hytale.math.random;
 
-public class RandomExtra {
-    public static double randomBinomial(Random random);  // [-1, 1]
-    public static float randomRange(Random random, float min, float max);
-    public static int randomRange(Random random, int min, int max);
-    public static boolean randomBoolean(Random random);
-    public static <T> T randomElement(Random random, List<T> list);
-    public static Duration randomDuration(Random random, Duration min, Duration max);
-    public static void jitter(Random random, Vector3d vector, double maxRange);
+public final class RandomExtra {
+    // basic random
+    public static double randomBinomial();                          // [-1, 1]
+    public static boolean randomBoolean();
+
+    // range overloads
+    public static double randomRange(double from, double to);
+    public static double randomRange(double[] range);               // [0]=from, [1]=to
+    public static float randomRange(float from, float to);
+    public static float randomRange(float[] range);
+    public static int randomRange(int bound);                       // [0, bound)
+    public static int randomRange(int from, int to);                // inclusive
+    public static int randomRange(int[] range);
+    public static long randomRange(long from, long to);
+
+    // collections
+    public static <T> T randomElement(List<T> list);
+    public static Duration randomDuration(Duration from, Duration to);
+    public static Vector3d jitter(Vector3d vec, double maxRange);   // mutates and returns
+
+    // weighted selection
+    public static <T> T randomWeightedElement(Collection<T> elements,
+                                              ToDoubleFunction<T> weight);
+    public static <T> T randomIntWeightedElement(Collection<T> elements,
+                                                 ToIntFunction<T> weight);
+    public static int pickWeightedIndex(double[] weights);
+
+    // reservoir sampling
+    public static <T> void reservoirSample(List<T> input, Predicate<T> matcher,
+                                           int count, List<T> picked);
 }
 ```
+
+## Ranges
+
+Useful for data-driven configs where you want a min/max pair.
+
+### IntRange
+
+```java
+package com.hypixel.hytale.math.range;
+
+public class IntRange {
+    public IntRange(int inclusiveMin, int inclusiveMax);
+
+    public int getInclusiveMin();
+    public int getInclusiveMax();
+    public void setInclusiveMin(int inclusiveMin);
+    public void setInclusiveMax(int inclusiveMax);
+
+    public int getInt(float factor);    // map [0,1] factor to range
+    public int getInt(double factor);
+    public boolean includes(int value);
+}
+```
+
+### FloatRange
+
+```java
+package com.hypixel.hytale.math.range;
+
+public class FloatRange {
+    public FloatRange(float inclusiveMin, float inclusiveMax);
+
+    public float getInclusiveMin();
+    public float getInclusiveMax();
+    public void setInclusiveMin(float inclusiveMin);
+    public void setInclusiveMax(float inclusiveMax);
+
+    public float getFloat(float factor);
+    public float getFloat(double factor);
+    public boolean includes(float value);
+}
+```
+
+## Block Utilities
+
+### BlockUtil
+
+Packs/unpacks block positions into a single `long`. Useful for storing block coordinates in maps or sets without allocating `Vector3i` objects.
+
+```java
+package com.hypixel.hytale.math.block;
+
+public class BlockUtil {
+    public static final long MAX_Y = 512L;
+    public static final long MIN_Y = -513L;
+    public static final long MAX = 67108864L;
+    public static final long MIN = -67108865L;
+
+    public static long pack(Vector3i val);
+    public static long pack(int x, int y, int z);
+    public static long packUnchecked(int x, int y, int z);
+
+    public static int unpackX(long packed);
+    public static int unpackY(long packed);
+    public static int unpackZ(long packed);
+    public static Vector3i unpack(long packed);
+}
+```
+
+### Block Shape Utilities
+
+The `math.block` package has helpers that iterate blocks in geometric shapes. Each takes an origin, dimensions, and a `TriIntObjPredicate<T>` consumer that receives `(x, y, z, context)` and returns `false` to stop early.
+
+| Class | Description |
+|-------|-------------|
+| `BlockSphereUtil` | Iterate blocks in a sphere (supports per-axis radii and shell thickness) |
+| `BlockCubeUtil` | Iterate blocks in a cube |
+| `BlockCylinderUtil` | Iterate blocks in a cylinder |
+| `BlockConeUtil` | Iterate blocks in a cone |
+| `BlockDomeUtil` | Iterate blocks in a dome |
+| `BlockInvertedDomeUtil` | Iterate blocks in an inverted dome |
+| `BlockDiamondUtil` | Iterate blocks in a diamond shape |
+| `BlockPyramidUtil` | Iterate blocks in a pyramid |
+| `BlockTorusUtil` | Iterate blocks in a torus |
 
 ## Block Iterators
 
@@ -467,6 +605,20 @@ public class SpiralIterator { }
 
 // Iterate blocks in a box
 public class BoxBlockIterator { }
+```
+
+## FastRandom
+
+A lightweight `Random` subclass that skips synchronization for better performance. Does not support `nextGaussian()`.
+
+```java
+package com.hypixel.hytale.math.util;
+
+public class FastRandom extends Random {
+    public FastRandom();
+    public FastRandom(long seed);
+    public void setSeed(long seed);
+}
 ```
 
 ## Usage Examples
@@ -503,7 +655,7 @@ import com.hypixel.hytale.math.vector.Vector3d;
 Matrix4d transform = new Matrix4d();
 transform.identity();
 transform.translate(10, 0, 0);
-transform.rotateY(Math.PI / 4);
+transform.rotateAxis(Math.PI / 4, 0, 1, 0, new Matrix4d());
 transform.scale(2, 2, 2);
 
 // Apply to position

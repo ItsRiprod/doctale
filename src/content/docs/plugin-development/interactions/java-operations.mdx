@@ -5,7 +5,7 @@ description: "Create custom interaction types in Java when JSON-based interactio
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-01-25] - Updated with tick0 pattern */}
+{/* [VERIFIED: 2026-02-13] - Updated with tick0 pattern */}
 
 For creating entirely new interaction types, you need to extend the `Interaction` class and implement `tick0()`. This is an advanced topic for plugin developers who need custom behavior beyond what the asset-based system provides.
 
@@ -63,8 +63,21 @@ public interface Operation {
     // Where sync data comes from
     WaitForDataFrom getWaitForDataFrom();
 
-    // Whether this needs network sync
-    boolean needsRemoteSync();
+    default InteractionRules getRules() { return null; }
+
+    default Int2ObjectMap<IntSet> getTags() { return Int2ObjectMaps.emptyMap(); }
+
+    default Operation getInnerOperation() {
+        Operation op = this;
+        while (op instanceof NestedOperation) {
+            op = ((NestedOperation) op).inner();
+        }
+        return op;
+    }
+
+    interface NestedOperation {
+        Operation inner();
+    }
 }
 ```
 
@@ -236,9 +249,10 @@ public class PulseEffectInteraction extends Interaction {
         return WaitForDataFrom.None; // Server-authoritative
     }
 
+    // inherited from Interaction, not Operation
     @Override
     public boolean needsRemoteSync() {
-        return true; // Other clients need to see the effect
+        return true;
     }
 
     private void applyPulse(InteractionContext context) {

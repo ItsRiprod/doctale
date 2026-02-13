@@ -1,13 +1,13 @@
 ---
 title: "Durability & Quality"
-description: "Control item wear mechanics and rarity classification through durability points and quality tiers."
+description: "Control item wear mechanics and rarity classification through durability points and the quality asset system."
 ---
 
 {/* [VERIFIED: 2026-01-20] */}
 
 import { Aside, Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
 
-The durability and quality systems control item wear mechanics and rarity classification. Durability determines how long items last before breaking, while quality affects visual effects and inventory sorting.
+The durability and quality systems control item wear mechanics and rarity classification. Durability determines how long items last before breaking, while quality is a full asset system that controls tooltip appearance, slot textures, text colors, and drop visual effects.
 
 ## Durability System
 
@@ -94,15 +94,36 @@ Armor pieces have durability that decreases when taking damage.
 
 ## Quality System
 
-### Quality Tiers
+Quality isn't a hardcoded enum — it's a full asset system. Each quality tier is a JSON asset (`ItemQuality`) loaded into its own `AssetStore`, which means modders can define entirely new quality tiers beyond the defaults. Each quality asset defines its own tooltip textures, slot textures, text color, localization, and visual behavior.
 
-| Quality | Description | Drop Effect Color |
-|---------|-------------|-------------------|
-| `Common` | Basic items | — |
-| `Uncommon` | Improved items | Green (`#e0ff7d`) |
-| `Rare` | Advanced items | Blue (`#7db2ff`) |
-| `Epic` | High-tier items | Purple (`#cb91ff`) |
-| `Legendary` | Top-tier items | Gold (`#ffdb91`) |
+### Quality Asset Properties
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `QualityValue` | `int` | Ordering value (0 = lowest quality) |
+| `ItemTooltipTexture` | `string` | Tooltip background texture path |
+| `ItemTooltipArrowTexture` | `string` | Tooltip arrow texture path |
+| `SlotTexture` | `string` | Inventory slot texture |
+| `BlockSlotTexture` | `string` | Slot texture for block-type items |
+| `SpecialSlotTexture` | `string` | Slot texture for consumables/usables |
+| `TextColor` | `Color` | Item name color in inventory |
+| `LocalizationKey` | `string` | Localized quality name |
+| `VisibleQualityLabel` | `boolean` | Show quality label in tooltip |
+| `RenderSpecialSlot` | `boolean` | Use special slot for consumables |
+| `HideFromSearch` | `boolean` | Hide from creative library search |
+| `ItemEntityConfig` | `object` | Drop visual config (glow, particles) |
+
+Items reference a quality by its asset ID string (e.g. `"Quality": "Common"`), which gets resolved to the full `ItemQuality` asset at load time.
+
+### Default Quality Tiers
+
+| Quality | Description | Text Color |
+|---------|-------------|------------|
+| `Common` | Basic items | White |
+| `Uncommon` | Improved items | Green |
+| `Rare` | Advanced items | Blue |
+| `Epic` | High-tier items | Purple |
+| `Legendary` | Top-tier items | Gold |
 | `Template` | Base templates (not for items) | — |
 
 ### Quality in Item Definitions
@@ -317,7 +338,7 @@ Dropped items display visual effects based on their quality tier.
 | Maces | 0.21 |
 | Daggers | 0.21 |
 | Battleaxes | 0.21 |
-| Bows | 0.15 |
+| Bows | 0.58 |
 | Pickaxes (Stone/Rock) | 0.25 |
 | Pickaxes (Soil) | 0.25 |
 | Axes (Wood) | 0.25 |

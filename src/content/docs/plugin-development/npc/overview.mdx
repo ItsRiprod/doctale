@@ -5,7 +5,7 @@ description: "Control AI-driven entities with role-based behaviors, flocking, sp
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 # NPC System Overview
 
@@ -408,12 +408,7 @@ NPCs support expression evaluation for conditions:
 ### NPC Lifecycle
 
 ```java
-// NPC added to world
-getEventRegistry().register(AddPlayerToWorldEvent.class, event -> {
-    // Not for NPCs - use RefSystem for NPC lifecycle
-});
-
-// Use RefSystem for NPC tracking
+// use RefSystem for NPC tracking
 public class MyNPCSystem extends RefSystem<EntityStore> {
     @Override
     public void onEntityAdded(Ref<EntityStore> ref, AddReason reason,
@@ -443,24 +438,19 @@ getEventRegistry().register(KillFeedEvent.class, event -> {
 ### Spawn NPC Programmatically
 
 ```java
-// Create NPC holder
-Holder<EntityStore> holder = EntityStore.REGISTRY.newHolder();
+Holder<EntityStore> holder = new Holder<>(EntityStore.REGISTRY);
 
-// Add NPCEntity component
 NPCEntity npc = new NPCEntity();
 holder.addComponent(NPCEntity.getComponentType(), npc);
 
-// Add transform
 TransformComponent transform = new TransformComponent(x, y, z, 0, 0, 0);
 holder.addComponent(TransformComponent.getComponentType(), transform);
 
-// Add UUID
 holder.addComponent(UUIDComponent.getComponentType(),
     new UUIDComponent(UUID.randomUUID()));
 
-// Spawn
 Store<EntityStore> store = world.getEntityStore().getStore();
-Ref<EntityStore> ref = store.spawn(holder);
+Ref<EntityStore> ref = store.addEntity(holder, AddReason.SPAWN);
 ```
 
 ## NPC Configuration Assets

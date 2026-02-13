@@ -3,7 +3,7 @@ title: "Model Effects"
 description: "Apply visual shader modifications like freezing, burning, and highlighting to entity models with animated transitions."
 ---
 
-{/* [VERIFIED: 2026-01-20] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 import { Aside, Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
 
@@ -78,26 +78,37 @@ Model effects apply visual shader modifications to entity models, creating effec
 
 | Mode | Description |
 |------|-------------|
+| `Disappear` | Disappear/dissolve effect (default) |
 | `PostColor` | Apply post-processing color tint |
+| `Distortion` | Visual distortion effect |
+| `Transparency` | Transparency/fade effect |
 
 ### Effect Direction Values
 
 | Direction | Description |
 |-----------|-------------|
+| `None` | No directional animation (default) |
 | `BottomUp` | Effect animates from bottom to top |
+| `TopDown` | Effect animates from top to bottom |
+| `ToCenter` | Effect animates inward toward center |
+| `FromCenter` | Effect animates outward from center |
 
 ### Loop Options
 
 | Option | Description |
 |--------|-------------|
+| `PlayOnce` | Play animation once (default) |
 | `Loop` | Continuously repeat animation |
-| `PlayOnce` | Play animation once |
+| `LoopMirror` | Loop with alternating forward/reverse playback |
 
 ### Curve Types
 
 | Curve | Description |
 |-------|-------------|
+| `Linear` | Linear interpolation (default) |
+| `QuartIn` | Quartic ease-in animation |
 | `QuartOut` | Quartic ease-out animation |
+| `QuartInOut` | Quartic ease-in-out animation |
 
 ## Status Effect Examples
 

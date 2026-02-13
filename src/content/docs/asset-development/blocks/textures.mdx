@@ -1,13 +1,13 @@
 ---
 title: "Block Textures"
-description: "Create block textures with directional variants, animated textures, and tint gradients for biome-based coloring."
+description: "Create block textures with per-face assignments, weighted variants, and biome-based tinting."
 ---
 
-{/* [VERIFIED: 2026-01-20] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 import { Aside, Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
 
-Block textures define the visual appearance of blocks in the game world. The texture system supports directional variants (top, side, bottom), animated textures, and tint gradients for biome-based coloring.
+Block textures define the visual appearance of blocks in the game world. The texture system supports per-face textures, weighted texture variants, and biome-based tinting.
 
 ## Asset Location
 
@@ -58,19 +58,21 @@ Examples:
 
 Blocks with different appearances on different faces use suffixes:
 
-| Suffix | Face | Description |
-|--------|------|-------------|
-| `_Top` | +Y | Top face of block |
-| `_Side` | ±X, ±Z | Side faces |
-| `_Bottom` | -Y | Bottom face |
-| `_Front` | -Z | Front face (oriented blocks) |
-| `_Back` | +Z | Back face |
+| Suffix | Description |
+|--------|-------------|
+| `_Top` | Top face of block |
+| `_Side` | Side faces |
+| `_Bottom` | Bottom face |
 
 Examples:
 - `Soil_Grass_Top.png` - Grass top face
 - `Soil_Grass_Side.png` - Grass side face (dirt with grass edge)
 - `Bone_Top.png` - Bone block top
 - `Bone_Side.png` - Bone block sides
+
+<Aside type="tip">
+These file name suffixes are a naming convention for vanilla assets. In a block type definition, you assign textures to faces using the JSON `Textures` array -- see [Texture Definition in JSON](#texture-definition-in-json) below.
+</Aside>
 
 #### Variant Textures
 
@@ -105,11 +107,103 @@ Examples:
 
 ### Tint Gradient Textures
 
-Suffix `_GS` indicates a grayscale texture that uses tint gradients for biome-based coloring:
+Suffix `_GS` indicates a grayscale texture used with biome tinting:
 
 - `Soil_Grass_Top_GS.png` - Grayscale grass for tinting
 - `Soil_Grass_Side_GS.png` - Grayscale grass side
 - `Moss_Block_GS_Top.png` - Grayscale moss
+
+## Texture Definition in JSON
+
+In a block type's JSON definition, the `Textures` property is an array of `BlockTypeTextures` objects. Each entry assigns a texture path to specific faces and has an optional weight for random selection.
+
+### Face Keys
+
+| Key | Face | Protocol Mapping |
+|-----|------|-----------------|
+| `Up` | Top (+Y) | `top` |
+| `Down` | Bottom (-Y) | `bottom` |
+| `North` | North | `back` |
+| `South` | South | `front` |
+| `East` | East | `right` |
+| `West` | West | `left` |
+
+### Shortcut Keys
+
+| Key | Sets |
+|-----|------|
+| `All` | All six faces at once |
+| `Sides` | North, South, East, West |
+| `UpDown` | Up and Down |
+
+### Example
+
+```json
+{
+  "Textures": [
+    {
+      "All": "BlockTextures/Soil_Dirt.png"
+    }
+  ]
+}
+```
+
+A block with different top and side textures:
+
+```json
+{
+  "Textures": [
+    {
+      "Up": "BlockTextures/Soil_Grass_Top.png",
+      "Down": "BlockTextures/Soil_Dirt.png",
+      "Sides": "BlockTextures/Soil_Grass_Side.png"
+    }
+  ]
+}
+```
+
+### Weighted Variants
+
+Multiple texture entries with `Weight` values allow random variation. The weights are normalized into ratios when sent to the client.
+
+```json
+{
+  "Textures": [
+    {
+      "All": "BlockTextures/Rock_Stone.png",
+      "Weight": 3
+    },
+    {
+      "All": "BlockTextures/Rock_Stone02.png",
+      "Weight": 1
+    }
+  ]
+}
+```
+
+The first variant appears 75% of the time (3/4), the second 25% (1/4). Default weight is `1`.
+
+### Default Texture
+
+If no textures are specified, all faces fall back to `BlockTextures/Unknown.png`.
+
+### Biome Tint
+
+The `BiomeTint` property is an integer index applied per face. You can set it for all faces at once or individually with `BiomeTintUp`, `BiomeTintDown`, `BiomeTintNorth`, `BiomeTintSouth`, `BiomeTintEast`, `BiomeTintWest`.
+
+```json
+{
+  "BiomeTint": 1
+}
+```
+
+<Aside type="note">
+How biome tint indices map to actual tint gradient images is handled by the client. The server only stores and transmits the integer index per face.
+</Aside>
+
+### Texture Side Mask
+
+The `TextureSideMask` property specifies a separate texture path used as a side mask overlay. It follows the same asset validation rules as regular textures (must be a `.png` in a valid root directory).
 
 ## Texture Categories
 
@@ -249,14 +343,21 @@ Each decorative set typically includes:
 
 ## Texture Requirements
 
+### Format
+
+The server validates that all block textures must be `.png` files located in one of these root directories: `BlockTextures/`, `Blocks/`, `Items/`, `NPC/`, `Resources/`, or `VFX/`.
+
+<Aside type="caution">
+The dimension and resolution constraints below are based on observed behavior from vanilla assets, not verified from server source code. The server does not appear to enforce texture dimensions -- these are likely client-side rendering requirements.
+</Aside>
+
 ### Dimensions
 
 | Requirement | Value |
 |-------------|-------|
-| Size | Multiples of 32px (32, 64, 96, 128...) |
 | Standard block | 32x32 pixels |
 | High-detail | 64x64 or 128x128 pixels |
-| Format | PNG with alpha channel |
+| Format | PNG |
 
 ### Alpha Channel
 
@@ -264,56 +365,88 @@ Each decorative set typically includes:
 - **Transparent blocks** (glass, leaves): Alpha for transparency
 - **Connected blocks**: Alpha for edge blending
 
-### Tint Gradients
-
-For biome-tinted textures (grass, leaves):
-
-1. Create grayscale base texture (`_GS` suffix)
-2. Game applies tint gradient based on biome
-3. Allows same texture to appear different colors in different regions
+<Aside type="note">
+Alpha channel behavior is handled by the client renderer. The server only tracks the block's `Opacity` property (`Solid`, `Transparent`, `SemiTransparent`).
+</Aside>
 
 ## Creating Custom Textures
 
 ### Basic Block Texture
 
+Create a 32x32 PNG file and place it in your plugin's `BlockTextures/` directory:
+
 ```
-MyPlugin_Block_Custom.png
+BlockTextures/MyPlugin_Block_Custom.png
 ```
 
-- Size: 32x32 pixels
-- PNG format
-- Place in plugin's assets folder
+Then reference it in your block type definition:
+
+```json
+{
+  "Id": "MyPlugin_CustomBlock",
+  "Textures": [
+    {
+      "All": "BlockTextures/MyPlugin_Block_Custom.png"
+    }
+  ]
+}
+```
 
 ### Directional Block
 
-For blocks with different top/side/bottom:
+Create separate texture files for different faces, then assign them using face keys:
 
-```
-MyPlugin_Block_Custom.png        # All faces (fallback)
-MyPlugin_Block_Custom_Top.png    # Top face
-MyPlugin_Block_Custom_Side.png   # Side faces
-MyPlugin_Block_Custom_Bottom.png # Bottom face
+```json
+{
+  "Id": "MyPlugin_GrassBlock",
+  "Textures": [
+    {
+      "Up": "BlockTextures/MyPlugin_Grass_Top.png",
+      "Down": "BlockTextures/MyPlugin_Dirt.png",
+      "Sides": "BlockTextures/MyPlugin_Grass_Side.png"
+    }
+  ]
+}
 ```
 
 ### Tinted Block
 
-1. Create grayscale texture:
-```
-MyPlugin_Grass_Custom_GS.png
-```
+Create a grayscale texture (conventionally using a `_GS` suffix) and set the `BiomeTint` index:
 
-2. Reference tint gradient in block definition
+```json
+{
+  "Id": "MyPlugin_TintedGrass",
+  "Textures": [
+    {
+      "Up": "BlockTextures/MyPlugin_Grass_Top_GS.png",
+      "Down": "BlockTextures/MyPlugin_Dirt.png",
+      "Sides": "BlockTextures/MyPlugin_Grass_Side_GS.png"
+    }
+  ],
+  "BiomeTint": 1
+}
+```
 
 ### Texture Variants
 
-For random variation:
-```
-MyPlugin_Block_Stone.png
-MyPlugin_Block_Stone02.png
-MyPlugin_Block_Stone03.png
+Use multiple entries in the `Textures` array with weights for random variation:
+
+```json
+{
+  "Id": "MyPlugin_StoneBlock",
+  "Textures": [
+    { "All": "BlockTextures/MyPlugin_Stone.png", "Weight": 2 },
+    { "All": "BlockTextures/MyPlugin_Stone02.png", "Weight": 1 },
+    { "All": "BlockTextures/MyPlugin_Stone03.png", "Weight": 1 }
+  ]
+}
 ```
 
 ## Color Categories
+
+<Aside type="note">
+The biome-to-color mappings below are based on observed vanilla asset behavior. The server transmits biome tint indices as integers -- the actual color rendering is client-side.
+</Aside>
 
 ### Natural Colors by Biome
 
@@ -345,12 +478,10 @@ Each crystal color has base and `_Top` variants.
 
 1. **Follow naming conventions** - Use established prefixes and suffixes
 2. **Match existing style** - Study vanilla textures for art direction
-3. **Use appropriate resolution** - 32x32 for most blocks
-4. **Consider tiling** - Textures should tile seamlessly
-5. **Optimize file size** - Use PNG compression
-6. **Test in-game** - Verify appearance under different lighting
-7. **Provide variants** - Multiple variants reduce repetition
-8. **Use grayscale for tinting** - Allows biome adaptation
+3. **Use weights for variation** - Multiple weighted texture entries reduce visual repetition
+4. **Use grayscale for tinting** - Pair `_GS` textures with `BiomeTint` for biome adaptation
+5. **Prefix custom IDs** - Use your plugin name to avoid asset path collisions
+6. **Place in valid roots** - Textures must be in `BlockTextures/`, `Blocks/`, or other validated directories
 
 ## Related
 

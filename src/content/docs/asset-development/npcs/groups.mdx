@@ -3,7 +3,7 @@ title: "NPC Groups"
 description: "Define NPC collections that share behaviors and attitudes for AI targeting and faction relationships."
 ---
 
-{/* [VERIFIED: 2026-01-20] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 import { Aside, Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
 
@@ -48,7 +48,14 @@ Group definitions are stored in `Assets/Server/NPC/Groups/`:
 
 ## Group Definition Schema
 
-Groups can include individual roles or other groups:
+Groups can include or exclude individual roles and other groups. Under the hood, `NPCGroup` implements a `TagSet` with four fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `IncludeRoles` | `string[]` | Individual NPC role IDs to include (supports wildcards) |
+| `ExcludeRoles` | `string[]` | Individual NPC role IDs to exclude (supports wildcards) |
+| `IncludeGroups` | `string[]` | Other NPC groups to include |
+| `ExcludeGroups` | `string[]` | Other NPC groups to exclude |
 
 ### Including Roles
 
@@ -115,9 +122,15 @@ This matches `Fox`, `Fox_Arctic`, `Fox_Desert`, etc.
     "SpecificNPC_A",
     "SpecificNPC_B"
   ],
+  "ExcludeRoles": [
+    "SpecificNPC_C"
+  ],
   "IncludeGroups": [
     "ExistingGroup_A",
     "ExistingGroup_B"
+  ],
+  "ExcludeGroups": [
+    "ExistingGroup_C"
   ]
 }
 ```
@@ -220,51 +233,96 @@ High-level behavioral groupings:
 
 ## Group Usage in Roles
 
-Groups are referenced in NPC role definitions for targeting:
+Roles don't directly reference groups for "target" or "flee" lists. Instead, targeting works through two mechanisms: **attitude groups** and **entity filters**.
 
-```json title="Role targeting example"
+### Attitude System
+
+Each role can set an `AttitudeGroup`, a `DefaultPlayerAttitude`, and a `DefaultNPCAttitude`. The attitude system resolves how an NPC feels about a target using a layered priority chain:
+
+1. **Override attitudes** (highest priority) -- temporary per-entity overrides set by `ActionOverrideAttitude`, with a duration
+2. **AttitudeGroup map** -- looks up the target's role in the NPC's assigned attitude group
+3. **Default attitudes** (fallback) -- `DefaultPlayerAttitude` for players, `DefaultNPCAttitude` for other NPCs
+
+```json title="Role attitude configuration"
 {
-  "Behaviors": {
-    "Combat": {
-      "TargetGroups": ["Player", "Livestock"],
-      "FleeFromGroups": ["PredatorsBig"],
-      "IgnoreGroups": ["Self"]
-    }
+  "DefaultPlayerAttitude": "HOSTILE",
+  "DefaultNPCAttitude": "NEUTRAL",
+  "AttitudeGroup": "Trork_Attitudes"
+}
+```
+
+The `Attitude` enum has five values:
+
+| Attitude | Description |
+|----------|-------------|
+| `IGNORE` | Ignoring the target |
+| `HOSTILE` | Hostile towards the target |
+| `NEUTRAL` | Neutral towards the target |
+| `FRIENDLY` | Friendly towards the target |
+| `REVERED` | Reveres the target |
+
+<Aside>
+`DefaultPlayerAttitude` defaults to `HOSTILE` and `DefaultNPCAttitude` defaults to `NEUTRAL` when not specified.
+</Aside>
+
+### Attitude Groups
+
+Attitude groups are separate assets that map attitudes to NPC groups. They define which groups an NPC considers hostile, friendly, etc.
+
+```json title="Trork_Attitudes.json"
+{
+  "Groups": {
+    "HOSTILE": ["Player", "Goblin", "Livestock"],
+    "FRIENDLY": ["Trork"],
+    "IGNORE": ["Self"],
+    "NEUTRAL": ["Undead"]
   }
 }
 ```
 
-### Attitude System
+When resolving a target's attitude, the system looks up the target's role index in the attitude map. If the target's role belongs to a group listed under `HOSTILE`, the NPC treats them as hostile.
 
-Groups define default attitudes between factions:
+### Entity Filters in Instructions
 
-| Attitude | Description |
-|----------|-------------|
-| `Hostile` | Will attack on sight |
-| `Neutral` | Will attack if provoked |
-| `Friendly` | Will not attack, may assist |
-| `Fearful` | Will flee when detected |
+Behavior instructions can also use entity filters to target by group membership or attitude directly:
+
+```json title="Filter by attitude"
+{
+  "Type": "Attitude",
+  "Attitudes": ["HOSTILE"]
+}
+```
+
+```json title="Filter by NPC group"
+{
+  "Type": "NPCGroup",
+  "IncludeGroups": ["Player", "Livestock"],
+  "ExcludeGroups": ["Self"]
+}
+```
+
+These filters are used inside sensors and instructions to decide which entities an NPC should pay attention to.
 
 ## Group Hierarchy
 
-Groups can be nested for organization:
+Groups can be nested for organization. The `IncludeGroups` field pulls in all members of referenced groups, creating a hierarchy:
 
-```
-LivingWorld/Aggressive
-├── Trork
-├── Goblin
-├── Skeleton
-├── Void
-├── Zombie
-├── Vermin
-├── Predators
-│   ├── Fox*
-│   ├── Hyena*
-│   └── Toad*
-└── PredatorsBig
-    ├── Bear*
-    ├── Wolf*
-    └── Yeti
+```mermaid
+graph TD
+    A["LivingWorld/Aggressive"] --> B["Trork"]
+    A --> C["Goblin"]
+    A --> D["Skeleton"]
+    A --> E["Void"]
+    A --> F["Zombie"]
+    A --> G["Vermin"]
+    A --> H["Predators"]
+    A --> I["PredatorsBig"]
+    H --> J["Fox*"]
+    H --> K["Hyena*"]
+    H --> L["Toad*"]
+    I --> M["Bear*"]
+    I --> N["Wolf*"]
+    I --> O["Yeti"]
 ```
 
 ## Creating Custom Groups

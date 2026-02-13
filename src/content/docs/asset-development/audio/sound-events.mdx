@@ -3,7 +3,7 @@ title: "Sound Events"
 description: "Create sound events that control volume, pitch randomization, attenuation, and audio layering for in-game sounds."
 ---
 
-{/* [VERIFIED: 2026-01-20] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 import { Aside, Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
 
@@ -72,30 +72,39 @@ Audio files (.ogg) are in `Assets/Common/Sounds/`.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `Volume` | `float` | `0` | Overall volume adjustment (dB) |
+| `Volume` | `float` | `0` | Overall volume adjustment (dB). Range: -100 to 10 |
+| `Pitch` | `float` | `0` | Pitch adjustment in semitones. Range: -12 to 12 |
+| `MusicDuckingVolume` | `float` | `0` | Amount to duck music volume when playing (dB). Range: -100 to 0 |
+| `AmbientDuckingVolume` | `float` | `0` | Amount to duck ambient sounds when playing (dB). Range: -100 to 0 |
 | `Parent` | `string` | - | Parent sound event for inheritance |
 | `AudioCategory` | `string` | - | Volume category (e.g., `AudioCat_Weapons`) |
-| `MaxInstance` | `int` | - | Maximum simultaneous instances |
-| `MaxDistance` | `float` | - | Distance at which sound fades out completely |
-| `StartAttenuationDistance` | `float` | - | Distance at which attenuation begins |
-| `PreventSoundInterruption` | `bool` | `false` | Prevent interruption by same sound |
+| `MaxInstance` | `int` | `50` | Max concurrent instances. Range: 1 to 100 |
+| `MaxDistance` | `float` | `16` | Distance at which sound fades out completely (blocks) |
+| `StartAttenuationDistance` | `float` | `2` | Distance at which attenuation begins (blocks) |
+| `PreventSoundInterruption` | `bool` | `false` | Prevent interruption of this sound event |
 
 ### Layer Properties
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `Files` | `string[]` | - | Audio file paths (random selection) |
-| `Volume` | `float` | `0` | Layer volume adjustment (dB) |
-| `StartDelay` | `float` | `0` | Delay before playing (seconds) |
+| `Files` | `string[]` | - | Audio file paths (one chosen at random) |
+| `Volume` | `float` | `0` | Layer volume adjustment (dB). Range: -100 to 10 |
+| `StartDelay` | `float` | `0` | Delay in seconds before this layer starts playing |
+| `Looping` | `bool` | `false` | Whether this layer loops |
+| `Probability` | `int` | `100` | Chance of this layer playing when triggered (percentage) |
+| `ProbabilityRerollDelay` | `float` | `1` | Delay in seconds before re-rolling whether this layer plays |
+| `RoundRobinHistorySize` | `int` | `0` | Same file won't repeat within this many plays. 0 disables. Range: 0 to 32 |
 | `RandomSettings` | `object` | - | Randomization parameters |
 
 ### RandomSettings Object
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `MinPitch` | `float` | Minimum pitch offset (semitones) |
-| `MaxPitch` | `float` | Maximum pitch offset (semitones) |
-| `MinVolume` | `float` | Minimum volume offset (dB) |
+| `MinVolume` | `float` | Minimum random volume offset (dB). Range: -100 to 0 |
+| `MaxVolume` | `float` | Maximum random volume offset (dB). Range: 0 to 10 |
+| `MinPitch` | `float` | Minimum random pitch offset (semitones). Range: -12 to 0 |
+| `MaxPitch` | `float` | Maximum random pitch offset (semitones). Range: 0 to 12 |
+| `MaxStartOffset` | `float` | Max seconds to offset playback start. Useful for looping sounds to prevent phasing |
 
 ## Attenuation Templates
 
@@ -202,6 +211,23 @@ Combine multiple sounds for complex effects:
       "StartDelay": 0.05
     }
   ],
+  "Parent": "SFX_Attn_Moderate"
+}
+```
+
+### Looping Sound
+
+`Looping` is set per-layer, not at the top level:
+
+```json title="SFX_Candle_Loop.json"
+{
+  "Layers": [
+    {
+      "Files": ["Sounds/Ambient/Fire_Loop.ogg"],
+      "Looping": true
+    }
+  ],
+  "Volume": -4,
   "Parent": "SFX_Attn_Moderate"
 }
 ```

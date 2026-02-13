@@ -5,7 +5,7 @@ description: "Complete catalog of all events in the Hytale server including play
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 # Event Catalog
 
@@ -83,17 +83,21 @@ flowchart TD
 
 ```java
 public class PlayerSetupConnectEvent implements IEvent<Void>, ICancellable {
+    public PacketHandler getPacketHandler();
     public String getUsername();
     public UUID getUuid();
-    public Auth getAuth();
-    public ReferralData getReferralData();
-    public InetSocketAddress getReferralSource();
+    public PlayerAuthentication getAuth();
+    public byte[] getReferralData();
+    public boolean isReferralConnection();
+    public HostAddress getReferralSource();
     public ClientReferral getClientReferral();
+    public void referToServer(String host, int port);
+    public void referToServer(String host, int port, byte[] data);
+    public String getReason();
+    public void setReason(String reason);
 
-    // Cancellation
     public void setCancelled(boolean cancelled);
     public boolean isCancelled();
-    public void setReason(String reason);
 }
 ```
 
@@ -108,12 +112,54 @@ public class PlayerConnectEvent implements IEvent<Void> {
 }
 ```
 
+#### PlayerReadyEvent
+
+```java
+public class PlayerReadyEvent extends PlayerEvent<String> {
+    public int getReadyId();
+}
+```
+
+#### AddPlayerToWorldEvent
+
+```java
+public class AddPlayerToWorldEvent implements IEvent<String> {
+    public Holder<EntityStore> getHolder();
+    public World getWorld();
+    public boolean shouldBroadcastJoinMessage();
+    public void setBroadcastJoinMessage(boolean broadcastJoinMessage);
+}
+```
+
 #### PlayerDisconnectEvent
 
 ```java
 public class PlayerDisconnectEvent extends PlayerRefEvent<Void> {
     public PlayerRef getPlayerRef();
-    public DisconnectReason getDisconnectReason();
+    public PacketHandler.DisconnectReason getDisconnectReason();
+}
+```
+
+#### PlayerSetupDisconnectEvent
+
+```java
+public class PlayerSetupDisconnectEvent implements IEvent<Void> {
+    public String getUsername();
+    public UUID getUuid();
+    public PlayerAuthentication getAuth();
+    public PacketHandler.DisconnectReason getDisconnectReason();
+}
+```
+
+#### DrainPlayerFromWorldEvent
+
+```java
+public class DrainPlayerFromWorldEvent implements IEvent<String> {
+    public Holder<EntityStore> getHolder();
+    public World getWorld();
+    public void setWorld(World world);
+    public Transform getTransform();
+    public void setTransform(Transform transform);
 }
 ```
 
@@ -132,14 +178,14 @@ public class PlayerDisconnectEvent extends PlayerRefEvent<Void> {
 ```java
 public class PlayerChatEvent implements IAsyncEvent<String>, ICancellable {
     public PlayerRef getSender();
-    public Collection<PlayerRef> getTargets();
-    public void setTargets(Collection<PlayerRef> targets);
+    public void setSender(PlayerRef sender);
+    public List<PlayerRef> getTargets();
+    public void setTargets(List<PlayerRef> targets);
     public String getContent();
     public void setContent(String content);
-    public ChatFormatter getFormatter();
-    public void setFormatter(ChatFormatter formatter);
+    public PlayerChatEvent.Formatter getFormatter();
+    public void setFormatter(PlayerChatEvent.Formatter formatter);
 
-    // Cancellation
     public void setCancelled(boolean cancelled);
     public boolean isCancelled();
 }
@@ -149,13 +195,32 @@ public class PlayerChatEvent implements IAsyncEvent<String>, ICancellable {
 
 ```java
 public class PlayerMouseButtonEvent extends PlayerEvent<Void> implements ICancellable {
-    public PlayerRef getPlayerRef();
-    public float getClientUseTime();
-    public ItemStack getItemInHand();
-    public TargetBlock getTargetBlock();
-    public TargetEntity getTargetEntity();
+    public PlayerRef getPlayerRefComponent();
+    public long getClientUseTime();
+    public Item getItemInHand();
+    public Vector3i getTargetBlock();
+    public Entity getTargetEntity();
     public Vector2f getScreenPoint();
-    public MouseButton getMouseButton();
+    public MouseButtonEvent getMouseButton();
+
+    public void setCancelled(boolean cancelled);
+    public boolean isCancelled();
+}
+```
+
+#### PlayerMouseMotionEvent
+
+```java
+public class PlayerMouseMotionEvent extends PlayerEvent<Void> implements ICancellable {
+    public long getClientUseTime();
+    public Item getItemInHand();
+    public Vector3i getTargetBlock();
+    public Entity getTargetEntity();
+    public Vector2f getScreenPoint();
+    public MouseMotionEvent getMouseMotion();
+
+    public void setCancelled(boolean cancelled);
+    public boolean isCancelled();
 }
 ```
 
@@ -176,10 +241,10 @@ public class PlayerMouseButtonEvent extends PlayerEvent<Void> implements ICancel
 ```java
 public class BreakBlockEvent extends CancellableEcsEvent {
     public ItemStack getItemInHand();
-    public TargetBlock getTargetBlock();
+    public Vector3i getTargetBlock();
+    public void setTargetBlock(Vector3i targetBlock);
     public BlockType getBlockType();
 
-    // From CancellableEcsEvent
     public void setCancelled(boolean cancelled);
     public boolean isCancelled();
 }
@@ -190,9 +255,13 @@ public class BreakBlockEvent extends CancellableEcsEvent {
 ```java
 public class PlaceBlockEvent extends CancellableEcsEvent {
     public ItemStack getItemInHand();
-    public TargetBlock getTargetBlock();
-    public byte getRotation();
-    public void setRotation(byte rotation);
+    public Vector3i getTargetBlock();
+    public void setTargetBlock(Vector3i targetBlock);
+    public RotationTuple getRotation();
+    public void setRotation(RotationTuple rotation);
+
+    public void setCancelled(boolean cancelled);
+    public boolean isCancelled();
 }
 ```
 
@@ -201,11 +270,33 @@ public class PlaceBlockEvent extends CancellableEcsEvent {
 ```java
 public class DamageBlockEvent extends CancellableEcsEvent {
     public ItemStack getItemInHand();
-    public TargetBlock getTargetBlock();
+    public Vector3i getTargetBlock();
+    public void setTargetBlock(Vector3i targetBlock);
     public BlockType getBlockType();
     public float getCurrentDamage();
     public float getDamage();
     public void setDamage(float damage);
+
+    public void setCancelled(boolean cancelled);
+    public boolean isCancelled();
+}
+```
+
+#### UseBlockEvent
+
+```java
+public abstract class UseBlockEvent extends EcsEvent {
+    public InteractionType getInteractionType();
+    public InteractionContext getContext();
+    public Vector3i getTargetBlock();
+    public BlockType getBlockType();
+
+    public static final class Pre extends UseBlockEvent implements ICancellableEcsEvent {
+        public void setCancelled(boolean cancelled);
+        public boolean isCancelled();
+    }
+
+    public static final class Post extends UseBlockEvent { }
 }
 ```
 
@@ -223,8 +314,30 @@ public class DamageBlockEvent extends CancellableEcsEvent {
 ```java
 public static class Drop extends DropItemEvent {
     public ItemStack getItemStack();
+    public void setItemStack(ItemStack itemStack);
     public float getThrowSpeed();
     public void setThrowSpeed(float speed);
+}
+```
+
+#### DropItemEvent.PlayerRequest
+
+```java
+public static class PlayerRequest extends DropItemEvent {
+    public int getInventorySectionId();
+    public short getSlotId();
+}
+```
+
+#### InteractivelyPickupItemEvent
+
+```java
+public class InteractivelyPickupItemEvent extends CancellableEcsEvent {
+    public ItemStack getItemStack();
+    public void setItemStack(ItemStack itemStack);
+
+    public void setCancelled(boolean cancelled);
+    public boolean isCancelled();
 }
 ```
 
@@ -232,10 +345,15 @@ public static class Drop extends DropItemEvent {
 
 ```java
 public class SwitchActiveSlotEvent extends CancellableEcsEvent {
-    public short getPreviousSlot();
-    public short getNewSlot();
-    public String getInventorySectionId();
+    public int getPreviousSlot();
+    public byte getNewSlot();
+    public void setNewSlot(byte newSlot);
+    public int getInventorySectionId();
     public boolean isServerRequest();
+    public boolean isClientRequest();
+
+    public void setCancelled(boolean cancelled);
+    public boolean isCancelled();
 }
 ```
 
@@ -253,8 +371,8 @@ public abstract class CraftRecipeEvent extends CancellableEcsEvent {
     public CraftingRecipe getCraftedRecipe();
     public int getQuantity();
 
-    public static class Pre extends CraftRecipeEvent { }
-    public static class Post extends CraftRecipeEvent { }
+    public static final class Pre extends CraftRecipeEvent { }
+    public static final class Post extends CraftRecipeEvent { }
 }
 ```
 
@@ -264,15 +382,34 @@ public abstract class CraftRecipeEvent extends CancellableEcsEvent {
 |-------|-------------|-------------|
 | `DiscoverZoneEvent.Display` | Yes | Zone discovery display |
 
+#### DiscoverZoneEvent
+
+```java
+public abstract class DiscoverZoneEvent extends EcsEvent {
+    public WorldMapTracker.ZoneDiscoveryInfo getDiscoveryInfo();
+
+    public static class Display extends DiscoverZoneEvent implements ICancellableEcsEvent {
+        public void setCancelled(boolean cancelled);
+        public boolean isCancelled();
+    }
+}
+```
+
 ### Gameplay Events
 
 | Event | Cancellable | Description |
 |-------|-------------|-------------|
 | `ChangeGameModeEvent` | Yes | Game mode change |
 
+#### ChangeGameModeEvent
+
 ```java
 public class ChangeGameModeEvent extends CancellableEcsEvent {
     public GameMode getGameMode();
+    public void setGameMode(GameMode gameMode);
+
+    public void setCancelled(boolean cancelled);
+    public boolean isCancelled();
 }
 ```
 
@@ -309,18 +446,40 @@ public class LivingEntityInventoryChangeEvent extends EntityEvent<LivingEntity, 
 |-------|-------------|-------------|
 | `PlayerPermissionChangeEvent.PermissionsAdded` | No | Permissions granted |
 | `PlayerPermissionChangeEvent.PermissionsRemoved` | No | Permissions revoked |
+| `PlayerPermissionChangeEvent.GroupAdded` | No | Player added to permission group (via change event) |
+| `PlayerPermissionChangeEvent.GroupRemoved` | No | Player removed from permission group (via change event) |
 | `PlayerGroupEvent.Added` | No | Added to group |
 | `PlayerGroupEvent.Removed` | No | Removed from group |
 
 ```java
-public static class PermissionsAdded extends PlayerPermissionChangeEvent {
+public abstract class PlayerPermissionChangeEvent implements IEvent<Void> {
     public UUID getPlayerUuid();
-    public Set<String> getAddedPermissions();
-}
 
-public static class PermissionsRemoved extends PlayerPermissionChangeEvent {
+    public static class PermissionsAdded extends PlayerPermissionChangeEvent {
+        public Set<String> getAddedPermissions();
+    }
+
+    public static class PermissionsRemoved extends PlayerPermissionChangeEvent {
+        public Set<String> getRemovedPermissions();
+    }
+
+    public static class GroupAdded extends PlayerPermissionChangeEvent {
+        public String getGroupName();
+    }
+
+    public static class GroupRemoved extends PlayerPermissionChangeEvent {
+        public String getGroupName();
+    }
+}
+```
+
+```java
+public class PlayerGroupEvent extends PlayerPermissionChangeEvent {
     public UUID getPlayerUuid();
-    public Set<String> getRemovedPermissions();
+    public String getGroupName();
+
+    public static class Added extends PlayerGroupEvent { }
+    public static class Removed extends PlayerGroupEvent { }
 }
 ```
 
@@ -332,9 +491,16 @@ public static class PermissionsRemoved extends PlayerPermissionChangeEvent {
 | `GroupPermissionChangeEvent.Removed` | No | Permissions removed from group |
 
 ```java
-public static class Added extends GroupPermissionChangeEvent {
+public abstract class GroupPermissionChangeEvent implements IEvent<Void> {
     public String getGroupName();
-    public Set<String> getAddedPermissions();
+
+    public static class Added extends GroupPermissionChangeEvent {
+        public Set<String> getAddedPermissions();
+    }
+
+    public static class Removed extends GroupPermissionChangeEvent {
+        public Set<String> getRemovedPermissions();
+    }
 }
 ```
 
@@ -349,9 +515,9 @@ public static class Added extends GroupPermissionChangeEvent {
 
 ```java
 public class ShutdownEvent implements IEvent<Void> {
-    public static final int DISCONNECT_PLAYERS = -48;
-    public static final int UNBIND_LISTENERS = -40;
-    public static final int SHUTDOWN_WORLDS = -32;
+    public static final short DISCONNECT_PLAYERS = -48;
+    public static final short UNBIND_LISTENERS = -40;
+    public static final short SHUTDOWN_WORLDS = -32;
 }
 ```
 
@@ -419,9 +585,9 @@ getEventRegistry().register(PlayerChatEvent.class,
 | Exploration Events | 1 | 1 |
 | Gameplay Events | 1 | 1 |
 | Entity Events | 2 | 0 |
-| Permission Events | 6 | 0 |
+| Permission Events | 8 | 0 |
 | Lifecycle Events | 2 | 0 |
-| **Total** | **35** | **17** |
+| **Total** | **37** | **17** |
 
 ## Deprecated Events
 

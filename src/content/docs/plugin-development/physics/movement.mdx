@@ -5,7 +5,7 @@ description: "Manage entity velocity, forces, and physics simulation through vel
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 # Entity Movement
 
@@ -44,7 +44,6 @@ public class Velocity {
     public void addInstruction(Vector3d velocity, VelocityConfig config,
                                ChangeVelocityType type);
     public List<Instruction> getInstructions();
-    public void clearInstructions();
 
     // Component type
     public static ComponentType<EntityStore, Velocity> getComponentType();
@@ -80,17 +79,17 @@ public class VelocityConfig {
     // Threshold for resistance application
     float threshold = 1.0f;
 
-    // Transition style
-    ThresholdStyle style;  // Linear or non-linear
+    // transition style
+    VelocityThresholdStyle style;  // Linear or Exp
 }
 ```
 
-### ThresholdStyle
+### VelocityThresholdStyle
 
-| Style | Description |
-|-------|-------------|
-| `LINEAR` | Linear resistance transition |
-| `SMOOTH` | Smooth non-linear transition |
+| Style | Value | Description |
+|-------|-------|-------------|
+| `Linear` | 0 | Linear resistance transition |
+| `Exp` | 1 | Exponential resistance transition |
 
 ## PhysicsValues Component
 
@@ -368,6 +367,6 @@ Vector3d renderVelocity = velocity.getClientVelocity();
 
 ## Related
 
-- [Physics Overview](/plugin-development/entities/overview/) - Physics system architecture
+- [Physics Overview](/plugin-development/physics/overview/) - Physics system architecture
 - [Collision System](/plugin-development/physics/collision/) - Collision detection
-- [Entity System](/plugin-development/entities/overview/) - Entity components
+- [Hitboxes](/plugin-development/physics/hitboxes/) - Entity hitboxes and shapes

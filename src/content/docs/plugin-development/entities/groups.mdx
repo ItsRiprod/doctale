@@ -5,7 +5,7 @@ description: "Group multiple entities together for coordinated behavior like mou
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 # Entity Groups
 
@@ -83,15 +83,17 @@ public class EntityGroup implements Component<EntityStore> {
 
 ```java
 import com.hypixel.hytale.server.core.entity.group.EntityGroup;
+import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
-// Get or create group component on owner entity
-Ref<EntityStore> ownerRef = /* owner entity reference */;
-EntityGroup group = componentAccessor.getOrCreateComponent(
-    ownerRef,
-    EntityGroup.getComponentType()
-);
+// Create a new entity with an EntityGroup component
+Holder<EntityStore> holder = EntityStore.REGISTRY.newHolder();
+EntityGroup group = new EntityGroup();
+holder.addComponent(EntityGroup.getComponentType(), group);
+
+// Spawn the group entity into the store
+Ref<EntityStore> groupRef = store.addEntity(holder, AddReason.LOAD);
 
 // Set leader
 group.setLeaderRef(ownerRef);
@@ -124,7 +126,8 @@ int memberCount = group.size();  // Returns 3
 // Remove specific member
 group.remove(member1);
 
-// Clear all members (disband group)
+// Clear all members, null the leader, and mark dissolved
+// (no need to call setDissolved(true) separately — clear() does it)
 group.clear();
 ```
 
@@ -223,7 +226,7 @@ long count = members.stream()
 
 ```java
 // Mount group: rider + mount
-EntityGroup mountGroup = getOrCreateGroup(mountRef);
+EntityGroup mountGroup = new EntityGroup();
 mountGroup.setLeaderRef(riderRef);  // Rider is leader
 mountGroup.add(mountRef);           // Mount is member
 
@@ -236,7 +239,7 @@ mountGroup.setDissolved(true);
 
 ```java
 // Party group: party leader + members
-EntityGroup party = getOrCreateGroup(leaderRef);
+EntityGroup party = new EntityGroup();
 party.setLeaderRef(leaderRef);
 
 // Invite player
@@ -248,7 +251,7 @@ party.remove(leavingPlayerRef);
 // Kick player
 party.remove(kickedPlayerRef);
 
-// Disband party
+// Disband party (clears members, nulls leader, marks dissolved)
 party.clear();
 ```
 
@@ -256,7 +259,7 @@ party.clear();
 
 ```java
 // Raid: boss + minions
-EntityGroup raid = getOrCreateGroup(bossRef);
+EntityGroup raid = new EntityGroup();
 raid.setLeaderRef(bossRef);
 
 // Spawn minions
@@ -342,9 +345,8 @@ if (newLeader != null && newLeader.isValid()) {
     group.setLeaderRef(newLeader);
 }
 
-// 2. Or dissolve group
+// 2. Or dissolve group (clear() handles everything: members, leader, dissolved flag)
 group.clear();
-group.setDissolved(true);
 ```
 
 ## Related

@@ -23,27 +23,69 @@ The `BlockState` class is marked as `@Deprecated(forRemoval = true)`. It may be 
 ## BlockState Class
 
 ```java title="BlockState base class"
-// BlockState is a component for the ChunkStore
 public abstract class BlockState implements Component<ChunkStore> {
-    // Position within chunk
     public Vector3i getPosition();
-    public Vector3i getBlockPosition();  // World coordinates
+    public Vector3i getBlockPosition();
+    public Vector3d getCenteredBlockPosition();
+    public int getBlockX();
+    public int getBlockY();
+    public int getBlockZ();
 
-    // Access chunk and block type
     public WorldChunk getChunk();
     public BlockType getBlockType();
-
-    // Rotation
     public int getRotationIndex();
 
-    // Lifecycle
     public boolean initialize(BlockType blockType);
     public void onUnload();
     public void invalidate();
 
-    // Persistence
     public void markNeedsSave();
     public BsonDocument saveToDocument();
+    public Component<ChunkStore> clone();
+
+    public Ref<ChunkStore> getReference();
+    public Holder<ChunkStore> toHolder();
+
+    public static BlockState ensureState(WorldChunk chunk, int x, int y, int z);
+    public static BlockState getBlockState(Ref<ChunkStore> ref, ComponentAccessor<ChunkStore> accessor);
+    public static BlockState getBlockState(Holder<ChunkStore> holder);
+}
+```
+
+## Block State Interfaces
+
+Block states can implement these interfaces to opt into engine-managed behaviors. The system auto-detects them at registration time.
+
+### TickableBlockState
+
+Makes your block state tick every frame. The engine registers a ticking system for any block state class that implements this.
+
+```java title="TickableBlockState"
+public interface TickableBlockState {
+    void tick(float dt, int index, ArchetypeChunk<ChunkStore> archetypeChunk,
+              Store<ChunkStore> store, CommandBuffer<ChunkStore> commandBuffer);
+}
+```
+
+### DestroyableBlockState
+
+Called when the block is destroyed (removed from the world). Useful for cleanup like dropping items.
+
+```java title="DestroyableBlockState"
+public interface DestroyableBlockState {
+    void onDestroy();
+}
+```
+
+### SendableBlockState
+
+Sends/removes packets when a chunk loads or unloads for a player. Used for block states that need client-side representation.
+
+```java title="SendableBlockState"
+public interface SendableBlockState {
+    void sendTo(List<Packet> packets);
+    void unloadFrom(List<Packet> packets);
+    default boolean canPlayerSee(PlayerRef player) { return true; }
 }
 ```
 
@@ -110,6 +152,22 @@ public class ChestBlockState extends BlockState {
 }
 ```
 
+## Position Methods
+
+`getPosition()` returns chunk-local coordinates (0-31 on X/Z). `getBlockPosition()` returns world coordinates. If you need the center of the block (accounting for rotation), use `getCenteredBlockPosition()`.
+
+```java title="Position helpers"
+BlockState state = chunk.getState(localX, y, localZ);
+
+Vector3i local = state.getPosition();       // chunk-local
+Vector3i world = state.getBlockPosition();   // world coordinates
+Vector3d center = state.getCenteredBlockPosition(); // world center, adjusted for rotation
+
+int wx = state.getBlockX(); // individual world coordinate accessors
+int wy = state.getBlockY();
+int wz = state.getBlockZ();
+```
+
 ## Accessing Block States
 
 ```java title="Working with block states"
@@ -146,9 +204,10 @@ Configure block states in JSON:
 
 | Method | When Called |
 |--------|-------------|
-| `initialize(BlockType)` | When state is first created |
+| `initialize(BlockType)` | When state is first created. Return `false` to reject creation. |
 | `onUnload()` | When chunk is unloaded |
-| `invalidate()` | When block is destroyed |
+| `invalidate()` | When block is invalidated |
+| `onDestroy()` | When block is destroyed (requires `DestroyableBlockState`) |
 | `markNeedsSave()` | Call when state changes |
 
 ## Best Practices

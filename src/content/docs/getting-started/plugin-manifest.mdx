@@ -1,15 +1,15 @@
 ---
-title: "Plugin Manifest (plugin.json)"
-description: "Configure your plugin's identity, version, dependencies, and entry point in the required plugin.json manifest file."
+title: "Plugin Manifest (manifest.json)"
+description: "Configure your plugin's identity, version, dependencies, and entry point in the required manifest.json manifest file."
 ---
 
 {/* [VERIFIED: 2026-01-19] */}
 
 import { Aside, FileTree, Steps } from '@astrojs/starlight/components';
 
-# Plugin Manifest (plugin.json)
+# Plugin Manifest (manifest.json)
 
-Every Hytale plugin requires a `plugin.json` manifest file in its root directory. This file defines essential metadata about your plugin, including its identity, version, dependencies, and entry point.
+Every Hytale plugin requires a `manifest.json` manifest file in its root directory. This file defines essential metadata about your plugin, including its identity, version, dependencies, and entry point.
 
 ## Package Location
 
@@ -21,7 +21,7 @@ The manifest file must be placed at the root of your plugin JAR:
 
 <FileTree>
 - my-plugin.jar
-  - plugin.json           # Required manifest file
+  - manifest.json           # Required manifest file
   - com/
     - example/
       - myplugin/

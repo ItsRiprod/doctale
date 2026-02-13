@@ -3,140 +3,161 @@ title: "Block Physics"
 description: "Configure block support requirements and physical behavior when blocks lose their supporting neighbors."
 ---
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-02-12] */}
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 
-# Block Physics
-
-The block physics system handles support requirements and physical behavior of blocks in the world.
+The block physics system handles support requirements and physical behavior of blocks in the world. Blocks can require support from neighboring blocks and provide support to others — when those requirements aren't met, the block either breaks or gets destroyed.
 
 ## Package Location
 
 `com.hypixel.hytale.builtin.blockphysics.*`
 
-## Support System Overview
-
-Blocks can require support from neighboring blocks and provide support to others. When support requirements aren't met, blocks react according to their `SupportDropType`.
-
 ## Support Configuration
+
+The support system uses two JSON keys: `Support` (what this block *requires* from neighbors) and `Supporting` (what this block *provides* to neighbors).
 
 ```json title="Block with support requirements"
 {
   "Id": "MyPlugin_HangingLantern",
   "Support": {
-    "Up": [{ "Type": "Full" }]
+    "Up": [{ "FaceType": "Full" }]
   },
-  "SupportDropType": "DROP"
+  "SupportDropType": "Break"
 }
 ```
 
-This lantern requires full support from above and drops as an item if that support is removed.
+This lantern requires `Full` support from above and breaks if that support is removed.
 
-## Support Properties
+## Support (Required Support)
 
-### Support (Required Support)
-
-Defines what support this block needs from neighbors:
+Defines what support this block needs from neighbors. Each face maps to an array of `RequiredBlockFaceSupport` objects:
 
 ```json title="Support requirements"
 {
   "Support": {
-    "Down": [{ "Type": "Full" }],
-    "Up": [{ "Type": "Full" }],
-    "North": [{ "Type": "Partial" }],
-    "South": [{ "Type": "Partial" }],
-    "East": [{ "Type": "Partial" }],
-    "West": [{ "Type": "Partial" }]
+    "Down": [{ "FaceType": "Full" }],
+    "Up": [{ "FaceType": "Full" }]
   }
 }
 ```
 
+### Faces
+
+Individual faces use BlockFace enum names. You can also use merged face shortcuts.
+
 | Face | Description |
 |------|-------------|
-| `Down` | Block below |
 | `Up` | Block above |
+| `Down` | Block below |
 | `North` | Block to the north |
-| `South` | Block to the south |
 | `East` | Block to the east |
+| `South` | Block to the south |
 | `West` | Block to the west |
 
-### Supporting (Provided Support)
+Diagonal faces like `UpNorth`, `DownEast`, `NorthWest`, etc. are also available.
 
-Defines what support this block provides to neighbors:
+| Shortcut | Expands To |
+|----------|------------|
+| `All` | All 26 neighbor faces |
+| `BlockSides` | `Up`, `Down`, `North`, `East`, `South`, `West` |
+| `CardinalDirections` | `North`, `East`, `South`, `West` |
+| `Horizontal` | All 8 horizontal neighbors |
+| `UpCardinalDirections` | `UpNorth`, `UpEast`, `UpSouth`, `UpWest` |
+| `DownCardinalDirections` | `DownNorth`, `DownEast`, `DownSouth`, `DownWest` |
+
+### RequiredBlockFaceSupport Properties
+
+Each entry in the support array can have these fields:
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `FaceType` | string | — | Face type to match against neighbor's `Supporting` (commonly `"Full"`) |
+| `SelfFaceType` | string | — | Match against this block's own supporting face type |
+| `BlockSetId` | string | — | Only satisfied by blocks in this block set |
+| `BlockTypeId` | string | — | Only satisfied by this specific block type |
+| `FluidId` | string | — | Only satisfied by this fluid |
+| `TagId` | string | — | Only satisfied by blocks with this tag |
+| `MatchSelf` | enum | `Ignored` | Whether neighbor must be same block type (`Ignored`, `Required`, `Disallowed`) |
+| `Support` | enum | `Required` | How this requirement is evaluated (`Ignored`, `Required`, `Disallowed`) |
+| `AllowSupportPropagation` | boolean | `true` | Allow support distance propagation through this face |
+| `Rotate` | boolean | `true` | Whether this requirement rotates with the block |
+| `Filler` | Vector3i[] | — | Specific filler positions this applies to |
+
+<Aside type="tip">
+`FaceType` is a free-form string, not an enum. The most common value is `"Full"`, but you can use any string as long as the neighboring block's `Supporting` entry uses a matching `FaceType`.
+</Aside>
+
+## Supporting (Provided Support)
+
+Defines what support this block provides to neighbors. Each face maps to an array of `BlockFaceSupport` objects:
 
 ```json title="Support provided to neighbors"
 {
   "Supporting": {
-    "Up": [{ "Type": "Full" }],
-    "North": [{ "Type": "Full" }],
-    "South": [{ "Type": "Full" }],
-    "East": [{ "Type": "Full" }],
-    "West": [{ "Type": "Full" }]
+    "Up": [{ "FaceType": "Full" }],
+    "North": [{ "FaceType": "Full" }],
+    "South": [{ "FaceType": "Full" }],
+    "East": [{ "FaceType": "Full" }],
+    "West": [{ "FaceType": "Full" }]
   }
 }
 ```
 
+### BlockFaceSupport Properties
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `FaceType` | string | `"Full"` | The support type this face provides (matched against `FaceType` in `Support`) |
+| `Filler` | Vector3i[] | — | Specific filler positions that provide this support |
+
 <Aside type="note">
-A solid block typically provides `Full` support to all adjacent faces except `Down` (blocks don't support blocks above them by pushing up).
+Blocks with a solid `Material` and a cube-like `DrawType` (`Cube`, `CubeWithModel`, or `GizmoCube`) automatically provide `Full` support to all adjacent faces. Blocks with `DrawType: "Model"` do not get automatic support even if `Material` is `Solid`. You only need to define `Supporting` when you want to override the default or provide support from a non-cube block.
 </Aside>
-
-### Support Types
-
-| Type | Description |
-|------|-------------|
-| `Full` | Complete support (solid blocks) |
-| `Partial` | Partial support (fences, walls) |
-| `None` | No support provided |
 
 ## SupportDropType
 
 Determines what happens when a block loses required support:
 
-| Type | Description |
-|------|-------------|
-| `BREAK` | Block breaks (destroyed, no drop) |
-| `DROP` | Block drops as item |
-| `NONE` | Block stays (no physics, floating) |
+| Value | Description |
+|-------|-------------|
+| `Break` | Block is removed and drops as an item |
+| `Destroy` | Block is destroyed (removed with no item drop) |
 
 <Tabs>
-  <TabItem label="DROP">
-```json title="Drops as item"
+  <TabItem label="Break">
+```json title="Drops as item when unsupported"
 {
   "Id": "Torch",
   "Support": {
-    "Down": [{ "Type": "Full" }]
+    "Down": [{ "FaceType": "Full" }]
   },
-  "SupportDropType": "DROP"
+  "SupportDropType": "Break"
 }
 ```
   </TabItem>
-  <TabItem label="BREAK">
-```json title="Breaks on support loss"
+  <TabItem label="Destroy">
+```json title="Destroyed on support loss"
 {
-  "Id": "IceBlock",
+  "Id": "IceDecoration",
   "Support": {
-    "Down": [{ "Type": "Full" }]
+    "Down": [{ "FaceType": "Full" }]
   },
-  "SupportDropType": "BREAK"
-}
-```
-  </TabItem>
-  <TabItem label="NONE">
-```json title="Floats (no physics)"
-{
-  "Id": "MagicOrb",
-  "SupportDropType": "NONE"
+  "SupportDropType": "Destroy"
 }
 ```
   </TabItem>
 </Tabs>
 
+<Aside type="caution">
+If a block has `Support` requirements defined but no `SupportDropType`, it defaults to `Break`.
+</Aside>
+
 ## Advanced Support Properties
 
 ### MaxSupportDistance
 
-Maximum distance support can travel (for chains, vines, etc.):
+Maximum distance support can propagate (for chains, vines, etc.):
 
 ```json title="Support distance"
 {
@@ -144,27 +165,28 @@ Maximum distance support can travel (for chains, vines, etc.):
 }
 ```
 
-Range: 0-14 blocks. Use for blocks that can hang from a ceiling but only up to a certain length.
+Range: 0-14 blocks. When set, support propagates through connected blocks up to this distance. A block at the end of the chain that exceeds this distance loses support.
 
 ### SupportsRequiredFor
 
-When support is validated:
+Controls whether *any* or *all* support face requirements must be satisfied:
 
-```json title="Support check timing"
+```json title="Support requirement mode"
 {
-  "SupportsRequiredFor": "PLACEMENT_AND_EXISTENCE"
+  "SupportsRequiredFor": "Any"
 }
 ```
 
 | Value | Description |
 |-------|-------------|
-| `PLACEMENT_ONLY` | Only check on placement |
-| `EXISTENCE_ONLY` | Only check during world updates |
-| `PLACEMENT_AND_EXISTENCE` | Check both times |
+| `Any` | At least one support requirement must be met |
+| `All` | Every support requirement must be met |
+
+Defaults to `All`.
 
 ### IgnoreSupportWhenPlaced
 
-Bypass support validation on initial placement:
+Skip support validation when the block is first placed:
 
 ```json title="Ignore support on placement"
 {
@@ -172,22 +194,7 @@ Bypass support validation on initial placement:
 }
 ```
 
-Useful for decorative blocks placed by world generation.
-
-## BlockFaceSupport
-
-Fine-grained support configuration per face:
-
-```json title="Detailed face support"
-{
-  "BlockFaceSupport": {
-    "Up": {
-      "SupportType": "Full",
-      "RequiredArea": 0.5
-    }
-  }
-}
-```
+Useful for decorative blocks placed by world generation that might not have proper support at placement time.
 
 ## Complete Example
 
@@ -196,28 +203,24 @@ Fine-grained support configuration per face:
   "Id": "MyPlugin_WallShelf",
   "DrawType": "Model",
   "CustomModel": "models/shelf.blockymodel",
-  "Material": "Wood",
+  "Material": "Solid",
   "Support": {
-    "North": [{ "Type": "Full" }],
-    "South": [{ "Type": "Full" }],
-    "East": [{ "Type": "Full" }],
-    "West": [{ "Type": "Full" }]
+    "CardinalDirections": [{ "FaceType": "Full" }]
   },
   "Supporting": {
-    "Up": [{ "Type": "Partial" }]
+    "Up": [{ "FaceType": "Full" }]
   },
-  "SupportDropType": "DROP",
-  "SupportsRequiredFor": "PLACEMENT_AND_EXISTENCE"
+  "SupportDropType": "Break",
+  "SupportsRequiredFor": "Any"
 }
 ```
 
 This shelf:
-- Must be placed against a wall (any horizontal direction)
-- Provides partial support for items placed on top
-- Drops as an item if the wall is removed
+- Needs `Full` support from at least one horizontal neighbor (using the `CardinalDirections` shortcut and `SupportsRequiredFor: Any`)
+- Provides `Full` support to blocks placed on top
+- Drops as an item if all surrounding walls are removed
 
 ## Related
 
-- [Block Types](/plugin-development/blocks/block-types/) - BlockType properties
-- [Block Events](/plugin-development/blocks/block-events/) - React to physics changes
-- [Physics Overview](/plugin-development/physics/overview/) - General physics system
+- [Block Types](/plugin-development/blocks/block-types/) — BlockType properties
+- [Block Events](/plugin-development/blocks/block-events/) — React to physics changes

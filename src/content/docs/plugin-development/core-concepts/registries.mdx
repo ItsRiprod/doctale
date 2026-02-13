@@ -3,7 +3,7 @@ title: "Plugin Registries"
 description: "Register components, events, commands, and features through the plugin registry system with automatic cleanup."
 ---
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
@@ -319,13 +319,14 @@ String myPerm = basePerm + ".myfeature"; // "group.name.myfeature"
 ### State Checking
 
 ```java
-// Check plugin state
+// isEnabled() returns true during SETUP, START, and ENABLED states
 if (isEnabled()) {
     // Plugin is active
 }
 
+// isDisabled() returns true during NONE, SHUTDOWN, and DISABLED states
 if (isDisabled()) {
-    // Plugin is inactive
+    // Plugin has not started, is shutting down, or has been disabled
 }
 
 PluginState state = getState();

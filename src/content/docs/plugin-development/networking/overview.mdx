@@ -5,7 +5,7 @@ description: "Handle client-server communication with packets, watchers, and fil
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 # Networking System Overview
 
@@ -129,31 +129,21 @@ The protocol defines ~354 packet types across 18 categories:
 package com.hypixel.hytale.server.core.io;
 
 public abstract class PacketHandler implements IPacketReceiver {
-    // Send single packet
     public void write(@Nonnull Packet packet);
-
-    // Send packet bypassing cache
     public void writeNoCache(@Nonnull Packet packet);
-
-    // Send multiple packets
     public void write(@Nonnull Packet... packets);
-
-    // Send packets with final packet
     public void write(@Nonnull Packet[] packets, @Nonnull Packet finalPacket);
-
-    // Internal write with cache control
     public void writePacket(@Nonnull Packet packet, boolean cache);
 
-    // Ping management
     public void sendPing();
     public void handlePong(@Nonnull Pong packet);
     public void tickPing(float dt);
 
-    // Lifecycle hooks
-    public void registered(@Nullable PacketHandler oldHandler);
-    public void unregistered(@Nullable PacketHandler newHandler);
+    public final void registered(@Nullable PacketHandler oldHandler);
+    public final void unregistered(@Nullable PacketHandler newHandler);
 
-    // Abstract: handle incoming packet
+    public void disconnect(@Nonnull String message);
+
     public abstract void accept(@Nonnull Packet packet);
 }
 ```
@@ -175,7 +165,7 @@ Plugins can intercept packets using the adapter system:
 ```java
 package com.hypixel.hytale.server.core.io.adapter;
 
-public final class PacketAdapters {
+public class PacketAdapters {
     // Watch/filter inbound packets (client → server)
     public static PacketFilter registerInbound(@Nonnull PacketWatcher watcher);
     public static PacketFilter registerInbound(@Nonnull PlayerPacketWatcher watcher);
@@ -195,21 +185,31 @@ public final class PacketAdapters {
 ### Adapter Interfaces
 
 ```java
-// Watch any packet
-public interface PacketWatcher {
-    void onPacket(Packet packet);
+// Watch any packet (receives the PacketHandler, not the player)
+@FunctionalInterface
+public interface PacketWatcher extends BiConsumer<PacketHandler, Packet> {
+    void accept(PacketHandler handler, Packet packet);
 }
 
 // Watch player-specific packets
-public interface PlayerPacketWatcher {
-    void onPacket(PlayerRef player, Packet packet);
+public interface PlayerPacketWatcher extends BiConsumer<PlayerRef, Packet> {
+    void accept(PlayerRef player, Packet packet);
 }
 
-// Filter player packets (can modify/block)
-public interface PlayerPacketFilter {
-    boolean filter(PlayerRef player, Packet packet);
+// Filter player packets (return true to block, false to allow)
+public interface PlayerPacketFilter extends BiPredicate<PlayerRef, Packet> {
+    boolean test(PlayerRef player, Packet packet);
+}
+
+// Low-level filter (operates on PacketHandler directly)
+public interface PacketFilter extends BiPredicate<PacketHandler, Packet> {
+    boolean test(PacketHandler handler, Packet packet);
 }
 ```
+
+<Aside type="caution">
+The `PlayerPacketFilter` return value is inverted from what you might expect -- returning `true` **blocks** the packet, and `false` **allows** it. This matches the internal `PacketFilter` convention where `true` means "handled/consumed".
+</Aside>
 
 ### Watching Packets
 
@@ -219,7 +219,7 @@ import com.hypixel.hytale.protocol.packets.interface_.ChatMessage;
 import com.hypixel.hytale.server.core.io.adapter.PacketAdapters;
 import com.hypixel.hytale.server.core.io.adapter.PacketFilter;
 import com.hypixel.hytale.server.core.io.adapter.PlayerPacketWatcher;
-import com.hypixel.hytale.server.core.player.PlayerRef;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
 
 public class MyPlugin extends JavaPlugin {
     private PacketFilter chatWatcher;
@@ -251,15 +251,14 @@ import com.hypixel.hytale.protocol.packets.interface_.ChatMessage;
 import com.hypixel.hytale.server.core.io.adapter.PacketAdapters;
 import com.hypixel.hytale.server.core.io.adapter.PlayerPacketFilter;
 
-// Block packets containing banned words
 PacketFilter filter = PacketAdapters.registerInbound(
     (PlayerPacketFilter) (player, packet) -> {
         if (packet instanceof ChatMessage chat) {
             if (chat.message.contains("banned_word")) {
-                return false; // Block packet
+                return true; // true = block/consume the packet
             }
         }
-        return true; // Allow packet
+        return false; // false = allow the packet through
     }
 );
 ```
@@ -270,7 +269,7 @@ Send packets to players through their packet handler:
 
 ```java
 import com.hypixel.hytale.protocol.packets.interface_.ChatMessage;
-import com.hypixel.hytale.server.core.player.PlayerRef;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
 
 public void sendMessage(PlayerRef player, String message) {
     ChatMessage packet = new ChatMessage();

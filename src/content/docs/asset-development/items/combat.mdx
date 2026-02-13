@@ -3,7 +3,7 @@ title: "Combat System"
 description: "Configure weapon attacks, damage calculations, and effects through layered interactions and InteractionVars overrides."
 ---
 
-{/* [VERIFIED: 2026-01-20] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 import { Aside, Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
 
@@ -281,10 +281,9 @@ Damage interactions define damage calculations and hit effects:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `Class` | `string` | Damage class (Light, Normal, Heavy) |
-| `BaseDamage` | `object` | Damage by type |
-| `BaseDamage.Physical` | `float` | Physical damage amount |
-| `Type` | `string` | Calculation type (`Absolute`) |
+| `Class` | `string` | Damage class (`Light`, `Charged`, `Signature`) |
+| `BaseDamage` | `object` | Map of DamageCause IDs to damage amounts |
+| `Type` | `string` | Calculation type (`Absolute` or `DPS`) |
 | `RandomPercentageModifier` | `float` | Damage variance (0.1 = ±10%) |
 
 ### DamageEffects
@@ -595,15 +594,33 @@ Visual effects when signature is ready:
 </TabItem>
 </Tabs>
 
-## Damage Types
+## Damage Causes
 
-| Type | Description |
-|------|-------------|
-| `Physical` | Standard physical damage |
-| `Fire` | Fire elemental damage |
-| `Frost` | Ice elemental damage |
-| `Poison` | Poison damage over time |
-| `Void` | Void/shadow damage |
+Damage causes are **asset-based**, loaded from JSON files at `Assets/Server/Entity/Damage/`. They are not hardcoded — you can define custom damage causes for your mod. The keys used in `BaseDamage` (like `"Physical"` or `"Fire"`) are DamageCause asset IDs.
+
+Each DamageCause has these properties:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Inherits` | `string` | Parent damage cause to inherit from |
+| `DurabilityLoss` | `bool` | Whether this damage reduces item durability |
+| `StaminaLoss` | `bool` | Whether this damage drains stamina |
+| `BypassResistances` | `bool` | Whether this damage ignores armor resistances |
+| `DamageTextColor` | `string` | Color used for damage number text |
+| `AnimationId` | `string` | Hurt animation (default: `"Hurt"`) |
+| `DeathAnimationId` | `string` | Death animation (default: `"Death"`) |
+
+The vanilla game ships with built-in causes like `Physical`, `Projectile`, `Fall`, `Drowning`, `Suffocation`, `Environment`, `Command`, and `Out_Of_World`. Armor can define per-cause resistance via `DamageResistance` in its configuration.
+
+### DamageClass
+
+Separate from damage causes, `DamageClass` is a hardcoded enum that classifies the attack style. It's set on the `DamageCalculator` via the `Class` field:
+
+| Class | Description |
+|-------|-------------|
+| `Light` | Standard light attacks (swings) |
+| `Charged` | Charged/heavy attacks (thrusts) |
+| `Signature` | Signature ability attacks |
 
 ## Creating Custom Weapons
 

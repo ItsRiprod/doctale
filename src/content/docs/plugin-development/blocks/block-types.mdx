@@ -138,24 +138,24 @@ See [Block States](/plugin-development/blocks/block-states/) and [Block Ticking]
 | Value | Description |
 |-------|-------------|
 | `Empty` | Invisible, no rendering |
+| `GizmoCube` | Gizmo cube rendering |
 | `Cube` | Standard cube block |
 | `Model` | Custom 3D model |
+| `CubeWithModel` | Cube with attached 3D model |
 
 ## BlockMaterial Enum
-
-Common materials:
 
 | Value | Description |
 |-------|-------------|
 | `Empty` | No physical material |
 | `Solid` | Generic solid |
-| `Stone` | Stone-like |
-| `Wood` | Wood-like |
-| `Metal` | Metallic |
-| `Glass` | Glass-like |
-| `Organic` | Plants, grass |
-| `Cloth` | Fabric |
-| `Liquid` | Water, lava |
+
+## SupportDropType Enum
+
+| Value | Description |
+|-------|-------------|
+| `BREAK` | Block breaks and drops items |
+| `DESTROY` | Block is destroyed with no drops |
 
 ## Accessing BlockTypes
 

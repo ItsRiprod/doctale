@@ -3,7 +3,7 @@ title: "Event System"
 description: "React to game events with synchronous and asynchronous handlers, priority ordering, keyed events, and cancellation support."
 ---
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
@@ -251,6 +251,18 @@ Located in `com.hypixel.hytale.server.core.event.events.entity`:
 | `LivingEntityInventoryChangeEvent` | Entity inventory changed |
 | `LivingEntityUseBlockEvent` | Entity used a block |
 
+### Kill Feed Events
+
+Located in `com.hypixel.hytale.server.core.modules.entity.damage.event`:
+
+These are ECS events (extend `CancellableEcsEvent`) dispatched through the damage system when an entity dies. `KillFeedEvent` is a container class with three inner event types:
+
+| Event | Cancellable | Description |
+|-------|-------------|-------------|
+| `KillFeedEvent.DecedentMessage` | Yes | Death message for the killed entity. Access `getDamage()` and `getMessage()`/`setMessage()` |
+| `KillFeedEvent.KillerMessage` | Yes | Kill message for the killer. Access `getDamage()`, `getTargetRef()`, and `getMessage()`/`setMessage()` |
+| `KillFeedEvent.Display` | Yes | Kill feed UI display. Access `getDamage()`, `getIcon()`/`setIcon()`, and `getBroadcastTargets()` |
+
 ### ECS Events
 
 Located in `com.hypixel.hytale.server.core.event.events.ecs`:
@@ -283,7 +295,7 @@ Located in `com.hypixel.hytale.server.core.event.events.permissions`:
 | Event | Description |
 |-------|-------------|
 | `ShutdownEvent` | Server shutting down |
-| `PrepareUniverseEvent` | Universe being prepared |
+| `PrepareUniverseEvent` | Universe being prepared <Badge text="Deprecated" variant="caution" /> |
 | `BootEvent` | Server booting up |
 
 ## Working with Events

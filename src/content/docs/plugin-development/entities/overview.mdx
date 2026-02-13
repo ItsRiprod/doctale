@@ -25,15 +25,14 @@ The Entity System manages all game objects that exist within worlds, including p
 
 ```mermaid
 flowchart TB
-    Entity["Entity (base class)"]
-    Entity --> LivingEntity
-    Entity --> ItemEntity
-    Entity --> ProjectileEntity
+    Entity["Entity (abstract)"]
+    Entity --> LivingEntity["LivingEntity (abstract)"]
+    Entity --> SpawnBeacon
+    Entity --> PatrolPathMarkerEntity
     Entity --> Other["... other entity types"]
 
     LivingEntity --> Player
-    LivingEntity --> Creature
-    LivingEntity --> NPC
+    LivingEntity --> NPCEntity
 ```
 
 ### Entity as Component
@@ -150,18 +149,13 @@ Holder<EntityStore> holder = entity.toHolder();
 
 ### Entity Lifecycle
 
-```
-Create Entity Instance
-        ↓
-loadIntoWorld(world)    ← Assigns to world
-        ↓
-setReference(ref)       ← Links to ECS
-        ↓
-    [Active]
-        ↓
-    remove()            ← Removes from world
-        ↓
-unloadFromWorld()       ← Cleans up
+```mermaid
+flowchart TD
+    A["Create Entity Instance"] --> B["loadIntoWorld(world)"]
+    B --> C["setReference(ref)"]
+    C --> D["Active"]
+    D --> E["remove()"]
+    E --> F["unloadFromWorld()"]
 ```
 
 ## Working with Entity Components
@@ -299,13 +293,21 @@ getEventRegistry().register(DrainPlayerFromWorldEvent.class, event -> {
 Entities support animations through the model system:
 
 ```java
-// Default animation names
-String deathAnim = Entity.DefaultAnimations.DEATH;    // "Death"
-String hurtAnim = Entity.DefaultAnimations.HURT;      // "Hurt"
-String despawnAnim = Entity.DefaultAnimations.DESPAWN; // "Despawn"
+// default animation constants
+String deathAnim = Entity.DefaultAnimations.DEATH;        // "Death"
+String hurtAnim = Entity.DefaultAnimations.HURT;          // "Hurt"
+String despawnAnim = Entity.DefaultAnimations.DESPAWN;     // "Despawn"
+String swimSuffix = Entity.DefaultAnimations.SWIM_SUFFIX;  // "Swim"
+String flySuffix = Entity.DefaultAnimations.FLY_SUFFIX;    // "Fly"
 
-// Get hurt animations based on state
+// get hurt animations based on movement state and damage cause
 String[] hurtAnims = Entity.DefaultAnimations.getHurtAnimationIds(
+    movementStates,
+    damageCause
+);
+
+// get death animations based on movement state and damage cause
+String[] deathAnims = Entity.DefaultAnimations.getDeathAnimationIds(
     movementStates,
     damageCause
 );

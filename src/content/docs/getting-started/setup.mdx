@@ -57,7 +57,7 @@ A typical Hytale plugin project follows this structure:
             - myplugin/
               - MyPlugin.java
       - resources/
-        - plugin.json           # Plugin manifest
+        - manifest.json           # Plugin manifest
   - libs/
     - HytaleServer.jar          # Server JAR (provided dependency)
 </FileTree>
@@ -94,9 +94,9 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 jar {
-    // Include plugin.json in JAR root
+    // Include manifest.json in JAR root
     from('src/main/resources') {
-        include 'plugin.json'
+        include 'manifest.json'
     }
 
     // Manifest for JAR
@@ -227,7 +227,7 @@ public class MyPlugin extends JavaPlugin {
 
 ### 2. Create the Plugin Manifest
 
-`src/main/resources/plugin.json`:
+`src/main/resources/manifest.json`:
 
 ```json
 {
@@ -243,6 +243,10 @@ public class MyPlugin extends JavaPlugin {
   ]
 }
 ```
+
+<Aside>
+`Name` is the only strictly required field in the manifest. Everything else is optional, but you'll almost always want `Group`, `Version`, and `Main` as well. See the [Plugin Manifest](/getting-started/plugin-manifest/) page for the full schema.
+</Aside>
 
 ### 3. Build Your Plugin
 
@@ -305,12 +309,12 @@ mvn package
 ### "Class not found" errors
 
 - Ensure `HytaleServer.jar` is properly added to your classpath
-- Verify the `Main` field in `plugin.json` matches your class's fully qualified name
+- Verify the `Main` field in `manifest.json` matches your class's fully qualified name
 
 ### Plugin doesn't load
 
-- Check for JSON syntax errors in `plugin.json`
-- Verify `plugin.json` is at the root of your JAR (not in a subdirectory)
+- Check for JSON syntax errors in `manifest.json`
+- Verify `manifest.json` is at the root of your JAR (not in a subdirectory)
 - Check server logs for error messages
 
 ### Compilation errors

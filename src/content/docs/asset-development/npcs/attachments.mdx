@@ -5,9 +5,13 @@ description: "Define customizable body parts like eyes, ears, hair, and faces fo
 
 {/* [VERIFIED: 2026-01-20] */}
 
-import { Aside, Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
+import { Aside, Tabs, TabItem, FileTree, LinkCard } from '@astrojs/starlight/components';
 
 NPC attachments define customizable parts that can be attached to character models, including eyes, ears, hair, beards, and faces. These are primarily used for player character customization but can also be applied to humanoid NPCs.
+
+<Aside type="tip">
+Attachments are configured in model definitions via `DefaultAttachments` and `RandomAttachmentSets`. See the [Model Definitions - Attachments](/asset-development/npcs/models/#attachments) section for the full schema and JSON examples.
+</Aside>
 
 ## Asset Locations
 
@@ -155,89 +159,6 @@ Some attachments have pre-colored textures:
 ```
 Outlander_Brown.png    → Fixed brown color
 Outlander_Red.png      → Fixed red color
-```
-
-## NPC Categories
-
-NPCs are organized into categories based on their type and behavior patterns.
-
-<FileTree>
-- Assets/Common/NPC/
-  - Beast/
-    - Bear_Grizzly/
-    - Wolf/
-    - Spider/
-    - Tiger_Sabertooth/
-  - Critter/
-    - Bunny/
-    - Squirrel/
-  - Flying_Beast/
-  - Flying_Critter/
-  - Flying_Wildlife/
-  - Human/
-  - Intelligent/
-  - Livestock/
-  - Pets/
-  - Swimming_Beast/
-  - Swimming_Critter/
-  - Swimming_Wildlife/
-  - Undead/
-  - Void/
-  - Wildlife/
-  - Boss/
-  - Elemental/
-  - MISC/
-  - Scifi/
-  - Statues/
-</FileTree>
-
-### Category Descriptions
-
-| Category | Description | Examples |
-|----------|-------------|----------|
-| **Beast** | Aggressive land creatures | Bear, Wolf, Spider, Tiger, Yeti |
-| **Critter** | Small harmless creatures | Bunny, Squirrel |
-| **Wildlife** | Neutral land animals | Deer, Antelope, Bison |
-| **Livestock** | Domestic animals | Cow, Sheep, Pig, Horse, Chicken |
-| **Flying_Beast** | Aggressive flying creatures | — |
-| **Flying_Critter** | Small flying creatures | Butterfly |
-| **Flying_Wildlife** | Neutral flying creatures | Birds |
-| **Swimming_Beast** | Aggressive water creatures | Crocodile |
-| **Swimming_Critter** | Small water creatures | Fish |
-| **Swimming_Wildlife** | Neutral water creatures | — |
-| **Human** | Human NPCs | Villagers, Guards |
-| **Intelligent** | Smart hostile NPCs | Trork, Goblin, Skeleton |
-| **Undead** | Undead creatures | Zombie, Skeleton |
-| **Void** | Void creatures | Crawler, Eye |
-| **Boss** | Boss enemies | Dragon, Scarak_Broodmother |
-| **Elemental** | Elemental creatures | Spark_Living |
-| **Pets** | Tameable companions | — |
-| **Statues** | Decorative statue models | — |
-| **MISC** | Miscellaneous NPCs | — |
-| **Scifi** | Sci-fi themed NPCs | — |
-
-### Beast Category Examples
-
-```
-Beast/
-├── Bear_Grizzly/
-├── Bear_Polar/
-├── Emberwulf/
-├── Fox/
-├── Hyena/
-├── Larva/
-├── Molerat/
-├── Raptor_Cave/
-├── Rat/
-├── Rex_Cave/
-├── Scorpion/
-├── Slug_Magma/
-├── Snake/
-├── Spider/
-├── Spider_Cave/
-├── Tiger_Sabertooth/
-├── Wolf/
-└── Yeti/
 ```
 
 ## Creating Custom Attachments

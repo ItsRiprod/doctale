@@ -3,7 +3,7 @@ title: "Entity Component System (ECS) Overview"
 description: "Learn ECS architecture that separates data (components) from behavior (systems) for efficient entity management."
 ---
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
@@ -353,11 +353,11 @@ public Query<EntityStore> getQuery() {
 ```java
 // Check if ref is valid
 if (ref.isValid()) {
-    // Get component
+    // Get component (returns null if entity doesn't have it)
     HealthComponent health = store.getComponent(ref, healthType);
 
-    // Check if entity has component
-    if (store.hasComponent(ref, healthType)) {
+    // Check if entity has component via archetype
+    if (store.getArchetype(ref).contains(healthType)) {
         // ...
     }
 }
@@ -372,13 +372,13 @@ holder.addComponent(positionType, new PositionComponent(x, y, z));
 holder.addComponent(healthType, new HealthComponent());
 
 // Spawn entity from holder
-Ref<EntityStore> ref = store.spawn(holder);
+Ref<EntityStore> ref = store.addEntity(holder, AddReason.SPAWN);
 ```
 
 ### Removing Entities
 
 ```java
-store.destroy(ref);
+store.removeEntity(ref, RemoveReason.REMOVE);
 ```
 
 ## Holders
@@ -506,7 +506,7 @@ public class DamageOverTimeSystem extends EntityTickingSystem<EntityStore> {
         dot.decrementDuration();
         if (dot.getDuration() <= 0) {
             // Use command buffer for structural changes
-            commandBuffer.removeComponent(chunk.getRef(index), dotType);
+            commandBuffer.removeComponent(chunk.getReferenceTo(index), dotType);
         }
     }
 }

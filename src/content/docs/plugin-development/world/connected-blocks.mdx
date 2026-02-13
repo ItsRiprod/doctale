@@ -3,7 +3,7 @@ title: "Connected Blocks System"
 description: "Handle blocks like fences, walls, and stairs that automatically connect and determine visual state from neighbors."
 ---
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 import {
   Aside,
@@ -245,16 +245,18 @@ public class ConnectedBlockFaceTags {
 ```java
 import com.hypixel.hytale.server.core.universe.world.connectedblocks.ConnectedBlocksUtil;
 import com.hypixel.hytale.server.core.blocktype.BlockType;
+import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.math.vector.Vector3i;
 
 // Place a stair block that auto-connects to neighbors
 Vector3i position = new Vector3i(10, 64, 20);
 Vector3i placementNormal = new Vector3i(0, 1, 0); // Placed on top face
-BlockType stairBlock = BlockType.get("wood_stairs");
+BlockType stairBlock = BlockType.getAssetMap().getAsset("wood_stairs");
 int rotation = 0;
 
 // Get chunk references
-WorldChunk worldChunk = world.getChunk(position);
+long chunkIndex = ChunkUtil.indexChunkFromBlock(position.x, position.z);
+WorldChunk worldChunk = world.getChunkIfLoaded(chunkIndex);
 BlockChunk blockChunk = worldChunk.getBlockChunk();
 
 // Place with auto-connection

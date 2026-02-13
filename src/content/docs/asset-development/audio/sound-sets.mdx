@@ -3,7 +3,7 @@ title: "Sound Sets"
 description: "Define collections of sound events for items, NPCs, weapons, and UI that map action contexts to specific sounds."
 ---
 
-{/* [VERIFIED: 2026-01-20] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 import { Aside, Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
 
@@ -159,6 +159,50 @@ Items reference sound sets via the `ItemSoundSetId` property:
 }
 ```
 
+## Block Sound Sets
+
+Block Sound Sets define sounds for block interactions like walking, breaking, and building. These are separate from the `ISS_Blocks_*` item sound sets (which handle inventory drag/drop for block items).
+
+### Schema
+
+```json
+{
+  "SoundEvents": {
+    "<context>": "<sound_event_id>"
+  },
+  "MoveInRepeatRange": { "Min": 0.5, "Max": 1.5 }
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `SoundEvents` | `object` | | Map of `BlockSoundEvent` context to sound event ID |
+| `MoveInRepeatRange` | `object` | `{ Min: 0.5, Max: 1.5 }` | Time range (seconds) between repeated MoveIn sounds |
+
+### Block Sound Events
+
+| Event | Description |
+|-------|-------------|
+| `Walk` | Player walking on the block |
+| `Land` | Player landing on the block |
+| `MoveIn` | Player entering the block space |
+| `MoveOut` | Player leaving the block space |
+| `Hit` | Block being hit/mined |
+| `Break` | Block being destroyed |
+| `Build` | Block being placed |
+| `Clone` | Block being cloned (creative) |
+| `Harvest` | Block being harvested |
+
+### Usage in Blocks
+
+Blocks reference block sound sets via the `BlockSoundSetId` property:
+
+```json title="BlockType example (excerpt)"
+{
+  "BlockSoundSetId": "BSS_Stone"
+}
+```
+
 ## UI Sound Sets
 
 UI Sound Sets define sounds for specific interface interactions.
@@ -176,8 +220,8 @@ UI Sound Sets define sounds for specific interface interactions.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `SoundEvents` | `object` | Map of UI context to sound event ID |
-| `Category` | `string` | Audio category for volume control |
+| `SoundEvents` | `object` | Map of context key to sound event ID |
+| `Category` | `SoundCategory` | Sound category enum: `Music`, `Ambient`, `SFX`, `UI` |
 
 ### Creative Play Sound Set
 
@@ -223,7 +267,7 @@ Audio categories define volume settings and hierarchy for groups of sounds.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `Volume` | `float` | Volume level (0 = uses parent/default) |
+| `Volume` | `float` | Volume adjustment in decibels (-100 to 10). Acts as an audio bus -- combined with parent volumes up the hierarchy |
 | `Parent` | `string` | Parent category for inheritance |
 
 ### Top-Level Categories
@@ -275,6 +319,21 @@ Weapon-specific categories for combat sounds:
 
 Ambience systems define environmental audio with conditions.
 
+### AmbienceFX Top-Level Properties
+
+Each AmbienceFX asset can contain multiple audio components:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Conditions` | `object` | When this ambience activates |
+| `Sounds` | `object[]` | Positional emitter sounds |
+| `Music` | `object` | Music tracks to play |
+| `AmbientBed` | `object` | Background ambient loop |
+| `SoundEffect` | `object` | Reverb/EQ effects to apply |
+| `Priority` | `int` | Priority for music and sound effect (higher = higher priority, min 0) |
+| `BlockedAmbienceFxIds` | `string[]` | Other AmbienceFX IDs this one blocks |
+| `AudioCategory` | `string` | Audio category for volume routing (affects ambient bed and music, not emitters) |
+
 ### Ambient Bed Schema
 
 Background ambient loops:
@@ -310,10 +369,19 @@ Background ambient loops:
   },
   "AmbientBed": {
     "Track": "Sounds/Environments/Zone1/Environments/Plains/Day/Z1_Plains_Gen_Day_Stereo_LOOP.ogg",
-    "Volume": 1.0
+    "Volume": 1.0,
+    "TransitionSpeed": "Default"
   }
 }
 ```
+
+#### Ambient Bed Properties
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `Track` | `string` | | Path to stereo audio file |
+| `Volume` | `float` | `0` | Volume in dB (-100 to 10) |
+| `TransitionSpeed` | `string` | `"Default"` | Fade speed: `Default`, `Fast`, `Instant` |
 
 ### Emitter Schema
 
@@ -367,13 +435,24 @@ Positional ambient sounds:
 
 ### Condition Properties
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `DayTime` | `object` | Hour range (0-24) |
-| `SunLightLevel` | `object` | Sun exposure level (0-15) |
-| `EnvironmentTagPattern` | `object` | Environment tag matching |
-| `WeatherTagPattern` | `object` | Weather tag matching |
-| `Walls` | `object` | Enclosure level (0-4) |
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `Never` | `bool` | `false` | If true, never conditionally triggers (can still be set server-side) |
+| `EnvironmentIds` | `string[]` | | Specific environment IDs to match |
+| `EnvironmentTagPattern` | `object` | | Environment tag pattern matching |
+| `WeatherIds` | `string[]` | | Specific weather IDs to match |
+| `WeatherTagPattern` | `object` | | Weather tag pattern matching |
+| `FluidFXIds` | `string[]` | | Fluid effect IDs to match |
+| `SurroundingBlockSoundSets` | `object[]` | | Block sound sets surrounding the player |
+| `Altitude` | `object` | `{ Min: 0, Max: 512 }` | Y-level range |
+| `Walls` | `object` | `{ Min: 0, Max: 4 }` | Enclosure level |
+| `Roof` | `bool` | `false` | Whether a roof is required |
+| `RoofMaterialTagPattern` | `object` | | Tag pattern to match roof material |
+| `Floor` | `bool` | `false` | Whether a floor is required |
+| `SunLightLevel` | `object` | `{ Min: 0, Max: 15 }` | Sun exposure level |
+| `TorchLightLevel` | `object` | `{ Min: 0, Max: 15 }` | Torch light level |
+| `GlobalLightLevel` | `object` | `{ Min: 0, Max: 15 }` | Combined light level |
+| `DayTime` | `object` | `{ Min: 0, Max: 24 }` | Hour range |
 
 ### Tag Pattern Operators
 
@@ -386,11 +465,59 @@ Positional ambient sounds:
 
 ### Emitter Sound Properties
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `SoundEventId` | `string` | Sound event to play |
-| `Frequency` | `object` | Time between plays (seconds) |
-| `Radius` | `object` | Distance range (blocks) |
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `SoundEventId` | `string` | | Sound event to play |
+| `Play3D` | `string` | `"Random"` | 3D positioning mode: `Random`, `LocationName`, `No` |
+| `BlockSoundSetId` | `string` | | Optional block sound set filter |
+| `Altitude` | `string` | `"Normal"` | Altitude positioning: `Normal`, `Lowest`, `Highest`, `Random` |
+| `Frequency` | `object` | `{ Min: 1, Max: 10 }` | Time between plays (seconds) |
+| `Radius` | `object` | `{ Min: 0, Max: 24 }` | Distance range (blocks) |
+
+### Music Schema
+
+Conditional music tracks:
+
+```json
+{
+  "Conditions": { ... },
+  "Music": {
+    "Tracks": [
+      "Music/Zone1/Plains/Z1_Plains_Day_01.ogg",
+      "Music/Zone1/Plains/Z1_Plains_Day_02.ogg"
+    ],
+    "Volume": -3.0
+  },
+  "Priority": 5
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `Tracks` | `string[]` | | Array of music file paths (must be non-empty) |
+| `Volume` | `float` | `0` | Volume in dB (-100 to 10) |
+
+### Sound Effect Schema
+
+Apply reverb and EQ based on conditions:
+
+```json
+{
+  "Conditions": { ... },
+  "SoundEffect": {
+    "ReverbEffectId": "Rev_Cave",
+    "EqualizerEffectId": "EQ_Default",
+    "IsInstant": false
+  },
+  "Priority": 10
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `ReverbEffectId` | `string` | | Reverb effect to apply |
+| `EqualizerEffectId` | `string` | | EQ effect to apply |
+| `IsInstant` | `bool` | `false` | Whether to apply the effect instantly |
 
 ## Ambience Organization
 
@@ -469,7 +596,7 @@ Positional ambient sounds:
   },
   "AmbientBed": {
     "Track": "Sounds/MyPlugin/Cave_Ambient_LOOP.ogg",
-    "Volume": 0.8
+    "Volume": -5.0
   }
 }
 ```

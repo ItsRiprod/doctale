@@ -5,7 +5,7 @@ description: "Serial, Parallel, Repeat, Chaining, and Condition interactions for
 
 import { Aside, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-01-25] - From control flow interaction source analysis */}
+{/* [VERIFIED: 2026-02-13] - From control flow interaction source analysis */}
 
 Control flow interactions orchestrate how other interactions execute - sequentially, in parallel, in loops, or conditionally.
 
@@ -278,7 +278,7 @@ Implements combo systems with time windows between inputs.
 | `ChainId` | `string` | Unique ID for this combo chain |
 | `ChainingAllowance` | `float` | Seconds before combo resets |
 | `Next` | `string[]` | Sequence of interactions in combo |
-| `Flags` | `object` | Alternative paths based on movement state |
+| `Flags` | `object` | Map of flag keys to interaction names. Flag keys are sorted and compiled into the label array after the `Next` entries — the first `next.length` labels target combo steps, the remaining labels target flag branches. When a flag matches at runtime, the interaction jumps to its corresponding label |
 
 ### How It Works
 
@@ -324,6 +324,10 @@ protected void simulateTick0(...) {
     }
 }
 ```
+
+<Aside type="note">
+ChainingInteraction has both `tick0()` and `simulateTick0()`. The `tick0()` method handles the server-side authoritative path — it reads the client's synced state (`clientState.chainingIndex` and `clientState.flagIndex`) and jumps to the correct label. The `simulateTick0()` shown above handles client-side simulation (prediction), computing the combo index locally. The page shows the simulation variant since it contains the core combo-stepping logic.
+</Aside>
 
 ### Flags for Movement-Based Combos
 
@@ -435,9 +439,10 @@ Interactions can define labels for jump targets:
 // From ChainingInteraction.compile()
 @Override
 public void compile(OperationsBuilder builder) {
-    Label[] labels = new Label[this.next.length];
+    // label array covers both next[] entries and sorted flag keys
+    int len = this.next.length + (this.sortedFlagKeys != null ? this.sortedFlagKeys.length : 0);
+    Label[] labels = new Label[len];
 
-    // Create labels for each branch
     for (int i = 0; i < labels.length; i++) {
         labels[i] = builder.createUnresolvedLabel();
     }
@@ -445,11 +450,21 @@ public void compile(OperationsBuilder builder) {
     builder.addOperation(this, labels);
     Label end = builder.createUnresolvedLabel();
 
-    // Compile each branch
+    // compile combo step branches (labels 0 .. next.length-1)
     for (int i = 0; i < this.next.length; i++) {
         builder.resolveLabel(labels[i]);
         Interaction.getInteractionOrUnknown(this.next[i]).compile(builder);
         builder.jump(end);
+    }
+
+    // compile flag branches (labels next.length .. len-1)
+    if (this.flags != null) {
+        for (int i = 0; i < this.sortedFlagKeys.length; i++) {
+            String flag = this.sortedFlagKeys[i];
+            builder.resolveLabel(labels[this.next.length + i]);
+            Interaction.getInteractionOrUnknown(this.flags.get(flag)).compile(builder);
+            builder.jump(end);
+        }
     }
 
     builder.resolveLabel(end);

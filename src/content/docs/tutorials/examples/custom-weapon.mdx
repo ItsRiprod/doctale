@@ -3,7 +3,7 @@ title: "Create a Custom Weapon"
 description: "Design a custom sword in Blockbench, define it in JSON with damage and recipes, and integrate it into your plugin."
 ---
 
-{/* [VERIFIED: 2026-01-20] */}
+{/* [VERIFIED: 2026-02-13] */}
 
 import { Aside, Card, CardGrid, LinkCard, Steps, Tabs, TabItem, FileTree, Badge } from '@astrojs/starlight/components';
 
@@ -157,7 +157,7 @@ Study existing sword models in `Assets/Common/Items/Weapons/Sword/` for referenc
              - Sword/
                - Flame_Sword.blockymodel
                - Flame_Sword_Texture.png
-     - plugin.json
+     - manifest.json
    </FileTree>
 
 3. **Copy files to locations**
@@ -343,6 +343,11 @@ We only need to override the values we want to change.
 Each attack type has its own damage definition. The `Parent` field inherits the base attack behavior while we override the damage value.
 
 **Damage Comparison (Iron Sword vs Flame Sword):**
+
+<Aside type="note">
+The Iron Sword values below are illustrative examples for comparison purposes, not actual in-game values.
+</Aside>
+
 | Attack | Iron Sword | Flame Sword |
 |--------|------------|-------------|
 | Swing Left | 9 | 12 |
@@ -401,17 +406,21 @@ Requires a Weapon Bench with sword crafting capability. Uses iron bars, leather,
 
 ## Part 6: Configure Plugin Manifest
 
-Update your `plugin.json` to include the asset pack:
+Update your `manifest.json` to include the asset pack:
 
-```json title="plugin.json"
+```json title="manifest.json"
 {
   "Name": "MyPlugin",
   "Version": "1.0.0",
   "Description": "Adds the Flame Sword weapon",
-  "Author": "YourName",
+  "Authors": [{ "Name": "YourName" }],
   "IncludesAssetPack": true
 }
 ```
+
+<Aside type="note">
+If your plugin includes Java code, add a `"Main"` field pointing to your entry point class (e.g. `"Main": "com.example.myplugin.MyPlugin"`). For asset-only plugins with no Java code, `Main` can be omitted.
+</Aside>
 
 The `"IncludesAssetPack": true` setting tells the server to load assets from the `assets/` directory.
 
@@ -469,7 +478,7 @@ Create a language file for the weapon name:
 ### Weapon doesn't appear
 
 <Aside type="tip" title="Solution">
-1. Check `plugin.json` has `"IncludesAssetPack": true`
+1. Check `manifest.json` has `"IncludesAssetPack": true`
 2. Verify JSON syntax is valid (use a JSON validator)
 3. Check file paths match exactly (case-sensitive)
 4. Look for errors in server console during startup
@@ -591,7 +600,7 @@ Your final plugin structure should look like:
       - en_US.lang
   - src/
     - (your Java code)
-  - plugin.json
+  - manifest.json
 </FileTree>
 
 ## Next Steps
