@@ -25,6 +25,10 @@ The server configuration system manages server settings, world configuration, an
 
 ## HytaleServerConfig
 
+<Aside type="caution" title="Changed in Update 3">
+Several inner configuration classes were extracted from `HytaleServerConfig` into standalone files: `BackupConfig`, `ModConfig`, `RateLimitConfig`, and `UpdateConfig`. If you were referencing these as inner classes (e.g., `HytaleServerConfig.RateLimitConfig`), you must update your imports to the new standalone classes in `com.hypixel.hytale.server.core.config`. The [Update 3 changelog](/changelog/update-2-to-3/) has the full list of breaking changes.
+</Aside>
+
 Main server configuration (loaded from `config.json`):
 
 ```java

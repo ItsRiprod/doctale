@@ -11,6 +11,10 @@ import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight
 
 Complete catalog of all 268 packet types in the Hytale protocol, organized by category.
 
+<Aside type="note" title="New in Update 3">
+Update 3 added 3 new packets (`BuilderToolSetEntityCollision`, `UpdateAnchorUI`, `CreateUserMarker`), removed 2 packets (`AssetEditorEnableAssetPack`, `Status`), and converted `AssetEditorRebuildCaches` from a packet to a plain utility class. All packets now declare a direction (`ToServerPacket`, `ToClientPacket`, or both) and a `NetworkChannel`. See the [full Update 3 changelog](/changelog/update-2-to-3/) for all protocol changes.
+</Aside>
+
 ## Package Location
 
 `com.hypixel.hytale.protocol.packets`
@@ -40,7 +44,10 @@ Complete catalog of all 268 packet types in the Hytale protocol, organized by ca
 
 | ID | Name | Direction | Description |
 |----|------|-----------|-------------|
-| 10 | `Status` | S→C | Authentication status update |
+<Aside type="danger" title="Removed in Update 3">
+`Status` (packet ID 10) was removed in Update 3. All removals are documented in the [Update 3 changelog](/changelog/update-2-to-3/).
+</Aside>
+
 | 11 | `AuthGrant` | S→C | Server grants authentication rights |
 | 12 | `AuthToken` | C→S | Client sends access token |
 | 13 | `ServerAuthToken` | S→C | Server provides auth token |
@@ -259,10 +266,19 @@ Complete catalog of all 268 packet types in the Hytale protocol, organized by ca
 | 232 | `UpdateLanguage` | S→C | Language update |
 | 233 | `WorldSavingStatus` | S→C | Save progress |
 | 234 | `OpenChatWithCommand` | S→C | Open chat with command |
+| 235 | `UpdateAnchorUI` | S→C | Update anchor UI (compressed) |
+
+<Aside type="note" title="New in Update 3">
+`UpdateAnchorUI` (packet ID 235) was added in Update 3 for controlling anchor UI visibility and content. See the [Update 3 changelog](/changelog/update-2-to-3/) for other new packets.
+</Aside>
 
 ## World Map Packets
 
 **Package:** `protocol.packets.worldmap`
+
+<Aside type="note" title="New in Update 3">
+`UpdateWorldMap` and `ClearWorldMap` now use `NetworkChannel.WorldMap` instead of the default channel. `UpdateWorldMapSettings` gained four new boolean fields: `allowShowOnMapToggle`, `allowCompassTrackingToggle`, `allowCreatingMapMarkers`, and `allowRemovingOtherPlayersMarkers`. A polymorphic `MapMarkerComponent` system was added with four component types: `PlayerMarkerComponent`, `PlacedByMarkerComponent`, `HeightDeltaIconComponent`, and `TintComponent`. The [Update 3 changelog](/changelog/update-2-to-3/) has all map-related changes.
+</Aside>
 
 | ID | Name | Direction | Description |
 |----|------|-----------|-------------|
@@ -272,6 +288,11 @@ Complete catalog of all 268 packet types in the Hytale protocol, organized by ca
 | 243 | `UpdateWorldMapVisible` | S→C | Visible map regions |
 | 244 | `TeleportToWorldMapMarker` | C→S | Teleport to marker |
 | 245 | `TeleportToWorldMapPosition` | C→S | Teleport to coordinates |
+| 246 | `CreateUserMarker` | C→S | Create user map marker |
+
+<Aside type="note" title="New in Update 3">
+`CreateUserMarker` (packet ID 246) was added in Update 3 for creating user-placed map markers with a color and position. More on new packets in the [Update 3 changelog](/changelog/update-2-to-3/).
+</Aside>
 
 ## Server Access Packets
 
@@ -340,7 +361,10 @@ Complete catalog of all 268 packet types in the Hytale protocol, organized by ca
 | 315 | `AssetEditorUpdateAssetPack` | C→S | Update asset pack |
 | 316 | `AssetEditorCreateAssetPack` | C→S | Create asset pack |
 | 317 | `AssetEditorDeleteAssetPack` | C→S | Delete asset pack |
-| 318 | `AssetEditorEnableAssetPack` | C→S | Enable/disable pack |
+<Aside type="danger" title="Removed in Update 3">
+`AssetEditorEnableAssetPack` (packet ID 318) was removed in Update 3. See the [Update 3 changelog](/changelog/update-2-to-3/) for all removed packets.
+</Aside>
+
 | 319 | `AssetEditorAssetListSetup` | S→C | Asset list |
 | 320 | `AssetEditorAssetListUpdate` | S→C | Update asset list |
 | 321 | `AssetEditorRequestChildrenList` | C→S | Request children |
@@ -370,7 +394,10 @@ Complete catalog of all 268 packet types in the Hytale protocol, organized by ca
 | 345 | `AssetEditorExportAssetFinalize` | S→C | Export complete |
 | 346 | `AssetEditorExportDeleteAssets` | S→C | Remove exports |
 | 347 | `AssetEditorExportComplete` | S→C | Export finished |
-| 348 | `AssetEditorRebuildCaches` | C→S | Rebuild caches |
+<Aside type="danger" title="Removed in Update 3">
+`AssetEditorRebuildCaches` (packet ID 348) was deregistered as a packet in Update 3 and converted to a plain utility class. Details in the [Update 3 changelog](/changelog/update-2-to-3/).
+</Aside>
+
 | 349 | `AssetEditorUndoChanges` | C→S | Undo edit |
 | 350 | `AssetEditorRedoChanges` | C→S | Redo edit |
 | 351 | `AssetEditorUndoRedoReply` | S→C | Undo/redo reply |
@@ -409,6 +436,11 @@ Complete catalog of all 268 packet types in the Hytale protocol, organized by ca
 | 421 | `BuilderToolSetEntityPickupEnabled` | C→S | Entity pickup |
 | 422 | `BuilderToolSetEntityLight` | C→S | Entity light |
 | 423 | `BuilderToolSetNPCDebug` | C→S | NPC debug |
+| 425 | `BuilderToolSetEntityCollision` | C→S | Set entity collision |
+
+<Aside type="note" title="New in Update 3">
+`BuilderToolSetEntityCollision` (packet ID 425) was added in Update 3 for enabling/disabling entity collision via builder tools. All new packets are listed in the [Update 3 changelog](/changelog/update-2-to-3/).
+</Aside>
 
 ## Summary
 

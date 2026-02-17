@@ -97,81 +97,61 @@ public class EntityUpdate {
 
 ### Component Update Types
 
-25 component types can be synchronized:
+<Aside type="caution" title="Changed in Update 3">
+`ComponentUpdate` was completely rewritten from a monolithic struct with all possible update fields into an abstract base class with polymorphic dispatch. Each update type is now a separate subclass (e.g., `TransformUpdate`, `NameplateUpdate`, `EquipmentUpdate`). The standalone `Equipment` and `Nameplate` classes were removed and replaced by their corresponding `ComponentUpdate` subclasses. A new `Prop` type (ID 25) was added. The [Update 3 changelog](/changelog/update-2-to-3/) has the complete breakdown.
+</Aside>
 
-| Type | Description |
-|------|-------------|
-| `Nameplate` | Display names |
-| `UIComponents` | Health bars, indicators |
-| `CombatText` | Damage numbers |
-| `Model` | Entity model |
-| `PlayerSkin` | Player skin data |
-| `Item` | Held/displayed item |
-| `Block` | Block-form entity |
-| `Equipment` | Equipment loadout |
-| `EntityStats` | Stats and attributes |
-| `Transform` | Position, rotation, scale |
-| `MovementStates` | Movement flags |
-| `EntityEffects` | Active effects/buffs |
-| `Interactions` | Interaction options |
-| `DynamicLight` | Light emission |
-| `Interactable` | Can be interacted with |
-| `Intangible` | No collision |
-| `Invulnerable` | Cannot be damaged |
-| `RespondToHit` | Hit response behavior |
-| `HitboxCollision` | Collision settings |
-| `Repulsion` | Entity repulsion |
-| `Prediction` | Client prediction ID |
-| `Audio` | Attached audio |
-| `Mounted` | Mount state |
-| `NewSpawn` | Newly spawned flag |
-| `ActiveAnimations` | Playing animations |
+26 component types can be synchronized:
 
-### ComponentUpdate Fields
+| Type ID | Class | Description |
+|---------|-------|-------------|
+| 0 | `NameplateUpdate` | Display names |
+| 1 | `UIComponentsUpdate` | Health bars, indicators |
+| 2 | `CombatTextUpdate` | Damage numbers |
+| 3 | `ModelUpdate` | Entity model |
+| 4 | `PlayerSkinUpdate` | Player skin data |
+| 5 | `ItemUpdate` | Held/displayed item |
+| 6 | `BlockUpdate` | Block-form entity |
+| 7 | `EquipmentUpdate` | Equipment loadout |
+| 8 | `EntityStatsUpdate` | Stats and attributes |
+| 9 | `TransformUpdate` | Position, rotation, scale |
+| 10 | `MovementStatesUpdate` | Movement flags |
+| 11 | `EntityEffectsUpdate` | Active effects/buffs |
+| 12 | `InteractionsUpdate` | Interaction options |
+| 13 | `DynamicLightUpdate` | Light emission |
+| 14 | `InteractableUpdate` | Can be interacted with |
+| 15 | `IntangibleUpdate` | No collision (marker) |
+| 16 | `InvulnerableUpdate` | Cannot be damaged (marker) |
+| 17 | `RespondToHitUpdate` | Hit response behavior (marker) |
+| 18 | `HitboxCollisionUpdate` | Collision settings |
+| 19 | `RepulsionUpdate` | Entity repulsion |
+| 20 | `PredictionUpdate` | Client prediction ID |
+| 21 | `AudioUpdate` | Attached audio |
+| 22 | `MountedUpdate` | Mount state |
+| 23 | `NewSpawnUpdate` | Newly spawned flag (marker) |
+| 24 | `ActiveAnimationsUpdate` | Playing animations |
+| 25 | `PropUpdate` | Prop marker (marker) |
 
-Each `ComponentUpdate` can contain:
+### ComponentUpdate Hierarchy
+
+`ComponentUpdate` is now an abstract base class. Each subclass carries only its own fields and is dispatched via a VarInt type ID:
 
 ```java
-public class ComponentUpdate {
-    // Display
-    Nameplate nameplate;
-    EntityUIComponent[] uiComponents;
-    CombatText combatText;
+public abstract class ComponentUpdate {
+    public abstract void serialize(ByteBuf buf);
+    public abstract int computeSize();
+    public void serializeWithTypeId(ByteBuf buf);
+    public int computeSizeWithTypeId();
 
-    // Visuals
-    Model model;
-    PlayerSkin playerSkin;
-    Item item;
-    Block block;
-    Equipment equipment;
-
-    // State
-    EntityStats entityStats;
-    Transform transform;
-    MovementStates movementStates;
-    EntityEffect[] entityEffects;
-
-    // Interactions
-    Interaction[] interactions;
-    boolean interactable;
-    boolean intangible;
-    boolean invulnerable;
-
-    // Physics
-    HitboxCollision hitboxCollision;
-    Repulsion repulsion;
-    int predictionId;
-
-    // Effects
-    DynamicLight dynamicLight;
-    Audio audio;
-    boolean mounted;
-    boolean newSpawn;
-    Animation[] activeAnimations;
+    public static ComponentUpdate deserialize(ByteBuf buf, int offset);
 }
 ```
 
 ## Chunk Synchronization
+
+<Aside type="note" title="New in Update 3">
+Chunk-related packets (`SetChunk`, `ServerSetBlock`, `ServerSetBlocks`, `ServerSetFluid`, `ServerSetFluids`, `SetFluids`, `UnloadChunk`, `UpdateBlockDamage`, and others) now use `NetworkChannel.Chunks` instead of the default channel, enabling prioritized QUIC stream routing. All packet routing changes are listed in the [Update 3 changelog](/changelog/update-2-to-3/).
+</Aside>
 
 ### SetChunk Packet
 

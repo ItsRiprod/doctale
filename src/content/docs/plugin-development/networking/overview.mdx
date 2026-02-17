@@ -44,11 +44,18 @@ flowchart TB
 
 | Class | Description |
 |-------|-------------|
-| `Packet` | Interface for all network packets |
+| `Packet` | Base interface for all network packets |
+| `ToClientPacket` | Marker interface for server-to-client packets |
+| `ToServerPacket` | Marker interface for client-to-server packets |
+| `NetworkChannel` | Enum defining packet routing channels |
 | `PacketRegistry` | Central registry of packet types |
 | `PacketHandler` | Abstract handler for packet processing |
 | `PacketIO` | Packet serialization/deserialization |
 | `PacketAdapters` | Plugin packet interception system |
+
+<Aside type="note" title="New in Update 3">
+`ToClientPacket`, `ToServerPacket`, and `NetworkChannel` were added in Update 3. Every packet class now implements one or both direction interfaces, and declares a `NetworkChannel` for routing. See the Packet Direction System and Network Channel System sections below. For a full overview of networking changes, see the [Update 3 changelog](/changelog/update-2-to-3/).
+</Aside>
 
 ## Packet Interface
 
@@ -61,8 +68,35 @@ public interface Packet {
     int getId();
     void serialize(@Nonnull ByteBuf buf);
     int computeSize();
+    NetworkChannel getChannel();
 }
 ```
+
+<Aside type="note" title="New in Update 3">
+The `getChannel()` method was added to the `Packet` interface in Update 3. All implementations must return a `NetworkChannel` value. Refer to the [Update 3 changelog](/changelog/update-2-to-3/) for the complete list of interface changes.
+</Aside>
+
+## Packet Direction System
+
+<Aside type="note" title="New in Update 3">
+Update 3 introduces a formal packet direction system. Two marker interfaces split packets by direction:
+- `ToClientPacket extends Packet` -- packets sent from server to client
+- `ToServerPacket extends Packet` -- packets sent from client to server
+- Bidirectional packets implement both interfaces
+
+Server-side APIs such as `IPacketReceiver.sendPacket()`, `PacketGenerator`, and `PlayerUtil.sendPacket()` now accept `ToClientPacket` instead of `Packet`. See the [Update 3 changelog](/changelog/update-2-to-3/) for all direction system details.
+</Aside>
+
+## Network Channel System
+
+<Aside type="note" title="New in Update 3">
+A new `NetworkChannel` enum routes packets across separate QUIC streams:
+- `Default(0)` -- most packets
+- `Chunks(1)` -- chunk/block/fluid data (`SetChunk`, `ServerSetBlock`, `UnloadChunk`, etc.)
+- `WorldMap(2)` -- world map packets (`ClearWorldMap`, `UpdateWorldMap`)
+
+The `PacketRegistry` was restructured from a single `BY_ID` map to separate `TO_SERVER_BY_ID` and `TO_CLIENT_BY_ID` maps. `getById()` was split into `getToServerPacketById()` and `getToClientPacketById()`. The Netty pipeline (`PacketEncoder`/`PacketDecoder`) now validates that a packet's channel matches the stream channel. Full channel system details are in the [Update 3 changelog](/changelog/update-2-to-3/).
+</Aside>
 
 ### Packet Constants
 
@@ -147,6 +181,10 @@ public abstract class PacketHandler implements IPacketReceiver {
     public abstract void accept(@Nonnull Packet packet);
 }
 ```
+
+<Aside type="caution" title="Changed in Update 3">
+`PacketHandler` now supports multiple QUIC streams via a `channels[]` array instead of a single `channel` field. When using QUIC transport, separate streams are created for `Default`, `Chunks`, and `WorldMap` channels. The `IPacketReceiver.sendPacket()` method now accepts `ToClientPacket` instead of `Packet`. The [Update 3 changelog](/changelog/update-2-to-3/) covers all handler changes.
+</Aside>
 
 ### Handler Types
 

@@ -210,6 +210,10 @@ public interface ProgressCallback {
 }
 ```
 
+<Aside type="note" title="New in Update 3">
+The `AutoApplyMode` enum was extracted to its own `UpdateConfig` class in `com.hypixel.hytale.server.core.config` and gained a new `AUTOMATIC` mode alongside the existing `DISABLED`, `WHEN_EMPTY`, and `SCHEDULED` modes. Full details are in the [Update 3 changelog](/changelog/update-2-to-3/).
+</Aside>
+
 ### UpdateModule
 
 The main plugin class that manages the update lifecycle. Extends `JavaPlugin` and coordinates checking, downloading, and auto-applying updates.

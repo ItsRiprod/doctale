@@ -370,6 +370,10 @@ BlockType stone = BlockType.getAssetMap().get("Block_Stone");
 // Use asset overrides in your asset pack instead
 ```
 
+<Aside type="note" title="New in Update 3">
+A new `FileIO` abstraction layer was added in `com.hypixel.hytale.procedurallib.file`. It introduces a virtual file system with multi-root support, enabling asset overlaying where mod assets can override base assets. `JsonLoader` now loads files through `FileIO` instead of direct `Files.newBufferedReader` calls, and includes path traversal protection to prevent directory traversal attacks. The [Update 3 changelog](/changelog/update-2-to-3/) covers all asset system changes.
+</Aside>
+
 ## Asset Pack Priority
 
 When multiple packs define the same asset, priority determines which is used:

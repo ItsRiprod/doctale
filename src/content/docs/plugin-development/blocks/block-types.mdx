@@ -117,7 +117,7 @@ See [Block Physics](/plugin-development/blocks/block-physics/) for detailed supp
 | `Interactions` | `map` | Interaction handlers |
 | `Bench` | `object` | Crafting bench configuration |
 | `Gathering` | `object` | Resource gathering settings |
-| `PlacementSettings` | `object` | Placement restrictions |
+| `PlacementSettings` | `object` | Placement restrictions (see `BlockPlacementSettings`) |
 | `Seats` | `array` | Seating mount points |
 | `Beds` | `array` | Bed mount points |
 | `IsDoor` | `bool` | Door behavior (deprecated) |
@@ -228,6 +228,10 @@ Blocks can connect to neighbors for visual continuity (fences, glass panes, etc.
   }
 }
 ```
+
+<Aside type="note" title="New in Update 3">
+`BlockPlacementSettings` gained a new `allowBreakReplace` boolean field that controls whether a block can be replaced by breaking. The `Model` struct also gained `sittingOffset` and `sleepingOffset` float fields for entity positioning. See the [full Update 3 changelog](/changelog/update-2-to-3/) for all changes.
+</Aside>
 
 ## Related
 

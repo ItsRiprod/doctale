@@ -254,6 +254,41 @@ And use it in JSON:
 }
 ```
 
+## Random Tick System
+
+<Aside type="note" title="New in Update 3">
+A new `RandomTickPlugin` was added that provides Minecraft-style random block ticking. Unlike the deterministic `BlockTickPlugin`, random ticks select random blocks in each chunk section each tick. For a complete list of what changed, see the [Update 3 changelog](/changelog/update-2-to-3/).
+</Aside>
+
+The `RandomTickPlugin` registers a `RandomTickSystem` that processes random blocks per chunk section, checking `BlockType.getRandomTickProcedure()` to execute procedures. It introduces two built-in procedures:
+
+| Procedure | Description |
+|-----------|-------------|
+| `ChangeIntoBlock` | Changes a block into a specified target block type |
+| `SpreadTo` | Spreads blocks to neighbors (e.g., grass spreading to dirt), with configurable directions, Y range, light level requirements, and revert behavior |
+
+### RandomTick Configuration
+
+The `RandomTick` resource controls tick rates per chunk:
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `blocksPerSectionPerTickStable` | 1 | Blocks ticked per section for stable ticks (deterministic hash) |
+| `blocksPerSectionPerTickUnstable` | 3 | Blocks ticked per section for unstable ticks (random) |
+
+### SpreadTo Procedure
+
+The `SpreadTo` procedure supports spreading blocks like grass or mycelium:
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `SpreadDirections` | — | Directions the block can spread |
+| `MinY` / `MaxY` | — | Y range constraints for spreading |
+| `AllowedTag` | — | Tag the target block must have to accept spread |
+| `RequireEmptyAboveTarget` | — | Whether the block above the target must be empty |
+| `RequiredLightLevel` | 6 | Minimum light level for spreading |
+| `RevertBlock` | — | Block to revert to when covered |
+
 ## Related
 
 - [Block Types](/plugin-development/blocks/block-types/) — BlockType properties and configuration

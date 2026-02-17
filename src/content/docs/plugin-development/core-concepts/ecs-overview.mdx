@@ -346,6 +346,10 @@ public Query<EntityStore> getQuery() {
 
 ## Entity References (Refs)
 
+<Aside type="caution" title="Changed in Update 3">
+`Ref` no longer overrides `equals()` and `hashCode()` — refs now use identity comparison (object reference equality) instead of value comparison. A new `validate(Store)` method was added that checks both store identity and index validity. Details and other breaking changes are covered in the [Update 3 changelog](/changelog/update-2-to-3/).
+</Aside>
+
 `Ref<ECS_TYPE>` is a reference to an entity in a store.
 
 ### Working with Refs
@@ -443,7 +447,8 @@ getEntityStoreRegistry().registerComponent(
 2. **Systems do the work**: All behavior goes in systems
 3. **Use appropriate queries**: Only query for what you need
 4. **Cache ComponentTypes**: Store them as fields, not in methods
-5. **Check ref validity**: Always check `ref.isValid()` before use
+5. **Use constructor injection for ComponentTypes**: Pass component types to systems via constructor parameters rather than storing them as static fields
+6. **Check ref validity**: Always check `ref.isValid()` before use
 6. **Clone when copying**: Use `clone()` for component copies
 7. **Register in setup()**: All registrations happen during plugin setup
 

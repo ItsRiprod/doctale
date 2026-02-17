@@ -168,9 +168,14 @@ The fully qualified class name of your plugin's main class. This class must exte
 ```
 
 #### `ServerVersion`
-**Type:** `string` (SemVer Range)
 
-Specifies which server versions your plugin is compatible with. Uses npm-style semver range syntax.
+<Aside type="caution" title="Changed in Update 3">
+`ServerVersion` is now stored as a plain `String` instead of a parsed `SemverRange`. The `getServerVersion()` method on `PluginManifest` returns `String` instead of `SemverRange`. A `setServerVersion(@Nullable String)` setter was also added. Version validation was also changed from semver comparison to string equality check in the `PluginManager`. The [Update 3 changelog](/changelog/update-2-to-3/) covers all manifest-related changes.
+</Aside>
+
+**Type:** `string`
+
+Specifies which server versions your plugin is compatible with.
 
 ```json
 {

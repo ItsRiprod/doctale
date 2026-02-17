@@ -18,6 +18,9 @@ A plugin transitions through the following states during its lifecycle:
 ```mermaid
 flowchart LR
     NONE --> SETUP --> START --> ENABLED --> SHUTDOWN --> DISABLED
+    SETUP -->|error| FAILED
+    START -->|error| FAILED
+    ENABLED -->|error| FAILED
     DISABLED -->|can be re-enabled| NONE
 ```
 
@@ -31,6 +34,11 @@ flowchart LR
 | `ENABLED` | Plugin is fully active and operational |
 | `SHUTDOWN` | Plugin is executing its `shutdown()` method |
 | `DISABLED` | Plugin has been shut down or failed to initialize |
+| `FAILED` | Plugin encountered an error and was marked as failed |
+
+<Aside type="note" title="New in Update 3">
+The `FAILED` plugin state was added in Update 3. Failed plugins track their `failureCause` and can trigger a server shutdown with `ShutdownReason.MOD_ERROR` if configured to do so. The server can also identify which third-party plugin caused a crash via `PluginIdentifier.identifyThirdPartyPlugin()`. See the [Update 3 changelog](/changelog/update-2-to-3/) for a full summary of lifecycle changes.
+</Aside>
 
 ## Lifecycle Methods
 
@@ -250,6 +258,10 @@ public class MyPlugin extends JavaPlugin {
     }
 }
 ```
+
+<Aside type="note" title="New in Update 3">
+`PluginIdentifier` now has a `identifyThirdPartyPlugin(Throwable)` method that walks exception cause chains and stack traces to identify which third-party plugin caused an error, using classloader names matching the pattern `ThirdParty(<pluginId>)`. `ManifestUtil.getVersion()` now returns `String` instead of `Semver`. More details in the [Update 3 changelog](/changelog/update-2-to-3/).
+</Aside>
 
 ## Error Handling
 

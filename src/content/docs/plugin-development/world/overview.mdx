@@ -234,6 +234,11 @@ CompletableFuture<WorldChunk> future = world.getChunkAsync(chunkX, chunkZ);
 | `EmptyChunkStorageProvider` | `"Empty"` | No persistence |
 | `IndexedStorageChunkStorageProvider` | `"IndexedStorage"` | Optimized indexed storage |
 | `MigrationChunkStorageProvider` | `"Migration"` | Migration support |
+| `RocksDbChunkStorageProvider` | `"RocksDB"` | RocksDB-based storage with LZ4/ZSTD compression |
+
+<Aside type="note" title="New in Update 3">
+`RocksDbChunkStorageProvider` was added in Update 3. It provides a RocksDB-based chunk storage backend with LZ4/ZSTD compression and bloom filter configuration. The `IChunkStorageProvider` interface is now generic (`IChunkStorageProvider<Data>`) and includes `initialize()`, `close()`, and `migrateFrom()` lifecycle methods. The `ChunkStore` supports provider migration with progress reporting. See the [Update 3 changelog](/changelog/update-2-to-3/) for all additions.
+</Aside>
 
 ### Spawn Providers
 

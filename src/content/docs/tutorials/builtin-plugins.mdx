@@ -78,6 +78,11 @@ The `adventure/` directory doesn't contain a single plugin — it's a package of
 |--------|-----------|-------------|
 | ModelPlugin | `model/` | Model utilities |
 | TagSetPlugin | `tagset/` | Tag set management |
+| RandomTickPlugin | `randomtick/` | Random block ticking (grass spread, block changes) |
+
+<Aside type="note" title="New in Update 3">
+`RandomTickPlugin` was added in Update 3. It provides Minecraft-style random block ticking with built-in `ChangeIntoBlock` and `SpreadTo` procedures. See [Block Ticking](/plugin-development/blocks/block-ticking/) for details. All Update 3 additions are listed in the [changelog](/changelog/update-2-to-3/).
+</Aside>
 
 ---
 
@@ -299,7 +304,7 @@ Fluid simulation and water physics.
 
 **Location**: `builtin/blocktick/`
 
-Block update and tick system.
+Deterministic block update and tick system.
 
 ### Systems
 
@@ -315,6 +320,10 @@ BasicChanceBlockGrowthProcedure      // Simple growth
 SplitChanceBlockGrowthProcedure      // Variable growth rates
 ```
 
+<Aside type="note" title="New in Update 3">
+For random (non-deterministic) block ticking, see `RandomTickPlugin` which was added in Update 3. `BlockTickPlugin` handles deterministic per-block ticking via `TickProcedure`, while `RandomTickPlugin` handles random selection of blocks per chunk section. For a complete list of what changed, check the [Update 3 changelog](/changelog/update-2-to-3/).
+</Aside>
+
 ---
 
 ## BedsPlugin
@@ -328,6 +337,11 @@ Bed interactions and spawn points.
 - Sleep mechanics
 - Individual spawn points
 - Respawn handling
+- Multiplayer sleep notifications
+
+<Aside type="note" title="New in Update 3">
+A `SleepNotificationSystem` was added for multiplayer sleep coordination. On small servers (4 or fewer players), all awake players are notified when someone tries to sleep. On larger servers, notifications trigger when the sleeper ratio reaches 50%. Sleep sound configuration support was also added. See the [Update 3 changelog](/changelog/update-2-to-3/) for all builtin plugin changes.
+</Aside>
 
 ---
 
@@ -350,7 +364,7 @@ The `adventure/` package contains 15 independent plugins that together form Hyta
 | ShopPlugin | `adventure/shop/` | Shop system with items and currencies |
 | ShopReputationPlugin | `adventure/shopreputation/` | Shop pricing based on reputation |
 | StashPlugin | `adventure/stash/` | Player stash/storage system |
-| TeleporterPlugin | `adventure/teleporter/` | In-world teleporter devices |
+| TeleporterPlugin | `adventure/teleporter/` | In-world teleporter devices (with clear-out and portal state systems) |
 | WorldLocationConditionPlugin | `adventure/worldlocationcondition/` | Location-based conditions |
 
 ---
@@ -443,6 +457,10 @@ protected void setup() {
     });
 }
 ```
+
+<Aside type="caution" title="Changed in Update 3">
+The `MarkerProvider` interface changed from returning `List<MapMarker>` to `void provide(World, Player, MarkersCollector)`. Marker providers now use `MarkersCollector` to add markers with distance-based filtering. `PlayerIconMarkerProvider` was replaced by `OtherPlayersMarkerProvider`, and `PerWorldDataMarkerProvider` was split into `PersonalMarkersProvider` and `SharedMarkersProvider`. A new user-created map marker system (`UserMapMarker`, `UserMapMarkersStore`) was also added. The [Update 3 changelog](/changelog/update-2-to-3/) documents all marker system changes.
+</Aside>
 
 ---
 

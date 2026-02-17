@@ -105,6 +105,10 @@ public class ChunkGenerator implements IBenchmarkableWorldGen, IWorldMapProvider
 }
 ```
 
+<Aside type="note" title="New in Update 3">
+`HytaleGenerator` now defines `DEFAULT_SPAWN_POSITION = (0, 140, 0)` and a `getSpawnPositions(GeneratorProfile, maxPositionsCount)` method for retrieving spawn positions from world structures. Check the [Update 3 changelog](/changelog/update-2-to-3/) for all worldgen changes.
+</Aside>
+
 ### Generation Pipeline
 
 1. **Zone Generation**: Determine zone at position
@@ -162,6 +166,10 @@ public class ZonePatternGenerator {
 ```
 
 ## Biomes
+
+<Aside type="caution" title="Changed in Update 3">
+`BiomeType` was renamed to `Biome` and `SimpleBiomeType` to `SimpleBiome`. The `BiomeMap`/`SimpleBiomeMap` classes were removed and replaced by `WorldStructure`, which holds a `BiCarta<Integer>` biome map, a `Registry<Biome>`, transition distances, and spawn positions. The `Indexer` class was replaced by a typed `Registry<T>` with bidirectional lookup. The [Update 3 changelog](/changelog/update-2-to-3/) documents all renames and removals.
+</Aside>
 
 Biomes define terrain characteristics within zones.
 
@@ -388,6 +396,10 @@ public class OffsetProp implements Prop {
 
 <Aside type="caution">
 `VerticalEliminatorPositionProvider` was renamed to `SimpleHorizontalPositionProvider` in Update 2.
+</Aside>
+
+<Aside type="caution" title="Changed in Update 3">
+`SpherePositionProviderAsset` / `SpherePositionProvider` were removed and replaced by `BoundPositionProviderAsset` / `BoundPositionProvider`, which use axis-aligned 3D bounds instead of spherical distance filtering. A new `FrameworkPositionProviderAsset` was also added for referencing named positions from the `PositionsFrameworkAsset`. See the [Update 3 changelog](/changelog/update-2-to-3/) for all position provider changes.
 </Aside>
 
 Provides horizontal positions for prop placement:

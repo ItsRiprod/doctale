@@ -364,6 +364,14 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'Changelog',
+					items: [
+						{ label: 'Overview', slug: 'changelog/overview' },
+						{ label: 'Update 1 → 2', slug: 'changelog/update-1-to-2' },
+						{ label: 'Update 2 → 3', slug: 'changelog/update-2-to-3' },
+					],
+				},
+				{
 					label: 'Appendix',
 					items: [
 						{ label: 'Glossary', slug: 'appendix/glossary' },
