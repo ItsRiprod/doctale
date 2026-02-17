@@ -227,18 +227,18 @@ protected void setup() {
 
 <Tabs>
   <TabItem label="ECS Events (Block Events)">
-- Extend `EcsEvent` or `CancellableEcsEvent`
-- Dispatched on a specific entity via `entityStore.invoke(ref, event)`
-- Handled by `EntityEventSystem` subclasses
-- Registered via `getEntityStoreRegistry().registerSystem()`
-- Your handler receives the entity context (archetype chunk, store, command buffer)
+    - Extend `EcsEvent` or `CancellableEcsEvent`
+    - Dispatched on a specific entity via `entityStore.invoke(ref, event)`
+    - Handled by `EntityEventSystem` subclasses
+    - Registered via `getEntityStoreRegistry().registerSystem()`
+    - Your handler receives the entity context (archetype chunk, store, command buffer)
   </TabItem>
   <TabItem label="Pub-Sub Events (Player Events, etc.)">
-- Implement `IEvent<KeyType>` or `IAsyncEvent<KeyType>`
-- Dispatched globally via the event bus
-- Handled by lambda/method reference callbacks
-- Registered via `getEventRegistry().register()`
-- Support priorities (`FIRST`, `EARLY`, `NORMAL`, `LATE`, `LAST`)
+    - Implement `IEvent<KeyType>` or `IAsyncEvent<KeyType>`
+    - Dispatched globally via the event bus
+    - Handled by lambda/method reference callbacks
+    - Registered via `getEventRegistry().register()`
+    - Support priorities (`FIRST`, `EARLY`, `NORMAL`, `LATE`, `LAST`)
   </TabItem>
 </Tabs>
 
