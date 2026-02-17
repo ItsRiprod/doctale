@@ -106,6 +106,10 @@ stateDiagram-v2
 
 ## PacketHandler Base Class
 
+<Aside type="caution" title="Changed in Update 3">
+`PacketHandler` now supports multiple channels via a `channels[]` array for QUIC multi-stream routing. The `IPacketReceiver.sendPacket()` method accepts `ToClientPacket` instead of `Packet`. The `IWorldPacketHandler` interface was added for handling packets on the world thread. See the [Update 3 changelog](/changelog/update-2-to-3/) for all networking changes.
+</Aside>
+
 ```java
 package com.hypixel.hytale.server.core.io;
 

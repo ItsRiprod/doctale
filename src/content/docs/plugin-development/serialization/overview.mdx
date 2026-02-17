@@ -149,6 +149,10 @@ new EnumCodec<>(MyEnum.class);
 
 ## BuilderCodec
 
+<Aside type="caution" title="Changed in Update 3">
+`BuilderCodec.decodeJson0` was changed from `public` to `private`. Version decoding now happens before field decoding across all decode paths (BsonDocument, JSON, BSON reader), ensuring version-dependent codec logic is resolved before any field processing. All serialization changes are documented in the [Update 3 changelog](/changelog/update-2-to-3/).
+</Aside>
+
 For complex object serialization:
 
 ```java
@@ -198,6 +202,10 @@ BuilderCodec.builder(MyClass.class, MyClass::new)
     // Build final codec
     .build();
 ```
+
+<Aside type="caution" title="Changed in Update 3">
+The codec builder pattern changed from `codec.addField("name", getter, setter)` to `codec.append(keyedCodec, setter, getter).add()`. This affects virtually all config classes that define codecs. If you are extending codec definitions, update your builder calls to use the new `append().add()` pattern. See the [Update 3 changelog](/changelog/update-2-to-3/) for additional breaking changes.
+</Aside>
 
 ## Creating Custom Codecs
 

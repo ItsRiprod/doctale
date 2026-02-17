@@ -1,0 +1,407 @@
+---
+title: "Update 2 to Update 3 Changelog"
+description: "Comprehensive changelog covering all code changes from Hytale Server Update 2 to Update 3."
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This page covers **all notable changes** between Update 2 and Update 3. Changes are organized by category, from the most impactful breaking changes to internal improvements.
+
+---
+
+## New Features and Systems
+
+### Random Tick System
+
+A new builtin plugin (`RandomTickPlugin`) adds Minecraft-style random block ticking. Blocks can now have a `RandomTickProcedure` that fires at configurable intervals per chunk section. → [Block Ticking docs](/plugin-development/blocks/block-ticking/) · [Builtin Plugins](/tutorials/builtin-plugins/)
+
+- `RandomTick` resource: configurable `blocksPerSectionPerTickStable` (default 1) and `blocksPerSectionPerTickUnstable` (default 3)
+- `RandomTickSystem`: chunk ticking system using deterministic hashing for stable ticks and randomization for unstable ticks
+- Two built-in procedures:
+  - `ChangeIntoBlockProcedure` -- changes a block into a target block type
+  - `SpreadToProcedure` -- spreads blocks to neighbors (e.g., grass spreading to dirt), with configurable directions, Y range, required light level, and revert behavior
+
+<Aside type="note" title="New in Update 3">
+The `RandomTickPlugin` is an entirely new builtin plugin. It introduces the `RandomTickProcedure` interface at `com.hypixel.hytale.server.core.asset.type.blocktick.config.RandomTickProcedure` with a single method `void tick(BlockRef, Random)`.
+</Aside>
+
+### User-Created Map Markers
+
+Players can now create and manage their own map markers on the world map. → [Builtin Plugins docs](/tutorials/builtin-plugins/)
+
+- `UserMapMarker` data class with name, description, position, icon, sharing, and creator tracking
+- `UserMapMarkersStore` for persistent per-player per-world marker storage
+- `UserMarkerValidator` enforces config limits (max markers, name length, etc.)
+- `UserMapMarkerConfig` defines limits: `maxPersonalMarkers`, `maxSharedMarkers`, `maxNameLength`, `maxDescriptionLength`, view distances
+- `PlayersMapMarkerConfig` configures player marker icons with height delta
+- New marker providers: `PersonalMarkersProvider`, `SharedMarkersProvider`, `OtherPlayersMarkerProvider`
+- New packet `CreateUserMarker` (ToServerPacket, ID 246) for creating markers from the client → [Packet Types docs](/plugin-development/networking/packet-types/)
+
+### Anchor Action System
+
+A new module system for handling anchor-triggered actions from JSON configuration. → [Instances docs](/asset-development/world/instances/)
+
+- `AnchorActionModule` -- module managing anchor action registration and dispatch
+- `AnchorActionHandler` -- handles actions from JSON config
+- New packet `UpdateAnchorUI` (ToClientPacket, ID 235) for updating anchor UI visibility and content → [Packet Types docs](/plugin-development/networking/packet-types/)
+
+### Multiplayer Sleep Notifications
+
+A new `SleepNotificationSystem` sends notifications to awake players when others are trying to sleep. → [Builtin Plugins docs](/tutorials/builtin-plugins/)
+
+- Small server mode (4 or fewer players): notifies by name
+- Big server mode: uses a sleepers ratio threshold (default 50%)
+- Configurable notification cooldown
+
+### Sleep Sounds
+
+The sleep system now supports configurable sound events for sleep/wake transitions via `SleepSoundsConfig`.
+
+### Return to Hub Button
+
+New `ReturnToHubButtonSystem` and `ReturnToHubButtonUI` show/hide a "Return to Hub" button when players enter or leave creative hub child worlds.
+
+### Layer Command
+
+New `/layer <direction> <layers>` builder tools command for placing layers of blocks in a direction. Supports cardinal directions and camera-relative directions.
+
+### Teleporter Improvements
+
+- New `UsedTeleporter` component tracks teleporter usage with destination info and clear-out distances
+- `ClearUsedTeleporterSystem` removes the component when the player moves away from the destination (cooldown reduced from 250ms to 100ms)
+- `TurnOffTeleportersSystem` updates portal block visual states when teleporter destinations change
+
+### UI Gallery Command
+
+New `/uigallery` debug command opens an interactive UI component gallery for development purposes.
+
+### RocksDB Chunk Storage
+
+A new `RocksDbChunkStorageProvider` adds RocksDB as a chunk storage backend with LZ4/ZSTD compression, bloom filter support, and a dedicated `/world rocksdb compact` admin command. → [World Overview docs](/plugin-development/world/overview/)
+
+### FileIO Abstraction Layer
+
+A new virtual file system (`procedurallib.file` package) with multi-root support enables asset overlay for mods overriding base assets. → [Asset Development Overview](/asset-development/overview/)
+
+- `FileIO` -- static utility interface with thread-local `FileIOSystem` providers
+- `FileIOSystem` -- interface defining a file system with multiple root paths
+- `AssetLoader<T>` -- generic interface for typed asset loading
+- `AssetPath` -- immutable path wrapper with cross-filesystem equality
+- `JsonResourceLoader` -- typed JSON file loader using the new system
+
+### Fire Fluid Ticker
+
+New `FireFluidTicker` implements fire spread and burn mechanics with configurable `FlammabilityConfig` (spread chance, burn chance).
+
+---
+
+## Breaking Changes
+
+### Packet Direction System
+
+All 240+ packet classes now implement `ToServerPacket`, `ToClientPacket`, or both, in addition to `Packet`. The `Packet` interface gained a `getChannel()` method. → [Networking Overview](/plugin-development/networking/overview/) · [Packet Handlers](/plugin-development/networking/packet-handlers/)
+
+- `ToClientPacket extends Packet` -- server-to-client packets
+- `ToServerPacket extends Packet` -- client-to-server packets
+- `PacketRegistry` restructured from a single `BY_ID` map to `TO_SERVER_BY_ID` and `TO_CLIENT_BY_ID`
+- `getById()` split into `getToServerPacketById()` and `getToClientPacketById()`
+- `CachedPacket` now only accepts `ToClientPacket` (generic bound changed)
+- `IPacketReceiver.sendPacket()` accepts `ToClientPacket` instead of `Packet`
+- `PacketGenerator` return types changed from `Packet` to `ToClientPacket`
+- All references to `com.hypixel.hytale.protocol.Packet` in the builtin package changed to `ToClientPacket`
+
+### Network Channel System
+
+A new `NetworkChannel` enum routes packets across separate channels: → [Networking Overview](/plugin-development/networking/overview/) · [Client Sync docs](/plugin-development/networking/client-sync/)
+
+| Channel | ID | Usage |
+|---|---|---|
+| `Default` | 0 | Most packets |
+| `Chunks` | 1 | Chunk, block, and fluid data |
+| `WorldMap` | 2 | World map packets |
+
+- `PacketEncoder` validates packet channel matches stream channel; throws `IllegalArgumentException` on mismatch
+- `PacketDecoder` checks `STREAM_CHANNEL_KEY` before decoding, skipping mismatched packets
+- `PacketHandler` supports multiple QUIC streams per connection via `channels[]` array
+
+### ComponentUpdate Polymorphic Refactor
+
+`ComponentUpdate` was rewritten from a monolithic struct (fixed 159-byte block with 20+ nullable fields) into an abstract base class with 26 concrete subclasses dispatched by type ID: → [Client Sync docs](/plugin-development/networking/client-sync/)
+
+| ID | Subclass |
+|---|---|
+| 0 | `NameplateUpdate` |
+| 1 | `UIComponentsUpdate` |
+| 2 | `CombatTextUpdate` |
+| 3 | `ModelUpdate` |
+| 4 | `PlayerSkinUpdate` |
+| 5 | `ItemUpdate` |
+| 6 | `BlockUpdate` |
+| 7 | `EquipmentUpdate` |
+| 8 | `EntityStatsUpdate` |
+| 9 | `TransformUpdate` |
+| 10 | `MovementStatesUpdate` |
+| 11 | `EntityEffectsUpdate` |
+| 12 | `InteractionsUpdate` |
+| 13 | `DynamicLightUpdate` |
+| 14 | `InteractableUpdate` |
+| 15 | `IntangibleUpdate` |
+| 16 | `InvulnerableUpdate` |
+| 17 | `RespondToHitUpdate` |
+| 18 | `HitboxCollisionUpdate` |
+| 19 | `RepulsionUpdate` |
+| 20 | `PredictionUpdate` |
+| 21 | `AudioUpdate` |
+| 22 | `MountedUpdate` |
+| 23 | `NewSpawnUpdate` |
+| 24 | `ActiveAnimationsUpdate` |
+| 25 | `PropUpdate` |
+
+- `serialize()` now returns `int` (bytes written) instead of `void`
+- New `serializeWithTypeId()` and `computeSizeWithTypeId()` methods
+- `EntityUpdate` buffer size changed from fixed 159 to variable 1 per update
+- Standalone `Equipment` and `Nameplate` structs removed; replaced by `EquipmentUpdate` and `NameplateUpdate` subclasses
+- `NameplateUpdate.text` changed from `@Nullable` to `@Nonnull` with default `""`
+
+### Constructor Injection for Component Types
+
+A major architectural change across the entire builtin package. Systems previously stored component types as `private static final` fields initialized via static method calls. In Update 3, these are passed via constructor parameters instead. All static `QUERY` fields are replaced with instance fields. This affects virtually every `EntityTickingSystem`, `RefSystem`, and `DelayedSystem` subclass. → [ECS Overview](/plugin-development/core-concepts/ecs-overview/)
+
+### Biome Renames
+
+→ [World Generation Overview](/plugin-development/worldgen/overview/)
+
+- `BiomeType` renamed to `Biome`
+- `SimpleBiomeType` renamed to `SimpleBiome`
+- `BiomeMap` / `SimpleBiomeMap` replaced by `WorldStructure` + `Registry<Biome>`
+
+### Ref Identity Equality
+
+`Ref` no longer implements `equals()` and `hashCode()`. Refs now use object identity comparison. The `validate(Store)` overload was added for store-correctness checking. → [ECS Overview](/plugin-development/core-concepts/ecs-overview/)
+
+### Codec API Migration
+
+Codec builder pattern changed from `codec.addField("name", getter, setter)` to `codec.append("name").add(getter, setter)`. This affects virtually all config and asset type classes. → [Serialization Overview](/plugin-development/serialization/overview/)
+
+### BuilderCodec Decode Restructuring
+
+→ [Serialization Overview](/plugin-development/serialization/overview/)
+
+- Version decoding now happens before field decoding across all decode paths (BsonDocument, JSON, BSON reader)
+- `decodeJson0` changed from `public` to `private`
+
+### Version Type Simplification
+
+Server version handling simplified from `Semver`/`SemverRange` objects to plain `String`: → [Plugin Manifest docs](/getting-started/plugin-manifest/) · [Plugin Lifecycle docs](/getting-started/plugin-lifecycle/)
+
+- `PluginManifest.getServerVersion()` returns `String` instead of `SemverRange`
+- `ManifestUtil.getVersion()` returns `String` instead of `Semver`
+- Plugin version validation changed from semver range comparison to string equality
+
+### Chunk Storage System Refactoring
+
+→ [World Overview docs](/plugin-development/world/overview/)
+
+- `IChunkStorageProvider` is now generic (`IChunkStorageProvider<Data>`)
+- Added lifecycle methods: `initialize()`, `close()`, `migrateFrom()`
+- `ChunkStore` gained migration support with progress reporting
+- All existing storage providers updated for the generic pattern
+
+### HytaleServerConfig Refactoring
+
+Inner configuration classes extracted to standalone files: → [Server Configuration docs](/plugin-development/server/configuration/)
+
+- `ModConfig` -- mod/plugin settings
+- `RateLimitConfig` -- rate limiting settings
+- `UpdateConfig` -- auto-update settings with `AutoApplyMode` enum (DISABLED, PROMPT, AUTOMATIC) → [Update System docs](/plugin-development/server/update-system/)
+- `BackupConfig` -- backup settings
+
+### MarkerProvider API Change
+
+`MarkerProvider` interface changed from returning `List<MapMarker>` to `void provide(World, Player, MarkersCollector)`. All provider implementations updated. → [Builtin Plugins docs](/tutorials/builtin-plugins/)
+
+### MapMarkerTracker Replaced by MarkersCollector
+
+Map marker providers now use `MarkersCollector` (with `MapMarkerBuilder`) instead of `MapMarkerTracker` for creating and filtering map markers. `MapMarkerTracker.trySendMarker()` renamed to `sendMapMarker()`. → [Builtin Plugins docs](/tutorials/builtin-plugins/)
+
+### Instances Async Exit
+
+`InstancesPlugin.exitInstance()` return type changed from `void` to `CompletableFuture<Void>`. → [Instances docs](/asset-development/world/instances/)
+
+---
+
+## Modified APIs
+
+### Protocol Changes
+
+- **Protocol version**: CRC `1789265863` to `-1356075132`, build number `2` to `20`, struct count `314` to `339`, enum count `136` to `137`
+- `BenchRequirement.id`: `@Nullable String` to `@Nonnull String = ""`
+- `BlockPlacementSettings`: new `allowBreakReplace` boolean field (fixed size 16 to 17 bytes) → [Block Types docs](/plugin-development/blocks/block-types/)
+- `BlockType`: fixed block size 163 to 164 due to cascading effect of `BlockPlacementSettings`
+- `CombatTextUpdate.text`: `@Nullable` to `@Nonnull` with default `""`
+- `DisplayDebug`: new `opacity` float field
+- `EntityStatType`: new `hideFromTooltip` boolean field → [Entity Effects docs](/plugin-development/entities/effects/)
+- `Fluid`: new `particles` (nullable `ModelParticle[]`) and `drawType` (`FluidDrawType` enum: `None`, `Liquid`) fields
+- `Model`: new `sittingOffset` and `sleepingOffset` float fields → [Block Types docs](/plugin-development/blocks/block-types/)
+- `Objective`: title and description changed from `String` to `FormattedMessage`
+- `ObjectiveTask`: description changed from `String` to `FormattedMessage`
+- `WorldLoadProgress.status`: `String` to `FormattedMessage`
+- `MapMarker`: `id` and `markerImage` changed to `@Nonnull`; `name` changed to `FormattedMessage`; new `customName` string and polymorphic `MapMarkerComponent[]` array
+- `UpdateWorldMapSettings`: four new boolean fields for map permissions (`allowShowOnMapToggle`, `allowCompassTrackingToggle`, `allowCreatingMapMarkers`, `allowRemovingOtherPlayersMarkers`) → [Packet Types docs](/plugin-development/networking/packet-types/)
+- `BuilderToolSelectionTransform`: transformation matrix replaced with `Quatf rotation` + `BlockPosition translationOffset`
+- `AssetPackManifest`: new `serverVersion` nullable string field
+- `PickupLocation`: new `Backpack(2)` enum value
+- `DebugShape`: new `Sector(5)` and `Disc(6)` enum values
+- `ComponentUpdateType`: new `Prop(25)` enum value
+- `FluidDrawType`: new enum (`None`, `Liquid`)
+
+### World Generation Changes
+
+→ [World Generation Overview](/plugin-development/worldgen/overview/)
+
+- `Indexer` replaced by `Registry<T>` with bidirectional lookup, `getAllValues()`, and `forEach()`
+- `BaseHeightReference` / `BiDouble2DoubleFunction` pattern replaced by `DecimalConstantsFrameworkAsset`
+- `WorldStructureAsset.buildBiomeMap()` replaced by `build()` returning `WorldStructure`
+- `BasicWorldStructureAsset` now supports `FrameworkAsset[]` and spawn positions
+- `MaterialAsset` gained `OrthogonalRotationAsset` for solid block rotation
+- `VectorProvider.process()` changed from returning `Vector3d` to output-parameter pattern (`void process(Context, Vector3d)`)
+- `CacheDensity` and `MultiCacheDensity` constructors removed `threadCount` parameter
+- `Pattern.Context` gained no-arg constructor and `assign()` method
+- `ReferenceBundle` changed internal storage from `Map<String, Reference>` to `Map<String, Object>` with type tracking
+- `ChunkRequest.GeneratorProfile` gained `worldCounter` parameter and `clone()` method
+- `Handle`/`HandleProvider` gained seed override support
+- `HytaleGenerator` added `DEFAULT_SPAWN_POSITION = (0, 140, 0)` and `getSpawnPositions()` method
+- `WorkerIndexer` parameter type changed to `WorkerIndexer.Id` across all generator assets
+
+### Builtin Package Changes
+
+- `FarmingUtil.harvest()` now returns `boolean` instead of `void`
+- `CoopBlock.getCoopAcceptsNPCGroup(int)` renamed to `getCoopAcceptsNPC(String)` (integer group index to string name key)
+- `HarvestCropInteraction` gained `RequireNotBroken` config field
+- `NPCMemory` constructor removed `isMemoriesNameOverridden` parameter and `processConfig()` method
+- `ObjectiveTask` changed `List<MapMarker>` to `List<ObjectiveTaskMarker>` and removed `getInfoMessage()`
+- `MapMarker` replaced by `ObjectiveTaskMarker` domain class (converts via `toProto()`)
+- `PlayerSleep.MorningWakeUp` field changed from `Instant` to `@Nullable Instant`
+- `WorldSlumber.incProgressSeconds` renamed to `incrementProgressSeconds`
+- `BuilderToolsPlugin` replaced `Matrix4d` transforms with `Quaterniond` rotation + `Vector3i` translation
+- `BuilderToolsPacketHandler` method names changed to descriptive names (e.g., `handleBuilderToolSetTransformationModeState`)
+- `BrushConfig` default shape changed to `Sphere`
+- `AssetEditorPlugin` added event registry support for asset pack events
+- `AssetEditorPlugin.Messages` constants renamed (e.g., `USAGE_DENIED_MESSAGE` to `USAGE_DENIED`)
+- `MountPlugin`: several method signatures changed to accept `Ref` instead of `PlayerRef`
+- `StairConnectedBlockRuleSet.getConnection()` gained `upsideDown` parameter → [Connected Blocks docs](/plugin-development/world/connected-blocks/)
+- `ModelSystems.UpdateCrouchingBoundingBox` renamed to `UpdateMovementStateBoundingBox`
+- NPC instruction builder: "step" terminology changed to "instruction" throughout
+- `KillObjectiveTask` simplified damage source handling using `Damage.EntitySource` pattern match
+
+### Server Infrastructure Changes
+
+- `Universe.java`: new `worldsPath`/`worldsDeletedPath` fields; multi-channel QUIC stream setup; `AtomicBoolean` guard for backups; `validateWorldPath()` method
+- `World.java`: `deleteWorldFromDisk()` uses atomic staging to `worlds-deleted/`; third-party plugin crash identification
+- `PluginManager`: `FAILED` state added with `failureCause` tracking; `MOD_ERROR` shutdown reason; version validation changed to string equality → [Plugin Lifecycle docs](/getting-started/plugin-lifecycle/)
+- `PluginClassLoader` constructor gained `identifier` parameter
+- `TickingThread` can now attribute crashes to specific plugins via `PluginIdentifier` → [Plugin Lifecycle docs](/getting-started/plugin-lifecycle/)
+
+### Component System Changes
+
+- `Archetype.of()` now validates against null ComponentTypes
+- `Holder` removed `@Nullable` annotations from fields/methods
+- `EventRegistry.preconditionMessage` now `@Nullable`
+- `Registry` gained `shutdownAndCleanup(boolean)` method for LIFO cleanup → [Registries docs](/plugin-development/core-concepts/registries/)
+
+### Math and Utility Additions
+
+- `Vector3d`: new static `distance()` and `distanceSquared()` methods (no object allocation) → [Math Overview](/plugin-development/math/overview/)
+- `Box`: new `ZERO` constant → [Math Overview](/plugin-development/math/overview/)
+- `ChunkUtil`: new `SIZE_BLOCKS_MASK = 32767` constant
+- `MessageUtil`: new `date()`, `time()`, `select()` formatter methods for i18n
+- `FileUtil`: new `writeStringAtomic()` and `atomicMove()` methods
+- `SoundUtil`: new `playItemSoundEvent()` method
+- `LoggerUtil`: new `nsToMsDecimal(long)` utility
+
+---
+
+## Removed Features
+
+### Removed Files -- Protocol
+
+- `Equipment.java` -- replaced by `EquipmentUpdate` (ComponentUpdate subclass) → [Client Sync docs](/plugin-development/networking/client-sync/)
+- `Nameplate.java` -- replaced by `NameplateUpdate` (ComponentUpdate subclass) → [Client Sync docs](/plugin-development/networking/client-sync/)
+- `AssetEditorEnableAssetPack` packet (ID 318) -- removed entirely → [Packet Types docs](/plugin-development/networking/packet-types/)
+- `Status` auth packet (ID 10) -- removed entirely → [Packet Types docs](/plugin-development/networking/packet-types/)
+- `AssetEditorRebuildCaches` -- deregistered as a packet, converted to plain utility class → [Packet Types docs](/plugin-development/networking/packet-types/)
+
+### Removed Files -- World Generation
+
+→ [World Generation Overview](/plugin-development/worldgen/overview/)
+
+- `SpherePositionProviderAsset` / `SpherePositionProvider` -- replaced by `BoundPositionProviderAsset` / `BoundPositionProvider` (axis-aligned bounds)
+- `BaseHeightContentFieldAsset` -- replaced by `DecimalConstantsFrameworkAsset`
+- `ContentFieldAsset` -- replaced by `FrameworkAsset`
+- `BiomeType` / `SimpleBiomeType` -- renamed to `Biome` / `SimpleBiome`
+- `BiomeMap` / `SimpleBiomeMap` -- replaced by `WorldStructure`
+- `Indexer` -- replaced by `Registry<T>`
+- `AllStoneMaterialProvider` / `GrassTopMaterialProvider` -- replaced by data-driven MaterialProviderAsset configuration
+- `CeilingPattern` -- replaced by `SurfacePattern` with `Facing.D` parameter
+- `BaseHeightReference` / `Reference` -- ReferenceBundle now stores `Object` values directly
+
+### Removed Files -- Server
+
+- `gameplay/SleepConfig.java` -- moved to `gameplay/sleep/SleepConfig.java` with expanded fields
+- `PortalSpawn.java` -- functionality merged elsewhere
+- `MarkerBlockState.java` -- replaced by UserMapMarker system
+- `PerWorldDataMarkerProvider` -- split into `PersonalMarkersProvider` and `SharedMarkersProvider`
+- `PlayerIconMarkerProvider` -- replaced by `OtherPlayersMarkerProvider`
+
+---
+
+## Performance and Internal Improvements
+
+### Density Node Allocation Reduction
+
+All density nodes in the world generator received an optimization pass. Instead of allocating new `Vector3d` and `Density.Context` objects per `process()` call, they now pre-allocate these as `private final` fields with `r` prefix (e.g., `rChildPosition`, `rChildContext`) and reuse them via `.assign()` methods. This significantly reduces GC pressure during world generation.
+
+### ReusableList
+
+New `ReusableList` class replaces `new ArrayList<>()` allocations in hot-path density nodes (`PositionsPinchDensity`, `PositionsTwistDensity`, `PositionsHorizontalPinchDensity`).
+
+### YSampledDensity
+
+New density node that samples input density at configurable Y intervals and interpolates between samples, reducing redundant density calculations.
+
+### VectorProvider Output-Parameter Pattern
+
+`VectorProvider.process()` changed from returning a new `Vector3d` to writing into a pre-allocated output vector, reducing allocations across all vector provider implementations.
+
+### CODEC Field Immutability
+
+Many `BuilderCodec` fields changed from `public static` to `public static final`, adding immutability guarantees.
+
+### Null Safety
+
+Hundreds of methods across the codebase received `@Nonnull` annotations, improving null-safety contracts and IDE support.
+
+### Static Method Conversions
+
+Many instance methods that did not use instance state were changed to `static` (e.g., in `CreativeHubPlugin`, `CraftingPlugin`, `DeployablesPlugin`).
+
+### Path Traversal Security
+
+`PathUtil` gained trusted root validation, safe path resolution, and filename validation. All file access paths in `PrefabStore`, `ServerFileBrowser`, `DiskDataStore`, `DiskPlayerStorageProvider`, `DiskResourceStorageProvider`, and `JsonLoader` now validate paths against trusted roots. → [Registries docs](/plugin-development/core-concepts/registries/)
+
+### Atomic File Writes
+
+`BsonUtil` and other file writers now use `FileUtil.writeStringAtomic()` (write to temp, then rename) for crash-safe persistence.
+
+### Command Internationalization
+
+Multiple command files migrated from hardcoded English strings to translation keys using `Message.translation()`.
+
+### Debug Visualization
+
+NPC sensor visualization with disc and sector debug shapes. Flock member debug connections. Leash position and target arrow rendering for roles.
+
+### Build Metadata
+
+- Implementation version: `2026.01.24-6e2d4fc36` to `2026.02.17-255364b8e`
+- New dependencies: JOML 1.10.8 (math library), RocksDB 10.4.2 (embedded key-value store) → [Setup docs](/getting-started/setup/)

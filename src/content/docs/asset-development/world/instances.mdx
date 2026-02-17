@@ -437,6 +437,10 @@ Key characteristics:
 | `Hytale` | Standard resource storage |
 | `Memory` | RAM-only resources |
 
+<Aside type="caution" title="Changed in Update 3">
+`InstancesPlugin.exitInstance()` now returns `CompletableFuture<Void>` instead of `void`, making instance exit asynchronous. The plugin also gained a dependency on `AnchorActionModule`. For the full picture, see the [Update 3 changelog](/changelog/update-2-to-3/).
+</Aside>
+
 ## Creating Custom Instances
 
 ```json title="MyPlugin_Instance/config.json"

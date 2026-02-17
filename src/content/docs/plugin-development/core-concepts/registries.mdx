@@ -281,6 +281,10 @@ logger.at(Level.SEVERE).withCause(exception).log("Error occurred: %s", message);
 
 ### Data Directory
 
+<Aside type="note" title="New in Update 3">
+`PathUtil` now provides path traversal protection via trusted root validation. Use `PathUtil.resolvePathWithinDir(directory, relativePath)` for safe path resolution that prevents directory traversal attacks. `PathUtil.isValidName(name)` validates filenames (rejects blank, `/`, `\`, `.`, `..`). See the [full Update 3 changelog](/changelog/update-2-to-3/) for everything that changed.
+</Aside>
+
 ```java
 // Get the plugin's data folder
 Path dataDir = getDataDirectory();
@@ -302,7 +306,7 @@ String fullId = id.toString(); // "Group/Name"
 ```java
 // Access manifest data
 PluginManifest manifest = getManifest();
-String version = manifest.getVersion().toString();
+String version = manifest.getVersion();
 String description = manifest.getDescription();
 ```
 
@@ -333,6 +337,10 @@ PluginState state = getState();
 ```
 
 ## Automatic Cleanup
+
+<Aside type="note" title="New in Update 3">
+`Registry` now has a `shutdownAndCleanup(boolean)` method that disables the registry, iterates registrations in reverse (LIFO) order calling cleanup on each, then clears the list. This formalizes the shutdown lifecycle for registries. More details in the [Update 3 changelog](/changelog/update-2-to-3/).
+</Aside>
 
 All registrations made through these registries are automatically cleaned up when your plugin shuts down. You don't need to manually unregister:
 

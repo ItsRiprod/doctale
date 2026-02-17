@@ -90,11 +90,19 @@ public class Vector3d {
     public static Vector3d max(Vector3d a, Vector3d b);
     public static Vector3d min(Vector3d a, Vector3d b);
 
+    // Static distance (no object allocation)
+    public static double distance(double x1, double y1, double z1, double x2, double y2, double z2);
+    public static double distanceSquared(double x1, double y1, double z1, double x2, double y2, double z2);
+
     // Conversion
     public Vector3i toVector3i();
     public Vector3f toVector3f();
 }
 ```
+
+<Aside type="note" title="New in Update 3">
+`Vector3d.distance()` and `Vector3d.distanceSquared()` static methods were added for computing distances between two points without creating Vector3d objects. `Box.ZERO` was added as a convenience constant for a zero-sized box at the origin. Refer to the [Update 3 changelog](/changelog/update-2-to-3/) for the complete list of changes.
+</Aside>
 
 ### Vector3i (Integer)
 
@@ -288,6 +296,8 @@ Axis-aligned bounding box:
 package com.hypixel.hytale.math.shape;
 
 public class Box {
+    public static final Box ZERO = new Box(Vector3d.ZERO, Vector3d.ZERO);
+
     public Vector3d min;
     public Vector3d max;
 
