@@ -4,7 +4,7 @@
 
 Unofficial, community-driven documentation for creating plugins and mods for the Hytale dedicated server.
 
-**[View the Documentation](https://doctale.pages.dev)**
+**[View the Documentation](https://doctale.dev)**
 
 ## About This Project
 

@@ -24,6 +24,12 @@ export default defineConfig({
 			autoTheme: true,
 		}),
 		starlight({
+			expressiveCode: {
+				themes: ['github-dark'],
+				styleOverrides: {
+					borderRadius: '0.75rem',
+				},
+			},
 			title: 'Hytale Server Modding',
 			description: 'Documentation for Hytale server plugin development, curated from decompiled source code analysis. Unofficial community resource.',
 			credits: true,
@@ -117,6 +123,7 @@ export default defineConfig({
 					label: 'Getting Started',
 					items: [
 						{ label: 'Setup', slug: 'getting-started/setup' },
+						{ label: 'Extracting the Server', slug: 'getting-started/extracting-the-server' },
 						{ label: 'Your First Plugin', slug: 'getting-started/first-plugin' },
 						{ label: 'Plugin Lifecycle', slug: 'getting-started/plugin-lifecycle' },
 						{ label: 'Plugin Manifest', slug: 'getting-started/plugin-manifest' },
@@ -377,7 +384,7 @@ export default defineConfig({
 						{ label: 'Glossary', slug: 'appendix/glossary' },
 					],
 				},
-			],
+				],
 		}),
 	],
 });

@@ -3,7 +3,7 @@ title: "Plugin Lifecycle"
 description: "Understand plugin states, lifecycle hooks, and how to properly initialize resources and clean up on shutdown."
 ---
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-02-17] */}
 
 import { Aside, FileTree, Steps } from '@astrojs/starlight/components';
 
@@ -21,7 +21,8 @@ flowchart LR
     SETUP -->|error| FAILED
     START -->|error| FAILED
     ENABLED -->|error| FAILED
-    DISABLED -->|can be re-enabled| NONE
+    SHUTDOWN -->|error| FAILED
+    DISABLED -->|reload (new instance)| NONE
 ```
 
 ### State Definitions
@@ -33,7 +34,7 @@ flowchart LR
 | `START` | Plugin is executing its `start()` method |
 | `ENABLED` | Plugin is fully active and operational |
 | `SHUTDOWN` | Plugin is executing its `shutdown()` method |
-| `DISABLED` | Plugin has been shut down or failed to initialize |
+| `DISABLED` | Plugin has been shut down cleanly |
 | `FAILED` | Plugin encountered an error and was marked as failed |
 
 <Aside type="note" title="New in Update 3">
@@ -82,7 +83,7 @@ This method is called before `setup()` and is primarily used for loading configu
 protected void setup() {
     // Register components, systems, commands, events, etc.
     getEventRegistry().register(PlayerConnectEvent.class, this::onPlayerConnect);
-    getCommandRegistry().register(new MyCommand());
+    getCommandRegistry().registerCommand(new MyCommand());
     getEntityStoreRegistry().registerSystem(new MySystem());
 }
 ```
@@ -170,8 +171,8 @@ public class MyPlugin extends JavaPlugin {
 
 | Method | Description |
 |--------|-------------|
-| `withConfig(codec)` | Register a config using default name "config" |
-| `withConfig(name, codec)` | Register a config with a custom name |
+| `withConfig(BuilderCodec<T> codec)` | Register a config using default name "config" |
+| `withConfig(String name, BuilderCodec<T> codec)` | Register a config with a custom name |
 
 Configuration files are stored in `<data-directory>/<name>.json` and are automatically loaded before `setup()` is called.
 
@@ -202,8 +203,8 @@ The following registries are available through your plugin base class:
 | `getManifest()` | `PluginManifest` | Plugin's manifest data |
 | `getBasePermission()` | `String` | Root permission node (group.name) |
 | `getFile()` | `Path` | Path to plugin JAR (JavaPlugin only) |
-| `isEnabled()` | `boolean` | Check if plugin is active |
-| `isDisabled()` | `boolean` | Check if plugin is inactive |
+| `isEnabled()` | `boolean` | Returns true if state is SETUP, START, or ENABLED |
+| `isDisabled()` | `boolean` | Returns true if state is NONE, DISABLED, SHUTDOWN, or FAILED |
 | `getState()` | `PluginState` | Current lifecycle state |
 
 ## Complete Example
@@ -232,11 +233,9 @@ public class MyPlugin extends JavaPlugin {
     protected void setup() {
         instance = this;
 
-        // Register event listeners
         getEventRegistry().register(PlayerConnectEvent.class, this::onPlayerConnect);
 
-        // Register commands
-        getCommandRegistry().register(new MyCommand());
+        getCommandRegistry().registerCommand(new MyCommand());
 
         getLogger().at(Level.INFO).log("MyPlugin setup complete!");
     }
@@ -253,22 +252,21 @@ public class MyPlugin extends JavaPlugin {
     }
 
     private void onPlayerConnect(PlayerConnectEvent event) {
-        // Use getPlayerRef() instead of deprecated getPlayer()
         getLogger().at(Level.INFO).log("Player connected: %s", event.getPlayerRef().getUsername());
     }
 }
 ```
 
 <Aside type="note" title="New in Update 3">
-`PluginIdentifier` now has a `identifyThirdPartyPlugin(Throwable)` method that walks exception cause chains and stack traces to identify which third-party plugin caused an error, using classloader names matching the pattern `ThirdParty(<pluginId>)`. `ManifestUtil.getVersion()` now returns `String` instead of `Semver`. More details in the [Update 3 changelog](/changelog/update-2-to-3/).
+`PluginIdentifier` now has a `identifyThirdPartyPlugin(Throwable)` method that walks exception cause chains and stack traces to identify which third-party plugin caused an error, using classloader names matching the pattern `ThirdParty(<pluginId>)`. `ManifestUtil.getVersion()` returns `String` (the raw version from META-INF), while `PluginManifest.getVersion()` returns a `Semver` object. More details in the [Update 3 changelog](/changelog/update-2-to-3/).
 </Aside>
 
 ## Error Handling
 
 If an exception occurs during `setup()` or `start()`:
 1. The exception is logged with the plugin's logger
-2. The plugin transitions to `DISABLED` state
-3. Any registrations made before the error are cleaned up
+2. The plugin transitions to `FAILED` state
+3. Registrations are cleaned up when the plugin is later shut down by the plugin manager
 
 ```java
 @Override

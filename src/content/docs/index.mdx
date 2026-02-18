@@ -1,6 +1,6 @@
 ---
-title: "Hytale Documentation"
-description: "Community-driven documentation for Hytale server modding - assets, plugins, and everything in between."
+title: "Hytale Modding Docs"
+description: "Community-driven documentation for Hytale server modding — plugins, assets, and the systems underneath."
 template: splash
 hero:
   tagline: By modders, for modders.
@@ -15,68 +15,15 @@ hero:
       variant: minimal
 ---
 
-{/* [VERIFIED: 2026-01-27] */}
-
-import { Card, CardGrid, LinkCard, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
-
-## Choose Your Path
+import { Aside, CardGrid, LinkCard } from '@astrojs/starlight/components';
 
 <CardGrid>
-	<Card title="Asset Development">
-		Create items, blocks, NPCs, and effects with JSON.
-
-		[Explore Assets →](/asset-development/overview/)
-	</Card>
-	<Card title="Plugin Development">
-		Write Java plugins with events, commands, and full API access.
-
-		[Start Coding →](/getting-started/setup/)
-	</Card>
+  <LinkCard title="Asset Development" description="Items, blocks, NPCs, and effects through JSON. No Java required." href="/asset-development/overview/" />
+  <LinkCard title="Plugin Development" description="Java plugins with events, commands, and full API access." href="/getting-started/setup/" />
 </CardGrid>
 
-```mermaid
-flowchart LR
-    subgraph Assets[Asset Development]
-        A1[Items & Weapons]
-        A2[Blocks & World]
-        A3[NPCs & AI]
-        A4[Audio & VFX]
-    end
+## A Quick Taste
 
-    subgraph Plugins[Plugin Development]
-        P1[Events & Commands]
-        P2[World Manipulation]
-        P3[Entity Systems]
-        P4[Networking]
-    end
-
-    Assets --> JSON[JSON Config]
-    Plugins --> Java[Java Code]
-```
-
----
-
-## Quick Start
-
-<CardGrid>
-	<LinkCard
-		title="Setup Environment"
-		description="Install Java 21+, configure your build tools, and prepare your IDE."
-		href="/getting-started/setup/"
-	/>
-	<LinkCard
-		title="Your First Plugin"
-		description="Build a working plugin with events, commands, and logging."
-		href="/getting-started/first-plugin/"
-	/>
-</CardGrid>
-
----
-
-## See It In Action
-
-<Tabs>
-	<TabItem label="Java Plugin">
 ```java title="MyPlugin.java"
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
@@ -95,8 +42,7 @@ public class MyPlugin extends JavaPlugin {
     }
 }
 ```
-	</TabItem>
-	<TabItem label="JSON Asset">
+
 ```json title="Weapon_Sword_Custom.json"
 {
   "Parent": "Template_Weapon_Sword",
@@ -110,50 +56,21 @@ public class MyPlugin extends JavaPlugin {
   }
 }
 ```
-	</TabItem>
-</Tabs>
 
----
+## Where to Go Next
 
-## Explore the Docs
+New here? [Set up your environment](/getting-started/setup/) → [extract the server](/getting-started/extracting-the-server/) → [build your first plugin](/getting-started/first-plugin/).
 
-<CardGrid>
-	<LinkCard
-		title="Items & Weapons"
-		description="Swords, tools, armor, recipes, and durability."
-		href="/asset-development/items/overview/"
-	/>
-	<LinkCard
-		title="NPCs & Behaviors"
-		description="Creature models, AI, groups, and spawning."
-		href="/asset-development/npcs/overview/"
-	/>
-	<LinkCard
-		title="Events & Commands"
-		description="React to player actions and create commands."
-		href="/plugin-development/core-concepts/event-system/"
-	/>
-	<LinkCard
-		title="World & Physics"
-		description="Blocks, collision, hitboxes, and terrain."
-		href="/plugin-development/world/overview/"
-	/>
-</CardGrid>
+Already know what you're looking for:
 
----
-
-## Learn from Examples
-
-Hytale includes **31 built-in plugins**. Study real implementations.
-
-<LinkCard
-	title="Built-in Plugins Reference"
-	description="Explore official plugin code and learn proven patterns."
-	href="/tutorials/builtin-plugins/"
-/>
+- [Event system](/plugin-development/core-concepts/event-system/) — react to game state
+- [Items & weapons](/asset-development/items/overview/) — swords, tools, armor, recipes
+- [NPCs](/asset-development/npcs/overview/) — models, behaviors, spawning
+- [ECS](/plugin-development/core-concepts/ecs-overview/) — the entity-component-system underneath it all
+- [Built-in plugins](/tutorials/builtin-plugins/) — 31 official plugins you can study
 
 ---
 
 <Aside type="note">
-This is an unofficial community resource curated from decompiled source analysis. Not affiliated with Hypixel Studios.
+Unofficial community resource built from decompiled source analysis. Not affiliated with Hypixel Studios. If you spot something wrong, [open an issue or PR](https://github.com/ItsRiprod/doctale).
 </Aside>

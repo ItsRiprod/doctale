@@ -3,7 +3,7 @@ title: "Create a Custom Weapon"
 description: "Design a custom sword in Blockbench, define it in JSON with damage and recipes, and integrate it into your plugin."
 ---
 
-{/* [VERIFIED: 2026-02-13] */}
+{/* [VERIFIED: 2026-02-17] */}
 
 import { Aside, Card, CardGrid, LinkCard, Steps, Tabs, TabItem, FileTree, Badge } from '@astrojs/starlight/components';
 
@@ -42,7 +42,7 @@ Before starting, ensure you have:
    Plan your weapon's characteristics:
    - **Quality**: Rare (blue tier)
    - **Item Level**: 35
-   - **Base Damage**: 12-15 Physical (stronger than iron)
+   - **Base Swing Damage**: ~12 Physical (stronger than iron)
    - **Durability**: 150
    - **Special**: Fire particle effects
 
@@ -340,7 +340,7 @@ We only need to override the values we want to change.
   }
 }
 ```
-Each attack type has its own damage definition. The `Parent` field inherits the base attack behavior while we override the damage value.
+Each attack type has its own damage definition. The `Parent` field inherits the base attack behavior while we override the damage value. The `DamageCalculator` also supports a `Class` field (`DamageClass`) for equipment modifier calculations; if omitted, it defaults to `UNKNOWN`.
 
 **Damage Comparison (Iron Sword vs Flame Sword):**
 
@@ -401,6 +401,8 @@ The Iron Sword values below are illustrative examples for comparison purposes, n
 ```
 
 Requires a Weapon Bench with sword crafting capability. Uses iron bars, leather, and a fire-related ingredient (Ember). Takes 5 seconds to craft.
+
+You can also add `"RequiredTierLevel"` (integer) to `BenchRequirement` to restrict the recipe to benches of a certain upgrade tier, and `"RequiredMemoriesLevel"` (integer, defaults to 1) to the recipe to gate it behind the memories system.
   </TabItem>
 </Tabs>
 
@@ -410,6 +412,7 @@ Update your `manifest.json` to include the asset pack:
 
 ```json title="manifest.json"
 {
+  "Group": "com.example",
   "Name": "MyPlugin",
   "Version": "1.0.0",
   "Description": "Adds the Flame Sword weapon",
@@ -428,12 +431,15 @@ The `"IncludesAssetPack": true` setting tells the server to load assets from the
 
 Create a language file for the weapon name:
 
-```json title="assets/languages/en_US.lang"
-{
-  "server.items.MyPlugin_Sword_Flame.name": "Flame Sword",
-  "server.items.MyPlugin_Sword_Flame.description": "A sword imbued with eternal fire. Burns enemies on impact."
-}
+```txt title="assets/languages/en_US/server.lang"
+# flame sword
+items.MyPlugin_Sword_Flame.name = Flame Sword
+items.MyPlugin_Sword_Flame.description = A sword imbued with eternal fire. Burns enemies on impact.
 ```
+
+<Aside type="note">
+`.lang` files use a flat `key = value` format, not JSON. Keys are prefixed automatically based on the file path and filename. A file named `server.lang` in the `en_US` directory produces the prefix `server`, so the key `items.MyPlugin_Sword_Flame.name` resolves to `server.items.MyPlugin_Sword_Flame.name` at runtime.
+</Aside>
 
 ## Part 8: Test Your Weapon
 
@@ -511,6 +517,8 @@ Create a language file for the weapon name:
 </Aside>
 
 ## Damage Balancing Guide
+
+The values below are suggested guidelines for modders, not official game balance data. Use them as a starting point and adjust for your own content.
 
 When creating weapons, follow these guidelines for balanced progression:
 
@@ -597,7 +605,8 @@ Your final plugin structure should look like:
             - Flame_Sword.blockymodel
             - Flame_Sword_Texture.png
     - languages/
-      - en_US.lang
+      - en_US/
+        - server.lang
   - src/
     - (your Java code)
   - manifest.json
