@@ -3,6 +3,8 @@ title: "Channeling Staff Tutorial"
 description: "Build a magical staff with multi-tier charging, quick-cast fork, and visual feedback"
 ---
 
+{/* [VERIFIED: 2026-02-17] */}
+
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge, CardGrid, LinkCard } from '@astrojs/starlight/components';
 
 ![Final Channeling Staff weapon in-game](/images/tutorials/examples/staff.png)
@@ -101,11 +103,11 @@ This is the core of our staff - the charging mechanic with three tiers.
   "Type": "Charging",
   "DisplayProgress": true,
   "FailOnDamage": true,
+  "MouseSensitivityAdjustmentTarget": 0.5,
+  "MouseSensitivityAdjustmentDuration": 0.3,
   "Effects": {
     "ItemAnimationId": "Channel",
-    "WorldSoundEventId": "SFX_Staff_Charge_Loop",
-    "MouseSensitivityAdjustmentTarget": 0.5,
-    "MouseSensitivityAdjustmentDuration": 0.3
+    "WorldSoundEventId": "SFX_Staff_Charge_Loop"
   },
   "Delay": {
     "MinDelay": 0.1,
@@ -143,10 +145,11 @@ When released, the system picks the highest tier reached.
 `FailOnDamage: true` cancels the charge if hit.
 
 The `Delay` config adjusts cancellation timing based on health:
-- At full health: 0.1s delay (quick cancel)
-- At 20% health: 0.4s delay (more buffer time)
+- Below 20% health (`MinHealth`): no delay is applied at all
+- Above 80% health (`MaxHealth`): delay is capped at `MaxDelay` (0.4s)
+- Between 20%-80%: delay scales upward from `MinDelay` (0.1s) at 20% HP to `MaxDelay` (0.4s) at 80% HP — higher health means more delay protection
 
-This gives low-health players a small defensive advantage.
+Low-health players lose delay protection entirely, making them more vulnerable to charge interruption.
 </TabItem>
 <TabItem label="Fork">
 `Forks.Secondary` allows right-click while charging to trigger a quick-cast spell without losing the charge state.
@@ -179,14 +182,17 @@ Quick projectile attack for instant release:
       }
     },
     {
-      "Type": "SpawnProjectile",
-      "ProjectileId": "Projectile_Magic_Spark",
-      "SpeedMultiplier": 1.0,
-      "DamageMultiplier": 1.0
+      "Type": "LaunchProjectile",
+      "ProjectileId": "Projectile_Magic_Spark"
     }
   ]
 }
 ```
+
+<Aside type="caution">
+`LaunchProjectile` is deprecated and marked for removal. Speed and damage are configured on the projectile asset itself, not on this interaction.
+</Aside>
+
 </TabItem>
 <TabItem label="Tier 2 (Burst)">
 AOE damage around the caster:
@@ -233,8 +239,10 @@ AOE damage around the caster:
             },
             "DamageEffects": {
               "Knockback": {
-                "Type": "Direction",
-                "Direction": { "X": 0, "Y": 2, "Z": 0 },
+                "Type": "Directional",
+                "RelativeX": 0,
+                "VelocityY": 2,
+                "RelativeZ": 0,
                 "Force": 5.0
               },
               "WorldParticles": [
@@ -278,11 +286,9 @@ Powerful forward beam with knockback:
         "CameraEffect": "Magic_Beam_Fire"
       },
       "Selector": {
-        "Id": "Thrust",
-        "Direction": "ToForward",
+        "Id": "Stab",
         "StartDistance": 0.5,
         "EndDistance": 12.0,
-        "Length": 30,
         "ExtendTop": 1.0,
         "ExtendBottom": 0.5
       },
@@ -296,8 +302,10 @@ Powerful forward beam with knockback:
             },
             "DamageEffects": {
               "Knockback": {
-                "Type": "Direction",
-                "Direction": { "X": 0, "Y": 3, "Z": -10 },
+                "Type": "Directional",
+                "RelativeX": 0,
+                "VelocityY": 3,
+                "RelativeZ": -10,
                 "Force": 15.0,
                 "VelocityType": "Set"
               },
@@ -366,8 +374,7 @@ Create a secondary spell that can be cast while channeling:
     {
       "Type": "ApplyEffect",
       "EffectId": "Magic_Shield",
-      "Entity": "Self",
-      "Duration": 2.0
+      "Entity": "User"
     }
   ]
 }
@@ -402,7 +409,7 @@ When charge is interrupted by damage:
     {
       "Type": "ApplyEffect",
       "EffectId": "Stagger_Brief",
-      "Entity": "Self"
+      "Entity": "User"
     }
   ]
 }
@@ -494,7 +501,10 @@ This assumes you have a `Template_Weapon_Staff` parent template. If not, you may
 ```json title="Root_Staff_Channeling_QuickCast.json"
 {
   "RequireNewClick": true,
-  "Cooldown": { "Cooldown": 1.0 },
+  "Cooldown": {
+    "Cooldown": 1.0,
+    "Id": "Staff_QuickCast"
+  },
   "Interactions": ["Staff_Channeling_QuickCast"]
 }
 ```
@@ -505,11 +515,11 @@ This assumes you have a `Template_Weapon_Staff` parent template. If not, you may
   "Type": "Charging",
   "DisplayProgress": true,
   "FailOnDamage": true,
+  "MouseSensitivityAdjustmentTarget": 0.5,
+  "MouseSensitivityAdjustmentDuration": 0.3,
   "Effects": {
     "ItemAnimationId": "Channel",
-    "WorldSoundEventId": "SFX_Staff_Charge_Loop",
-    "MouseSensitivityAdjustmentTarget": 0.5,
-    "MouseSensitivityAdjustmentDuration": 0.3
+    "WorldSoundEventId": "SFX_Staff_Charge_Loop"
   },
   "Delay": {
     "MinDelay": 0.1,
@@ -534,15 +544,20 @@ This assumes you have a `Template_Weapon_Staff` parent template. If not, you may
 {
   "Parent": "Template_Weapon_Staff",
   "TranslationProperties": {
-    "Name": "myplugin.items.staff_channeling.name"
+    "Name": "myplugin.items.staff_channeling.name",
+    "Lore": "myplugin.items.staff_channeling.lore"
   },
   "Model": "MyPlugin/Weapons/Staff_Channeling.blockymodel",
+  "Texture": "MyPlugin/Weapons/Staff_Channeling_Texture.png",
+  "Icon": "MyPlugin/Icons/Staff_Channeling.png",
   "Quality": "Rare",
   "ItemLevel": 25,
   "MaxDurability": 150,
+  "DurabilityLossOnHit": 0.1,
   "Interactions": {
     "Primary": "Root_Staff_Channeling_Primary"
-  }
+  },
+  "ItemSoundSetId": "ISS_Weapons_Staff"
 }
 ```
 </TabItem>
@@ -566,7 +581,7 @@ This assumes you have a `Template_Weapon_Staff` parent template. If not, you may
 <LinkCard
   title="Status Effects"
   description="Make tier effects apply debuffs to enemies"
-  href="/plugin-development/effects/overview/"
+  href="/plugin-development/entities/effects/"
 />
 <LinkCard
   title="Java Enhancement"

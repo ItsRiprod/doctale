@@ -1,15 +1,15 @@
 ---
 title: "Your First Plugin"
-description: "Build a complete Hytale plugin from scratch that welcomes players and provides a custom /greet command."
+description: "Build a complete Hytale plugin that welcomes players and provides a custom /greet command."
 ---
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-02-17] */}
 
-import { Aside, FileTree, Steps } from '@astrojs/starlight/components';
+import { Aside, FileTree, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 
 # Your First Plugin
 
-This tutorial walks you through creating a complete Hytale server plugin from scratch. By the end, you'll have a working plugin that responds to player connections and provides a custom command.
+This tutorial walks you through creating a complete Hytale server plugin. By the end, you'll have a working plugin that responds to player connections and provides a custom command.
 
 ## What We'll Build
 
@@ -21,19 +21,41 @@ A "Greeter" plugin that:
 ## Prerequisites
 
 - Development environment set up (see [Setup Guide](/getting-started/setup/))
-- Basic Java knowledge
+- Java 25
 - Hytale server for testing
 
 ## Step 1: Project Setup
 
-Create a new project with this structure:
+Start from the [official plugin template](https://github.com/HytaleModding/plugin-template), which uses the [ScaffoldIt](https://scaffoldit.dev) Gradle plugin:
+
+```bash
+git clone https://github.com/HytaleModding/plugin-template.git greeter-plugin
+cd greeter-plugin
+```
+
+Update `settings.gradle.kts` to configure your plugin identity:
+
+```kotlin
+hytale {
+    usePatchline("release")
+    useVersion("latest")
+
+    manifest {
+        Group = "com.example"
+        Name = "Greeter"
+        Main = "com.example.greeter.GreeterPlugin"
+    }
+}
+```
+
+Rename the Java package under `src/main/java/` to match, so your project looks like this:
 
 <FileTree>
 - greeter-plugin/
-  - build.gradle
-  - settings.gradle
-  - libs/
-    - HytaleServer.jar
+  - build.gradle.kts
+  - settings.gradle.kts
+  - gradle.properties
+  - gradlew
   - src/
     - main/
       - java/
@@ -48,42 +70,11 @@ Create a new project with this structure:
         - manifest.json
 </FileTree>
 
-### build.gradle
+The ScaffoldIt plugin automatically adds the Hytale Maven repository, the server dependency (`com.hypixel.hytale:Server:+`), and configures the Java 25 toolchain. You do not need to configure these manually.
 
-```groovy
-plugins {
-    id 'java'
-}
-
-group = 'com.example'
-version = '1.0.0'
-
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
-    }
-}
-
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    compileOnly files('libs/HytaleServer.jar')
-}
-
-jar {
-    from('src/main/resources') {
-        include 'manifest.json'
-    }
-}
-```
-
-### settings.gradle
-
-```groovy
-rootProject.name = 'greeter-plugin'
-```
+<Aside type="tip">
+If you prefer a manual Gradle or Maven setup without the template, see the [Manual Setup](/getting-started/setup/#manual-setup-without-the-template) section on the setup page.
+</Aside>
 
 ## Step 2: Plugin Manifest
 
@@ -118,7 +109,6 @@ import javax.annotation.Nonnull;
 
 public class GreeterConfig {
 
-    // codec for serialization/deserialization
     @Nonnull
     public static final BuilderCodec<GreeterConfig> CODEC = BuilderCodec
         .builder(GreeterConfig.class, GreeterConfig::new)
@@ -142,7 +132,6 @@ public class GreeterConfig {
         .add()
         .build();
 
-    // fields with defaults
     private String welcomeMessage = "Welcome to the server, %s!";
     private String greetMessage = "%s says hello to %s!";
     private boolean enableWelcome = true;
@@ -171,8 +160,9 @@ package com.example.greeter.commands;
 import com.example.greeter.GreeterPlugin;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
-import com.hypixel.hytale.server.core.command.system.arguments.system.Argument;
+import com.hypixel.hytale.server.core.command.system.arguments.system.RequiredArg;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -183,14 +173,13 @@ import javax.annotation.Nonnull;
 public class GreetCommand extends AbstractPlayerCommand {
 
     private final GreeterPlugin plugin;
-    private final Argument<?, PlayerRef> targetArg;
+    private final RequiredArg<PlayerRef> targetArg;
 
     public GreetCommand(@Nonnull GreeterPlugin plugin) {
         super("greet", "Greet another player");
         this.plugin = plugin;
 
-        // add a required player argument using ArgTypes.PLAYER_REF
-        this.targetArg = addArgument("target", ArgTypes.PLAYER_REF);
+        this.targetArg = withRequiredArg("target", "The player to greet", ArgTypes.PLAYER_REF);
     }
 
     @Override
@@ -201,28 +190,25 @@ public class GreetCommand extends AbstractPlayerCommand {
             @Nonnull PlayerRef playerRef,
             @Nonnull World world) {
 
-        // get the target player from the argument
         PlayerRef target = context.get(targetArg);
 
         if (target == null) {
-            context.sendError("Player not found!");
+            context.sendMessage(Message.raw("Player not found!"));
             return;
         }
 
         if (target.getUuid().equals(playerRef.getUuid())) {
-            context.sendError("You can't greet yourself!");
+            context.sendMessage(Message.raw("You can't greet yourself!"));
             return;
         }
 
-        // format and broadcast the greeting
         String message = String.format(
             plugin.getConfig().getGreetMessage(),
             playerRef.getUsername(),
             target.getUsername()
         );
 
-        // send success message
-        context.sendSuccess(message);
+        context.sendMessage(Message.raw(message));
     }
 }
 ```
@@ -255,7 +241,6 @@ public class GreeterPlugin extends JavaPlugin {
 
     public GreeterPlugin(@Nonnull JavaPluginInit init) {
         super(init);
-        // register config in constructor (before setup)
         this.config = withConfig(GreeterConfig.CODEC);
     }
 
@@ -263,10 +248,8 @@ public class GreeterPlugin extends JavaPlugin {
     protected void setup() {
         instance = this;
 
-        // register the greet command
-        getCommandRegistry().register(new GreetCommand(this));
+        getCommandRegistry().registerCommand(new GreetCommand(this));
 
-        // register player connect event listener
         getEventRegistry().register(
             EventPriority.NORMAL,
             PlayerConnectEvent.class,
@@ -301,7 +284,6 @@ public class GreeterPlugin extends JavaPlugin {
             return;
         }
 
-        // use getPlayerRef() instead of deprecated getPlayer()
         String welcomeMessage = String.format(
             getConfig().getWelcomeMessage(),
             event.getPlayerRef().getUsername()
@@ -331,7 +313,7 @@ The compiled plugin JAR will be in `build/libs/greeter-plugin-1.0.0.jar`.
 
 ### Configuration File
 
-On first run, the plugin creates `plugins/Greeter/config.json`:
+The plugin loads its configuration with these defaults:
 
 ```json
 {
@@ -341,7 +323,7 @@ On first run, the plugin creates `plugins/Greeter/config.json`:
 }
 ```
 
-Edit this file to customize messages, then restart the server.
+To customize messages, create or edit `plugins/Greeter/config.json` with the values above, then restart the server.
 
 ### Test the Plugin
 
@@ -375,7 +357,7 @@ Events are automatically unregistered when the plugin shuts down.
 ### Command Registration
 
 ```java
-getCommandRegistry().register(new GreetCommand(this));
+getCommandRegistry().registerCommand(new GreetCommand(this));
 ```
 
 Commands extend base classes like `AbstractPlayerCommand` (in `basecommands` package) which handle:
@@ -391,9 +373,8 @@ this.config = withConfig(GreeterConfig.CODEC);
 ```
 
 The `withConfig()` method:
-1. Creates a config file if it doesn't exist
-2. Loads existing config data
-3. Provides type-safe access via `config.get()`
+1. Reads from the config file if it exists, otherwise uses codec defaults
+2. Provides type-safe access via `config.get()`
 
 ## Extending the Plugin
 
@@ -402,7 +383,7 @@ The `withConfig()` method:
 Create additional command classes and register them in `setup()`:
 
 ```java
-getCommandRegistry().register(new AnotherCommand());
+getCommandRegistry().registerCommand(new AnotherCommand());
 ```
 
 ### Listen to More Events
@@ -412,13 +393,15 @@ getEventRegistry().register(PlayerDisconnectEvent.class, this::onPlayerDisconnec
 getEventRegistry().register(PlayerChatEvent.class, this::onPlayerChat);
 ```
 
+The `EventPriority` parameter is optional. When omitted, the priority defaults internally.
+
 ### Add Permissions
 
 Commands automatically use permission nodes based on the plugin's base permission:
 
 ```java
-// Permission: com.example.greeter.greet
-// (derived from group.name.commandname)
+// Permission: com.example.greeter.command.greet
+// (derived from group.name.command.commandname)
 ```
 
 ## Common Patterns
@@ -464,4 +447,4 @@ getLogger().at(Level.SEVERE).withCause(exception).log("Error occurred");
 - [Event System](/plugin-development/core-concepts/event-system/) - Deep dive into events
 - [Command System](/plugin-development/core-concepts/commands/) - Advanced command features
 - [ECS Overview](/plugin-development/core-concepts/ecs-overview/) - Entity Component System
-- [Built-in Events](/appendix/glossary/) - All available events
+- [Built-in Events](/plugin-development/core-concepts/event-system/) - All available events

@@ -1,15 +1,15 @@
 ---
 title: "Built-in Plugins Reference"
-description: "Learn from Hytale's 31 built-in plugin packages that demonstrate modding patterns and provide core gameplay features."
+description: "Learn from Hytale's 32 built-in plugin packages that demonstrate modding patterns and provide core gameplay features."
 ---
 
-{/* [VERIFIED: 2026-02-13] */}
+{/* [VERIFIED: 2026-02-17] */}
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
 # Built-in Plugins Reference
 
-Hytale ships with 31 built-in plugin packages that demonstrate modding patterns and provide core gameplay features. Some packages (notably `adventure/`) contain multiple independent plugin classes — the actual plugin count is over 45. This reference documents each plugin, its components, and how to learn from them.
+Hytale ships with 32 built-in plugin packages that demonstrate modding patterns and provide core gameplay features. Some packages (notably `adventure/`) contain multiple independent plugin classes — the actual plugin count is over 45. This reference documents each plugin, its components, and how to learn from them.
 
 ## Package Location
 
@@ -17,7 +17,7 @@ Hytale ships with 31 built-in plugin packages that demonstrate modding patterns 
 
 ## Complete Plugin List
 
-All 31 built-in plugin packages organized by category:
+All 32 built-in plugin packages organized by category:
 
 ### Core Gameplay
 | Plugin | Directory | Description |
@@ -47,10 +47,10 @@ All 31 built-in plugin packages organized by category:
 | BlockPhysicsPlugin | `blockphysics/` | Block physics |
 | BlockTickPlugin | `blocktick/` | Block updates/growth |
 | WorldGenPlugin | `worldgen/` | World generation hooks |
-| HytaleGeneratorPlugin | `hytalegenerator/` | Default world generator |
+| HytaleGenerator | `hytalegenerator/` | Default world generator |
 | BlockSpawnerPlugin | `blockspawner/` | Block-based spawners |
 | AmbiencePlugin | `ambience/` | Ambient sounds/effects |
-| LanDiscoveryPlugin | `landiscovery/` | LAN game discovery |
+| LANDiscoveryPlugin | `landiscovery/` | LAN game discovery |
 
 ### Adventure Mode
 
@@ -64,7 +64,7 @@ The `adventure/` directory doesn't contain a single plugin — it's a package of
 | NPCEditorPlugin | `npceditor/` | NPC editing commands |
 | BuilderToolsPlugin | `buildertools/` | World building tools |
 | AssetEditorPlugin | `asseteditor/` | Asset editing utilities |
-| CommandMacroPlugin | `commandmacro/` | Command macros |
+| MacroCommandPlugin | `commandmacro/` | Command macros |
 | CreativeHubPlugin | `creativehub/` | Creative mode hub |
 
 ### AI & NPCs
@@ -81,7 +81,7 @@ The `adventure/` directory doesn't contain a single plugin — it's a package of
 | RandomTickPlugin | `randomtick/` | Random block ticking (grass spread, block changes) |
 
 <Aside type="note" title="New in Update 3">
-`RandomTickPlugin` was added in Update 3. It provides Minecraft-style random block ticking with built-in `ChangeIntoBlock` and `SpreadTo` procedures. See [Block Ticking](/plugin-development/blocks/block-ticking/) for details. All Update 3 additions are listed in the [changelog](/changelog/update-2-to-3/).
+`RandomTickPlugin` was added in Update 3. It provides Minecraft-style random block ticking with built-in `ChangeIntoBlockProcedure` and `SpreadToProcedure` procedures. See [Block Ticking](/plugin-development/blocks/block-ticking/) for details. All Update 3 additions are listed in the [changelog](/changelog/update-2-to-3/).
 </Aside>
 
 ---
@@ -275,8 +275,11 @@ Mounting and riding entities.
 
 | Component | Store | Description |
 |-----------|-------|-------------|
-| `MountComponent` | EntityStore | Mount state |
-| `RiderComponent` | EntityStore | Rider state |
+| `NPCMountComponent` | EntityStore | NPC mount state and configuration |
+| `MountedComponent` | EntityStore | Entity currently being mounted |
+| `MountedByComponent` | EntityStore | Entity being ridden |
+| `BlockMountComponent` | ChunkStore | Block-based seating |
+| `MinecartComponent` | EntityStore | Minecart mount behavior |
 
 ---
 
@@ -292,11 +295,15 @@ Fluid simulation and water physics.
 - Fluid level tracking
 - Swimming mechanics
 
-### Components
+### Registrations
 
-| Component | Store | Description |
-|-----------|-------|-------------|
-| `FluidState` | ChunkStore | Fluid block state |
+FluidPlugin registers three `FluidTicker` codecs and six `FluidSystems` that operate on core chunk components (`FluidSection`, `ChunkSection`, `BlockChunk`, `ChunkColumn`, `WorldChunk`).
+
+| FluidTicker Codec | Class | Description |
+|-------------------|-------|-------------|
+| `Default` | `DefaultFluidTicker` | Standard fluid spreading |
+| `Fire` | `FireFluidTicker` | Fire fluid behavior |
+| `Finite` | `FiniteFluidTicker` | Finite fluid volumes |
 
 ---
 

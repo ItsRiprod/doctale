@@ -736,10 +736,7 @@ details table {
 .card:hover,
 .sl-card:hover {
   border-color: var(--sl-color-accent) !important;
-  box-shadow:
-    0 0 25px var(--hytale-glow),
-    0 4px 15px rgba(0, 0, 0, 0.2) !important;
-  transform: translateY(-3px) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
 }
 
 .card__title {
@@ -769,8 +766,7 @@ a[class*="link-card"] {
 a[class*="link-card"]:hover {
   border-color: var(--sl-color-accent) !important;
   background: var(--sl-color-bg-accent) !important;
-  box-shadow: 0 0 20px var(--hytale-glow) !important;
-  transform: translateY(-2px) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12) !important;
 }
 
 .sl-markdown-content img {
@@ -832,21 +828,6 @@ a[class*="link-card"]:hover {
   z-index: 1;
 }
 
-/* Grid pattern overlay */
-[data-has-hero] .main-frame .hero::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-image:
-    linear-gradient(rgba(59, 130, 246, 0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(59, 130, 246, 0.02) 1px, transparent 1px);
-  background-size: 60px 60px;
-  pointer-events: none;
-  z-index: 0;
-}
 
 [data-has-hero] .main-frame > * {
   position: relative;
@@ -868,7 +849,7 @@ a[class*="link-card"]:hover {
 }
 
 .hero {
-  padding-block: 5rem;
+  padding-block: 8rem 5rem;
   text-align: center;
   position: relative;
 }
@@ -889,17 +870,8 @@ a[class*="link-card"]:hover {
   line-height: 1.6;
 }
 
-/* Light mode hero title gradient */
 :root[data-color-scheme="light"] .hero h1 {
-  background: linear-gradient(
-    135deg,
-    var(--sl-color-accent) 0%,
-    var(--sl-color-accent) 50%,
-    #7c3aed 100%
-  ) !important;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--sl-color-accent-high);
 }
 
 /* Hero action buttons */
@@ -925,11 +897,9 @@ a[class*="link-card"]:hover {
 }
 
 .sl-link-button.primary:hover {
-  transform: translateY(-3px) !important;
-  box-shadow:
-    0 10px 40px var(--hytale-glow),
-    0 4px 15px rgba(59, 130, 246, 0.4) !important;
-  filter: brightness(1.15) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px var(--hytale-glow) !important;
+  filter: brightness(1.1) !important;
 }
 
 .sl-link-button.secondary {
@@ -938,10 +908,9 @@ a[class*="link-card"]:hover {
 }
 
 .sl-link-button.secondary:hover {
-  background: rgba(59, 130, 246, 0.25) !important;
+  background: rgba(59, 130, 246, 0.2) !important;
   border-color: var(--sl-color-accent-high) !important;
-  transform: translateY(-3px) !important;
-  box-shadow: 0 8px 25px var(--hytale-glow) !important;
+  transform: translateY(-1px) !important;
 }
 
 /* ========================================
@@ -1351,21 +1320,6 @@ a {
 /* ========================================
    Animations
    ======================================== */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.sl-markdown-content > * {
-  animation: fadeIn 0.3s ease-out;
-}
-
 @media (prefers-reduced-motion: reduce) {
   * {
     animation: none !important;
