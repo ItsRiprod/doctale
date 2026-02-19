@@ -3,13 +3,17 @@ title: "Plugin Registries"
 description: "Register components, events, commands, and features through the plugin registry system with automatic cleanup."
 ---
 
-{/* [VERIFIED: 2026-02-13] */}
-
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
+
+{/* [VERIFIED: 2026-02-19] */}
 
 # Plugin Registries
 
-Hytale provides a comprehensive registry system for plugins to register their components, events, commands, and other features. All registries are accessed through your plugin's base class and automatically handle cleanup when your plugin is disabled.
+Hytale provides a registry system for plugins to register their components, events, commands, and other features. All registries are accessed through your plugin's base class and automatically handle cleanup when your plugin is disabled.
+
+<Aside type="note">
+For detailed documentation, see the [Registry System Overview](/plugin-development/registries/overview/), [Existing Registries](/plugin-development/registries/existing-registries/), and [Creating Registries](/plugin-development/registries/creating-registries/) pages.
+</Aside>
 
 ## Package Location
 
@@ -35,233 +39,7 @@ The following registries are available:
 | Client Feature Registry | `getClientFeatureRegistry()` | Register client feature flags |
 | Codec Registry | `getCodecRegistry(codec)` | Register to codec maps |
 
-## Command Registry
-
-Register commands that players and console can execute.
-
-```java
-@Override
-protected void setup() {
-    getCommandRegistry().registerCommand(new MyCommand());
-}
-```
-
-### Methods
-
-| Method | Description |
-|--------|-------------|
-| `registerCommand(AbstractCommand)` | Register a command with the server |
-
-Commands are automatically unregistered when the plugin shuts down.
-
-**See also:** [Command System](/plugin-development/core-concepts/commands/)
-
-## Event Registry
-
-Register listeners for server events.
-
-```java
-@Override
-protected void setup() {
-    // Basic registration
-    getEventRegistry().register(PlayerConnectEvent.class, this::onConnect);
-
-    // With priority
-    getEventRegistry().register(EventPriority.LATE, PlayerChatEvent.class, this::onChat);
-
-    // Keyed events (filtered by key)
-    getEventRegistry().register(SomeKeyedEvent.class, myKey, this::onKeyedEvent);
-
-    // Global listener (receives all keyed events)
-    getEventRegistry().registerGlobal(SomeKeyedEvent.class, this::onAnyKeyedEvent);
-
-    // Unhandled listener (only if no other handler processed it)
-    getEventRegistry().registerUnhandled(SomeEvent.class, this::onUnhandled);
-}
-```
-
-### Methods
-
-| Method | Description |
-|--------|-------------|
-| `register(Class, Consumer)` | Register for event with default priority |
-| `register(EventPriority, Class, Consumer)` | Register with specific priority |
-| `register(Class, Key, Consumer)` | Register for keyed event with specific key |
-| `registerGlobal(Class, Consumer)` | Register to receive all keyed events |
-| `registerUnhandled(Class, Consumer)` | Register fallback handler |
-| `registerAsync(...)` | Async variants of above methods |
-
-### Event Priorities
-
-Events are processed in priority order:
-
-| Priority | Value | Use Case |
-|----------|-------|----------|
-| `FIRST` | -21844 | Modify event before others see it |
-| `EARLY` | -10922 | Early processing |
-| `NORMAL` | 0 | Default priority |
-| `LATE` | 10922 | React after modifications |
-| `LAST` | 21844 | Final processing, monitoring |
-
-You can also use raw `short` values for fine-grained control.
-
-**See also:** [Event System](/plugin-development/core-concepts/event-system/)
-
-## Entity Store Registry
-
-Register ECS components, resources, and systems for entities.
-
-```java
-@Override
-protected void setup() {
-    // Register a component type
-    ComponentType<EntityStore, MyComponent> componentType =
-        getEntityStoreRegistry().registerComponent(MyComponent.class, MyComponent::new);
-
-    // Register with serialization (for saving/loading)
-    ComponentType<EntityStore, SavedComponent> savedType =
-        getEntityStoreRegistry().registerComponent(SavedComponent.class, "my_saved", SavedComponent.CODEC);
-
-    // Register a resource (world-level data)
-    ResourceType<EntityStore, MyResource> resourceType =
-        getEntityStoreRegistry().registerResource(MyResource.class, MyResource::new);
-
-    // Register a system
-    getEntityStoreRegistry().registerSystem(new MyTickingSystem());
-
-    // Register an ECS event type
-    EntityEventType<EntityStore, MyEcsEvent> eventType =
-        getEntityStoreRegistry().registerEntityEventType(MyEcsEvent.class);
-}
-```
-
-### Methods
-
-| Method | Description |
-|--------|-------------|
-| `registerComponent(Class, Supplier)` | Register a component type |
-| `registerComponent(Class, String, BuilderCodec)` | Register serializable component |
-| `registerResource(Class, Supplier)` | Register a resource type |
-| `registerResource(Class, String, BuilderCodec)` | Register serializable resource |
-| `registerSystem(ISystem)` | Register an ECS system |
-| `registerSystemType(Class)` | Register a system type |
-| `registerSystemGroup()` | Create a system group |
-| `registerEntityEventType(Class)` | Register an entity event type |
-| `registerWorldEventType(Class)` | Register a world event type |
-| `registerSpatialResource(Supplier)` | Register spatial index resource |
-
-**See also:** [ECS Overview](/plugin-development/core-concepts/ecs-overview/)
-
-## Chunk Store Registry
-
-Register ECS components, resources, and systems for chunks. API mirrors Entity Store Registry.
-
-```java
-@Override
-protected void setup() {
-    ComponentType<ChunkStore, ChunkData> chunkDataType =
-        getChunkStoreRegistry().registerComponent(ChunkData.class, ChunkData::new);
-
-    getChunkStoreRegistry().registerSystem(new ChunkProcessingSystem());
-}
-```
-
-## Block State Registry
-
-Register custom block states for block types.
-
-```java
-@Override
-protected void setup() {
-    getBlockStateRegistry().register(/* block state registration */);
-}
-```
-
-## Entity Registry
-
-Register custom entity types.
-
-```java
-@Override
-protected void setup() {
-    getEntityRegistry().register(/* entity type registration */);
-}
-```
-
-## Task Registry
-
-Register scheduled and async tasks that should be managed by the plugin lifecycle.
-
-```java
-@Override
-protected void setup() {
-    CompletableFuture<Void> asyncTask = CompletableFuture.runAsync(() -> {
-        // Background work
-    });
-    getTaskRegistry().registerTask(asyncTask);
-
-    ScheduledFuture<Void> scheduledTask = scheduler.schedule(() -> {
-        // Delayed work
-    }, 5, TimeUnit.SECONDS);
-    getTaskRegistry().registerTask(scheduledTask);
-}
-```
-
-### Methods
-
-| Method | Description |
-|--------|-------------|
-| `registerTask(CompletableFuture)` | Register an async task |
-| `registerTask(ScheduledFuture)` | Register a scheduled task |
-
-Registered tasks are automatically cancelled when the plugin shuts down.
-
-## Asset Registry
-
-Register custom asset types and modifiers.
-
-```java
-@Override
-protected void setup() {
-    getAssetRegistry().register(/* asset registration */);
-}
-```
-
-**See also:** [Asset System](/asset-development/overview/)
-
-## Client Feature Registry
-
-Register client feature flags that affect client behavior.
-
-```java
-@Override
-protected void setup() {
-    getClientFeatureRegistry().register(/* client feature */);
-}
-```
-
-## Codec Registry
-
-Register entries to codec maps for serialization.
-
-```java
-@Override
-protected void setup() {
-    // Register to a string-keyed codec map
-    getCodecRegistry(SomeType.CODEC_MAP).register("my_type", MyType.class, MyType.CODEC);
-
-    // Register to an asset codec map
-    getCodecRegistry(SomeAsset.CODEC_MAP).register(/* asset registration */);
-}
-```
-
-### Variants
-
-| Method | Type | Description |
-|--------|------|-------------|
-| `getCodecRegistry(StringCodecMapCodec)` | `CodecMapRegistry` | String-keyed registrations |
-| `getCodecRegistry(AssetCodecMapCodec)` | `CodecMapRegistry.Assets` | Asset-type registrations |
-| `getCodecRegistry(MapKeyMapCodec)` | `MapKeyMapRegistry` | Map-key registrations |
+For method tables, code examples, and details on each registry, see [Existing Registries](/plugin-development/registries/existing-registries/).
 
 ## Plugin Utilities
 
@@ -270,10 +48,7 @@ In addition to registries, your plugin has access to these utility methods:
 ### Logger
 
 ```java
-// Get the plugin's logger
 HytaleLogger logger = getLogger();
-
-// Log at different levels
 logger.at(Level.INFO).log("Plugin loaded!");
 logger.at(Level.WARNING).log("Something might be wrong");
 logger.at(Level.SEVERE).withCause(exception).log("Error occurred: %s", message);
@@ -286,17 +61,13 @@ logger.at(Level.SEVERE).withCause(exception).log("Error occurred: %s", message);
 </Aside>
 
 ```java
-// Get the plugin's data folder
 Path dataDir = getDataDirectory();
-
-// Example: save a file
 Path configFile = dataDir.resolve("custom-data.json");
 ```
 
 ### Identifier
 
 ```java
-// Get the plugin's unique identifier
 PluginIdentifier id = getIdentifier();
 String fullId = id.toString(); // "Group/Name"
 ```
@@ -304,7 +75,6 @@ String fullId = id.toString(); // "Group/Name"
 ### Manifest
 
 ```java
-// Access manifest data
 PluginManifest manifest = getManifest();
 String version = manifest.getVersion();
 String description = manifest.getDescription();
@@ -313,24 +83,19 @@ String description = manifest.getDescription();
 ### Permissions
 
 ```java
-// Get the base permission node
 String basePerm = getBasePermission(); // "group.name"
-
-// Use for custom permissions
 String myPerm = basePerm + ".myfeature"; // "group.name.myfeature"
 ```
 
 ### State Checking
 
 ```java
-// isEnabled() returns true during SETUP, START, and ENABLED states
 if (isEnabled()) {
-    // Plugin is active
+    // plugin is active (SETUP, START, or ENABLED states)
 }
 
-// isDisabled() returns true during NONE, SHUTDOWN, and DISABLED states
 if (isDisabled()) {
-    // Plugin has not started, is shutting down, or has been disabled
+    // plugin is in NONE, SHUTDOWN, or DISABLED state
 }
 
 PluginState state = getState();
@@ -338,19 +103,9 @@ PluginState state = getState();
 
 ## Automatic Cleanup
 
-<Aside type="note" title="New in Update 3">
-`Registry` now has a `shutdownAndCleanup(boolean)` method that disables the registry, iterates registrations in reverse (LIFO) order calling cleanup on each, then clears the list. This formalizes the shutdown lifecycle for registries. More details in the [Update 3 changelog](/changelog/update-2-to-3/).
-</Aside>
+All registrations are automatically cleaned up when your plugin shuts down, in reverse order of registration (LIFO). You don't need to manually unregister event listeners, commands, ECS components, tasks, or codec registrations.
 
-All registrations made through these registries are automatically cleaned up when your plugin shuts down. You don't need to manually unregister:
-
-- Event listeners
-- Commands
-- ECS components, resources, and systems
-- Tasks
-- Codec registrations
-
-The cleanup happens in reverse order of registration, ensuring proper dependency handling.
+For details on the cleanup mechanism and `shutdownAndCleanup()`, see [Creating Registries](/plugin-development/registries/creating-registries/).
 
 ## Best Practices
 
@@ -361,6 +116,9 @@ The cleanup happens in reverse order of registration, ensuring proper dependency
 
 ## Related
 
+- [Registry System Overview](/plugin-development/registries/overview/)
+- [Existing Registries](/plugin-development/registries/existing-registries/)
+- [Creating Registries](/plugin-development/registries/creating-registries/)
 - [Plugin Lifecycle](/getting-started/plugin-lifecycle/)
 - [Event System](/plugin-development/core-concepts/event-system/)
 - [Command System](/plugin-development/core-concepts/commands/)

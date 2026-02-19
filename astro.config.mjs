@@ -213,6 +213,15 @@ export default defineConfig({
 							],
 						},
 						{
+							label: 'Registries',
+							collapsed: true,
+							items: [
+								{ label: 'Overview', slug: 'plugin-development/registries/overview' },
+								{ label: 'Existing Registries', slug: 'plugin-development/registries/existing-registries' },
+								{ label: 'Creating Registries', slug: 'plugin-development/registries/creating-registries' },
+							],
+						},
+						{
 							label: 'World',
 							collapsed: true,
 							items: [
@@ -323,6 +332,9 @@ export default defineConfig({
 							collapsed: true,
 							items: [
 								{ label: 'Overview', slug: 'plugin-development/serialization/overview' },
+								{ label: 'Component Codecs', slug: 'plugin-development/serialization/component-codecs' },
+								{ label: 'Asset Codecs', slug: 'plugin-development/serialization/asset-codecs' },
+								{ label: 'Custom Codecs', slug: 'plugin-development/serialization/custom-codecs' },
 							],
 						},
 						{
