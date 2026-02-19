@@ -5,7 +5,7 @@ description: "Learn how Hytale's asset system manages blocks, items, entities, s
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-02-13] */}
+{/* [VERIFIED: 2026-02-19] */}
 
 # Asset System Overview
 
@@ -150,26 +150,34 @@ Sound events use a layered system where each layer contains a list of audio file
 
 ### Particles (`particle/`)
 
-Define particle systems:
-
-<Aside type="caution">
-The exact particle codec has not been fully verified. The example below is illustrative based on observed patterns.
-</Aside>
+Particle systems combine multiple spawner references into a single effect. The `particle/` directory contains `.particlesystem` files, while individual emitter configurations live in `.particlespawner` files.
 
 ```json
 {
   "Id": "MyPlugin_CustomParticle",
-  "Emitters": [
+  "Spawners": [
     {
-      "Type": "Point",
-      "Rate": 10,
-      "Lifetime": 1.0,
-      "Color": "#FF0000",
-      "Size": 0.1
+      "SpawnerId": "MyPlugin:MySpawner"
     }
-  ]
+  ],
+  "LifeSpan": 2.0,
+  "CullDistance": 64.0,
+  "BoundingRadius": 5.0,
+  "IsImportant": false
 }
 ```
+
+**Key properties:**
+| Property | Type | Description |
+|----------|------|-------------|
+| `Id` | `string` | Unique particle system identifier |
+| `Spawners` | `ParticleSpawnerGroup[]` | Array of spawner group references |
+| `LifeSpan` | `float` | Duration of the particle system in seconds |
+| `CullDistance` | `float` | Distance at which the system stops rendering |
+| `BoundingRadius` | `float` | Bounding sphere radius for culling |
+| `IsImportant` | `bool` | Whether this system should always render regardless of particle settings |
+
+See [Particles](/asset-development/vfx/particles/) for the full spawner and system reference.
 
 ### Entity Effects (`entityeffect/`)
 
