@@ -3,7 +3,7 @@ title: "Plugin Manifest (manifest.json)"
 description: "Configure your plugin's identity, version, dependencies, and entry point in the required manifest.json manifest file."
 ---
 
-{/* [VERIFIED: 2026-02-17] */}
+{/* [VERIFIED: 2026-02-19] */}
 
 import { Aside, FileTree, Steps } from '@astrojs/starlight/components';
 
@@ -184,7 +184,7 @@ Specifies which server version your plugin is compatible with. Since Update 3, t
 ```
 
 <Aside type="caution" title="Wildcard behavior">
-Using `"*"` or omitting `ServerVersion` entirely will log a warning: *"Plugin does not specify a target server version. You may encounter issues. This will be a hard error in the future."* Always set an exact version string for production plugins.
+Using `"*"` or omitting `ServerVersion` entirely will log a warning: *"Plugin does not specify a target server version. You may encounter issues, please check for plugin updates. This will be a hard error in the future"*. Always set an exact version string for production plugins.
 </Aside>
 
 #### `Dependencies`
@@ -286,6 +286,7 @@ Sub-plugins automatically:
 - Inherit `Description` if not specified
 - Inherit `Authors` if empty
 - Inherit `Website` if not specified
+- Inherit `DisabledByDefault` if not already `true`
 - Add a dependency on the parent plugin
 
 ## Minimal Example
