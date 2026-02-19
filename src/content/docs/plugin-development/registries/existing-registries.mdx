@@ -1,0 +1,391 @@
+---
+title: "Existing Registries"
+description: "Complete catalog of all plugin and internal registries available in Hytale's server."
+---
+
+import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
+
+{/* [VERIFIED: 2026-02-19] */}
+
+# Existing Registries
+
+This page catalogs every registry available in Hytale's server, split into plugin registries (accessible from `PluginBase`) and internal registries (used by the engine).
+
+## Plugin Registries
+
+These registries are accessed through your plugin's base class and share its lifecycle.
+
+### Command Registry
+
+Registers commands that players and console can execute.
+
+- Package: `com.hypixel.hytale.server.core.command.system.CommandRegistry`
+- Accessor: `getCommandRegistry()`
+
+| Method | Type | Description |
+|--------|------|-------------|
+| `registerCommand(AbstractCommand)` | `Registration` | Register a command with the server |
+
+```java
+import com.hypixel.hytale.server.core.command.system.CommandRegistry;
+
+@Override
+protected void setup() {
+    getCommandRegistry().registerCommand(new MyCommand());
+}
+```
+
+### Event Registry
+
+Registers listeners for server events with priority and key filtering.
+
+- Package: `com.hypixel.hytale.event.EventRegistry`
+- Accessor: `getEventRegistry()`
+
+| Method | Type | Description |
+|--------|------|-------------|
+| `register(Class, Consumer)` | `Registration` | Register with default priority |
+| `register(EventPriority, Class, Consumer)` | `Registration` | Register with specific priority |
+| `register(Class, Key, Consumer)` | `Registration` | Register for keyed event with specific key |
+| `registerGlobal(Class, Consumer)` | `Registration` | Receive all keyed events |
+| `registerUnhandled(Class, Consumer)` | `Registration` | Fallback handler for unprocessed events |
+| `registerAsync(...)` | `Registration` | Async variants of all above methods |
+
+```java
+import com.hypixel.hytale.event.EventRegistry;
+import com.hypixel.hytale.event.EventPriority;
+import com.hypixel.hytale.server.core.event.PlayerConnectEvent;
+import com.hypixel.hytale.server.core.event.PlayerChatEvent;
+
+@Override
+protected void setup() {
+    getEventRegistry().register(PlayerConnectEvent.class, this::onConnect);
+    getEventRegistry().register(EventPriority.LATE, PlayerChatEvent.class, this::onChat);
+}
+```
+
+**Event priorities** are processed in order:
+
+| Priority | Value | Use Case |
+|----------|-------|----------|
+| `FIRST` | -21844 | Modify event before others see it |
+| `EARLY` | -10922 | Early processing |
+| `NORMAL` | 0 | Default priority |
+| `LATE` | 10922 | React after modifications |
+| `LAST` | 21844 | Final processing, monitoring |
+
+### Entity Store Registry
+
+Registers ECS components, resources, and systems for entities.
+
+- Package: `com.hypixel.hytale.component.ComponentRegistryProxy`
+- Accessor: `getEntityStoreRegistry()`
+
+| Method | Type | Description |
+|--------|------|-------------|
+| `registerComponent(Class, Supplier)` | `ComponentType` | Register a component type |
+| `registerComponent(Class, String, BuilderCodec)` | `ComponentType` | Register serializable component |
+| `registerResource(Class, Supplier)` | `ResourceType` | Register a resource type |
+| `registerResource(Class, String, BuilderCodec)` | `ResourceType` | Register serializable resource |
+| `registerSystem(ISystem)` | `void` | Register an ECS system |
+| `registerSystemType(Class)` | `SystemType` | Register a system type |
+| `registerSystemGroup()` | `SystemGroup` | Create a system group |
+| `registerEntityEventType(Class)` | `EntityEventType` | Register an entity event type |
+| `registerWorldEventType(Class)` | `WorldEventType` | Register a world event type |
+| `registerSpatialResource(Supplier)` | `ResourceType` | Register spatial index resource |
+
+```java
+import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+
+@Override
+protected void setup() {
+    ComponentType<EntityStore, MyComponent> componentType =
+        getEntityStoreRegistry().registerComponent(MyComponent.class, MyComponent::new);
+
+    ComponentType<EntityStore, SavedComponent> savedType =
+        getEntityStoreRegistry().registerComponent(SavedComponent.class, "my_saved", SavedComponent.CODEC);
+
+    getEntityStoreRegistry().registerSystem(new MyTickingSystem());
+}
+```
+
+### Chunk Store Registry
+
+Registers ECS components, resources, and systems for chunks. The API mirrors Entity Store Registry.
+
+- Package: `com.hypixel.hytale.component.ComponentRegistryProxy`
+- Accessor: `getChunkStoreRegistry()`
+
+```java
+import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
+
+@Override
+protected void setup() {
+    ComponentType<ChunkStore, ChunkData> chunkDataType =
+        getChunkStoreRegistry().registerComponent(ChunkData.class, ChunkData::new);
+
+    getChunkStoreRegistry().registerSystem(new ChunkProcessingSystem());
+}
+```
+
+### Block State Registry
+
+Registers custom block states for block types.
+
+- Package: `com.hypixel.hytale.server.core.universe.world.meta.BlockStateRegistry`
+- Accessor: `getBlockStateRegistry()`
+
+| Method | Type | Description |
+|--------|------|-------------|
+| `register(...)` | `Registration` | Register a custom block state |
+
+```java
+@Override
+protected void setup() {
+    getBlockStateRegistry().register(/* block state registration */);
+}
+```
+
+### Entity Registry
+
+Registers custom entity types.
+
+- Package: `com.hypixel.hytale.server.core.modules.entity.EntityRegistry`
+- Accessor: `getEntityRegistry()`
+
+| Method | Type | Description |
+|--------|------|-------------|
+| `register(...)` | `Registration` | Register a custom entity type |
+
+```java
+@Override
+protected void setup() {
+    getEntityRegistry().register(/* entity type registration */);
+}
+```
+
+### Task Registry
+
+Registers scheduled and async tasks managed by the plugin lifecycle.
+
+- Package: `com.hypixel.hytale.server.core.task.TaskRegistry`
+- Accessor: `getTaskRegistry()`
+
+| Method | Type | Description |
+|--------|------|-------------|
+| `registerTask(CompletableFuture)` | `void` | Register an async task |
+| `registerTask(ScheduledFuture)` | `void` | Register a scheduled task |
+
+```java
+import java.util.concurrent.CompletableFuture;
+
+@Override
+protected void setup() {
+    CompletableFuture<Void> asyncTask = CompletableFuture.runAsync(() -> {
+        // background work
+    });
+    getTaskRegistry().registerTask(asyncTask);
+}
+```
+
+Registered tasks are automatically cancelled when the plugin shuts down.
+
+### Asset Registry
+
+Registers custom asset types and modifiers through the plugin system.
+
+- Package: `com.hypixel.hytale.server.core.plugin.registry.AssetRegistry`
+- Accessor: `getAssetRegistry()`
+
+| Method | Type | Description |
+|--------|------|-------------|
+| `register(...)` | `void` | Register an asset type or modifier |
+
+```java
+@Override
+protected void setup() {
+    getAssetRegistry().register(/* asset registration */);
+}
+```
+
+### Client Feature Registry
+
+Registers client feature flags that affect client behavior.
+
+- Package: `com.hypixel.hytale.server.core.registry.ClientFeatureRegistry`
+- Accessor: `getClientFeatureRegistry()`
+
+| Method | Type | Description |
+|--------|------|-------------|
+| `register(...)` | `Registration` | Register a client feature flag |
+
+```java
+@Override
+protected void setup() {
+    getClientFeatureRegistry().register(/* client feature */);
+}
+```
+
+### Codec Registry
+
+Registers entries to codec maps for serialization. Three variants exist depending on the codec map type.
+
+- Package: `com.hypixel.hytale.server.core.plugin.registry.CodecMapRegistry`
+- Accessor: `getCodecRegistry(codec)`
+
+| Method | Type | Description |
+|--------|------|-------------|
+| `getCodecRegistry(StringCodecMapCodec)` | `CodecMapRegistry` | String-keyed registrations |
+| `getCodecRegistry(AssetCodecMapCodec)` | `CodecMapRegistry.Assets` | Asset-type registrations |
+| `getCodecRegistry(MapKeyMapCodec)` | `MapKeyMapRegistry` | Map-key registrations |
+
+`CodecMapRegistry` supports priority-based registration via `Priority`:
+
+```java
+import com.hypixel.hytale.server.core.plugin.registry.CodecMapRegistry;
+import com.hypixel.hytale.codec.lookup.Priority;
+
+@Override
+protected void setup() {
+    getCodecRegistry(SomeType.CODEC_MAP)
+        .register("my_type", MyType.class, MyType.CODEC);
+
+    getCodecRegistry(SomeType.CODEC_MAP)
+        .register(Priority.HIGH, "my_override", MyOverride.class, MyOverride.CODEC);
+}
+```
+
+On shutdown, codec registrations acquire the asset write lock before removing entries, ensuring thread safety with concurrent asset loading.
+
+---
+
+## Internal Registries
+
+These registries are used by the engine and are not directly accessible from `PluginBase`.
+
+### AssetRegistry (Global)
+
+The global static registry that tracks all `AssetStore` instances by asset class. Uses a `ReadWriteLock` for thread-safe access and dispatches `RegisterAssetStoreEvent`/`RemoveAssetStoreEvent` on changes.
+
+- Package: `com.hypixel.hytale.assetstore.AssetRegistry`
+
+| Method | Type | Description |
+|--------|------|-------------|
+| `register(AssetStore)` | `AssetStore` | Register an asset store (static) |
+| `unregister(AssetStore)` | `void` | Unregister an asset store (static) |
+| `getAssetStore(Class)` | `AssetStore` | Get store by asset class (static) |
+| `getStoreMap()` | `Map` | Get all registered stores (static) |
+| `getOrCreateTagIndex(String)` | `int` | Get or create a tag index (static) |
+| `getTagIndex(String)` | `int` | Get tag index, returns `TAG_NOT_FOUND` if missing (static) |
+| `registerClientTag(String)` | `boolean` | Register a client-visible tag (static) |
+| `getClientTags()` | `Object2IntMap` | Get all client tags (static) |
+
+### AssetTypeRegistry
+
+Manages asset types available in the in-game asset editor. Provides a setup packet sent to editor clients.
+
+- Package: `com.hypixel.hytale.builtin.asseteditor.AssetTypeRegistry`
+
+| Method | Type | Description |
+|--------|------|-------------|
+| `registerAssetType(AssetTypeHandler)` | `void` | Register an asset type for the editor |
+| `unregisterAssetType(AssetTypeHandler)` | `void` | Unregister an asset type |
+| `getAssetTypeHandler(String)` | `AssetTypeHandler` | Get handler by ID |
+| `getAssetTypeHandlerForPath(Path)` | `AssetTypeHandler` | Get handler matching a file path |
+
+### ComponentRegistry
+
+The core ECS registry managing components, resources, systems, system types, and system groups. Each `ComponentRegistry` instance backs a store type (e.g., `EntityStore.REGISTRY`, `ChunkStore.REGISTRY`).
+
+- Package: `com.hypixel.hytale.component.ComponentRegistry`
+
+| Method | Type | Description |
+|--------|------|-------------|
+| `registerComponent(Class, Supplier)` | `ComponentType` | Register a component type |
+| `registerComponent(Class, String, BuilderCodec)` | `ComponentType` | Register serializable component |
+| `unregisterComponent(ComponentType)` | `void` | Unregister a component (also removes dependent systems) |
+| `registerResource(Class, Supplier)` | `ResourceType` | Register a resource type |
+| `unregisterResource(ResourceType)` | `void` | Unregister a resource |
+| `registerSystem(ISystem)` | `void` | Register an ECS system |
+| `unregisterSystem(Class)` | `void` | Unregister a system by class |
+| `registerSystemType(Class)` | `SystemType` | Register a system type category |
+| `registerSystemGroup()` | `SystemGroup` | Create a system group |
+| `registerEntityEventType(Class)` | `EntityEventType` | Register entity event type |
+| `registerWorldEventType(Class)` | `WorldEventType` | Register world event type |
+| `registerSpatialResource(Supplier)` | `ResourceType` | Register spatial index resource |
+| `addStore(ECS_TYPE, IResourceStorage)` | `Store` | Create a new store instance |
+| `removeStore(Store)` | `void` | Remove and shut down a store |
+| `newHolder()` | `Holder` | Create an empty entity holder |
+| `shutdown()` | `void` | Shut down all stores in reverse order |
+
+When a component is unregistered, any system whose query depends on that component is also automatically unregistered.
+
+### MetaRegistry
+
+Manages metadata entries attached to game objects. Supports both persistent (serialized) and transient meta objects.
+
+- Package: `com.hypixel.hytale.server.core.meta.MetaRegistry`
+
+| Method | Type | Description |
+|--------|------|-------------|
+| `registerMetaObject(Function, boolean, String, Codec)` | `MetaKey` | Register a meta object with optional persistence |
+| `newMetaObject(MetaKey, K)` | `T` | Create a new meta object instance |
+| `getMetaKeyForCodecKey(String)` | `PersistentMetaKey` | Look up a persistent meta key by codec key |
+
+### CommonAssetRegistry
+
+Tracks common (shared) assets across all loaded packs. Uses last-write-wins for name collisions and maintains hash-based deduplication.
+
+- Package: `com.hypixel.hytale.server.core.asset.common.CommonAssetRegistry`
+
+| Method | Type | Description |
+|--------|------|-------------|
+| `addCommonAsset(String, CommonAsset)` | `AddCommonAssetResult` | Add/replace an asset (static) |
+| `removeCommonAssetByName(String, String)` | `BooleanObjectPair` | Remove by pack and name (static) |
+| `getByName(String)` | `CommonAsset` | Get the active asset by name (static) |
+| `getByHash(String)` | `CommonAsset` | Get an asset by content hash (static) |
+| `hasCommonAsset(String)` | `boolean` | Check if an asset exists (static) |
+| `getAllAssets()` | `Collection` | Get all registered assets (static) |
+| `getDuplicateAssetCount()` | `int` | Count of detected duplicates (static) |
+| `clearAllAssets()` | `void` | Clear all assets (static) |
+
+### BenchRecipeRegistry
+
+Manages crafting recipes organized by bench ID and category. Used by the crafting system to look up available recipes.
+
+- Package: `com.hypixel.hytale.builtin.crafting.BenchRecipeRegistry`
+
+| Method | Type | Description |
+|--------|------|-------------|
+| `addRecipe(BenchRequirement, CraftingRecipe)` | `void` | Add a recipe to the bench |
+| `removeRecipe(String)` | `void` | Remove a recipe by ID |
+| `getAllRecipes()` | `CraftingRecipe[]` | Get all recipes for this bench |
+| `getRecipesForCategory(String)` | `Set<String>` | Get recipe IDs for a category |
+| `recompute()` | `void` | Rebuild material and item-to-recipe indexes |
+| `isValidCraftingMaterial(ItemStack)` | `boolean` | Check if an item is used by any recipe |
+
+### CosmeticRegistry
+
+Loads and manages character customization cosmetics from asset pack JSON files. Read-only after initialization.
+
+- Package: `com.hypixel.hytale.server.core.cosmetics.CosmeticRegistry`
+
+| Method | Type | Description |
+|--------|------|-------------|
+| `getEmotes()` | `Map<String, Emote>` | All registered emotes |
+| `getEyeColors()` | `Map<String, PlayerSkinTintColor>` | Eye color options |
+| `getGradientSets()` | `Map<String, PlayerSkinGradientSet>` | Skin gradient sets |
+| `getBodyCharacteristics()` | `Map<String, PlayerSkinPart>` | Body type options |
+| `getByType(CosmeticType)` | `Map<String, ?>` | Get cosmetics by type enum |
+
+Managed cosmetic types include: haircuts, eyes, eyebrows, ears, faces, mouths, facial hair, pants, overpants, undertops, overtops, shoes, gloves, capes, head/face/ear accessories, underwear, and skin features.
+
+## Related
+
+- [Registry System Overview](/plugin-development/registries/overview/) - Architecture and load order
+- [Creating Registries](/plugin-development/registries/creating-registries/) - How to register custom content
+- [Event System](/plugin-development/core-concepts/event-system/) - Event registration details
+- [ECS Overview](/plugin-development/core-concepts/ecs-overview/) - Component and system registration
+- [Command System](/plugin-development/core-concepts/commands/) - Command registration details

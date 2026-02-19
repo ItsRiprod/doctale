@@ -1,0 +1,566 @@
+---
+title: "Creating Custom Codecs"
+description: "Step-by-step guide to building custom codecs with BuilderCodec, inheritance, polymorphism, collections, and validation."
+---
+
+import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
+
+{/* [VERIFIED: 2026-02-19] */}
+
+# Creating Custom Codecs
+
+This guide walks through building custom codecs from simple objects to complex polymorphic hierarchies.
+
+## Package Location
+
+- `com.hypixel.hytale.codec.Codec`
+- `com.hypixel.hytale.codec.KeyedCodec`
+- `com.hypixel.hytale.codec.builder.BuilderCodec`
+- `com.hypixel.hytale.codec.lookup.CodecMapCodec`
+- `com.hypixel.hytale.codec.validation.Validators`
+- `com.hypixel.hytale.codec.codecs.array.ArrayCodec`
+- `com.hypixel.hytale.codec.codecs.EnumCodec`
+
+## Step 1: Simple BuilderCodec
+
+Define a codec for a plain data class with primitive fields.
+
+```java
+import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.KeyedCodec;
+import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.codec.validation.Validators;
+
+public class WeaponConfig {
+    public String name;
+    public float damage;
+    public boolean enabled = true;
+
+    public static final BuilderCodec<WeaponConfig> CODEC =
+        BuilderCodec.builder(WeaponConfig.class, WeaponConfig::new)
+            .append(
+                new KeyedCodec<>("Name", Codec.STRING),
+                (config, name) -> config.name = name,
+                config -> config.name
+            )
+            .addValidator(Validators.nonNull())
+            .addValidator(Validators.nonEmptyString())
+            .add()
+
+            .append(
+                new KeyedCodec<>("Damage", Codec.FLOAT),
+                (config, damage) -> config.damage = damage,
+                config -> config.damage
+            )
+            .addValidator(Validators.greaterThan(0.0f))
+            .add()
+
+            .append(
+                new KeyedCodec<>("Enabled", Codec.BOOLEAN),
+                (config, enabled) -> config.enabled = enabled,
+                config -> config.enabled
+            )
+            .add()
+
+            .build();
+}
+```
+
+Corresponding JSON:
+```json
+{
+  "Name": "Iron Sword",
+  "Damage": 5.0,
+  "Enabled": true
+}
+```
+
+<Aside type="note">
+All `KeyedCodec` field names must start with an uppercase letter. The codec system enforces this at construction time and will throw `IllegalArgumentException` otherwise.
+</Aside>
+
+## Step 2: With Inheritance
+
+Use `abstractBuilder` for base classes and pass the parent codec when building subclass codecs. Use `appendInherited` for fields whose values should copy from a parent during asset inheritance.
+
+```java
+import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.KeyedCodec;
+import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.codec.validation.Validators;
+
+public abstract class BaseEffect {
+    public String id;
+    public float duration;
+
+    public static final BuilderCodec<BaseEffect> BASE_CODEC =
+        BuilderCodec.abstractBuilder(BaseEffect.class)
+            .appendInherited(
+                new KeyedCodec<>("Id", Codec.STRING),
+                (obj, id) -> obj.id = id,
+                obj -> obj.id,
+                (obj, parent) -> obj.id = parent.id
+            )
+            .addValidator(Validators.nonNull())
+            .add()
+
+            .appendInherited(
+                new KeyedCodec<>("Duration", Codec.FLOAT),
+                (obj, duration) -> obj.duration = duration,
+                obj -> obj.duration,
+                (obj, parent) -> obj.duration = parent.duration
+            )
+            .addValidator(Validators.greaterThan(0.0f))
+            .add()
+
+            .build();
+}
+```
+
+```java
+import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.KeyedCodec;
+import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.codec.validation.Validators;
+
+public class DamageEffect extends BaseEffect {
+    public float amount;
+    public boolean ignoreArmor;
+
+    public static final BuilderCodec<DamageEffect> CODEC =
+        BuilderCodec.builder(DamageEffect.class, DamageEffect::new, BaseEffect.BASE_CODEC)
+            .append(
+                new KeyedCodec<>("Amount", Codec.FLOAT),
+                (obj, amount) -> obj.amount = amount,
+                obj -> obj.amount
+            )
+            .addValidator(Validators.greaterThan(0.0f))
+            .add()
+
+            .append(
+                new KeyedCodec<>("IgnoreArmor", Codec.BOOLEAN),
+                (obj, ignore) -> obj.ignoreArmor = ignore,
+                obj -> obj.ignoreArmor
+            )
+            .add()
+
+            .build();
+}
+```
+
+JSON for the subclass includes both parent and child fields:
+```json
+{
+  "Id": "fire_damage",
+  "Duration": 5.0,
+  "Amount": 2.0,
+  "IgnoreArmor": true
+}
+```
+
+## Step 3: Polymorphic Types with CodecMapCodec
+
+Register multiple subtypes under a single codec using `CodecMapCodec` for type dispatch.
+
+```java
+import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.KeyedCodec;
+import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.codec.lookup.CodecMapCodec;
+import com.hypixel.hytale.codec.validation.Validators;
+
+public abstract class Condition {
+    public static final CodecMapCodec<Condition> CODEC = new CodecMapCodec<>("Type");
+
+    public static final BuilderCodec<Condition> BASE_CODEC =
+        BuilderCodec.abstractBuilder(Condition.class).build();
+}
+```
+
+```java
+import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.KeyedCodec;
+import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.codec.validation.Validators;
+
+public class HealthCondition extends Condition {
+    public float threshold;
+
+    public static final BuilderCodec<HealthCondition> CODEC =
+        BuilderCodec.builder(HealthCondition.class, HealthCondition::new, Condition.BASE_CODEC)
+            .append(
+                new KeyedCodec<>("Threshold", Codec.FLOAT),
+                (obj, threshold) -> obj.threshold = threshold,
+                obj -> obj.threshold
+            )
+            .addValidator(Validators.range(0.0f, 1.0f))
+            .add()
+            .build();
+
+    static {
+        Condition.CODEC.register("Health", HealthCondition.class, HealthCondition.CODEC);
+    }
+}
+```
+
+```java
+import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.KeyedCodec;
+import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.codec.codecs.EnumCodec;
+
+public class TimeCondition extends Condition {
+    public int hour;
+    public TimeOfDay period;
+
+    public enum TimeOfDay { Day, Night, Dawn, Dusk }
+
+    public static final BuilderCodec<TimeCondition> CODEC =
+        BuilderCodec.builder(TimeCondition.class, TimeCondition::new, Condition.BASE_CODEC)
+            .append(
+                new KeyedCodec<>("Hour", Codec.INTEGER),
+                (obj, hour) -> obj.hour = hour,
+                obj -> obj.hour
+            )
+            .addValidator(Validators.range(0, 23))
+            .add()
+            .append(
+                new KeyedCodec<>("Period", new EnumCodec<>(TimeOfDay.class)),
+                (obj, period) -> obj.period = period,
+                obj -> obj.period
+            )
+            .add()
+            .build();
+
+    static {
+        Condition.CODEC.register("Time", TimeCondition.class, TimeCondition.CODEC);
+    }
+}
+```
+
+JSON with polymorphic dispatch:
+```json
+{
+  "Type": "Health",
+  "Threshold": 0.5
+}
+```
+
+```json
+{
+  "Type": "Time",
+  "Hour": 6,
+  "Period": "Dawn"
+}
+```
+
+## Step 4: Collections and Arrays
+
+### Array of Objects
+
+```java
+import com.hypixel.hytale.codec.KeyedCodec;
+import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
+import com.hypixel.hytale.codec.validation.Validators;
+
+public class EffectGroup {
+    public DamageEffect[] effects;
+
+    public static final BuilderCodec<EffectGroup> CODEC =
+        BuilderCodec.builder(EffectGroup.class, EffectGroup::new)
+            .append(
+                new KeyedCodec<>("Effects", new ArrayCodec<>(DamageEffect.CODEC, DamageEffect[]::new)),
+                (obj, effects) -> obj.effects = effects,
+                obj -> obj.effects
+            )
+            .addValidator(Validators.nonNull())
+            .addValidator(Validators.nonEmptyArray())
+            .add()
+            .build();
+}
+```
+
+### Map of Values
+
+```java
+import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.KeyedCodec;
+import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.codec.codecs.map.MapCodec;
+import java.util.HashMap;
+import java.util.Map;
+
+public class StatSheet {
+    public Map<String, Integer> stats;
+
+    public static final BuilderCodec<StatSheet> CODEC =
+        BuilderCodec.builder(StatSheet.class, StatSheet::new)
+            .append(
+                new KeyedCodec<>("Stats", new MapCodec<>(Codec.INTEGER, HashMap::new)),
+                (obj, stats) -> obj.stats = stats,
+                obj -> obj.stats
+            )
+            .add()
+            .build();
+}
+```
+
+JSON:
+```json
+{
+  "Stats": {
+    "Strength": 10,
+    "Agility": 15,
+    "Wisdom": 8
+  }
+}
+```
+
+### Set of Unique Values
+
+```java
+import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.KeyedCodec;
+import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.codec.codecs.set.SetCodec;
+import java.util.HashSet;
+import java.util.Set;
+
+public class TagContainer {
+    public Set<String> tags;
+
+    public static final BuilderCodec<TagContainer> CODEC =
+        BuilderCodec.builder(TagContainer.class, TagContainer::new)
+            .append(
+                // third parameter: true = decoded set is wrapped in Collections.unmodifiableSet()
+                new KeyedCodec<>("Tags", new SetCodec<>(Codec.STRING, HashSet::new, true)),
+                (obj, tags) -> obj.tags = tags,
+                obj -> obj.tags
+            )
+            .add()
+            .build();
+}
+```
+
+### Polymorphic Array
+
+```java
+import com.hypixel.hytale.codec.KeyedCodec;
+import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
+
+public class ConditionGroup {
+    public Condition[] conditions;
+
+    public static final BuilderCodec<ConditionGroup> CODEC =
+        BuilderCodec.builder(ConditionGroup.class, ConditionGroup::new)
+            .append(
+                new KeyedCodec<>("Conditions", new ArrayCodec<>(Condition.CODEC, Condition[]::new)),
+                (obj, conditions) -> obj.conditions = conditions,
+                obj -> obj.conditions
+            )
+            .add()
+            .build();
+}
+```
+
+JSON:
+```json
+{
+  "Conditions": [
+    { "Type": "Health", "Threshold": 0.5 },
+    { "Type": "Time", "Hour": 18, "Period": "Dusk" }
+  ]
+}
+```
+
+## Step 5: Implementing Codec\<T\> Directly
+
+For types that don't fit the builder pattern, implement `Codec<T>` directly. This is useful for simple value types with custom serialization logic.
+
+```java
+import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.ExtraInfo;
+import com.hypixel.hytale.codec.schema.SchemaContext;
+import com.hypixel.hytale.codec.schema.config.Schema;
+import com.hypixel.hytale.codec.schema.config.StringSchema;
+import com.hypixel.hytale.codec.util.RawJsonReader;
+import org.bson.BsonString;
+import org.bson.BsonValue;
+import java.io.IOException;
+
+public class HexColorCodec implements Codec<Integer> {
+    @Override
+    public Integer decode(BsonValue bsonValue, ExtraInfo extraInfo) {
+        String hex = bsonValue.asString().getValue();
+        return Integer.parseUnsignedInt(hex.replace("#", ""), 16);
+    }
+
+    @Override
+    public BsonValue encode(Integer value, ExtraInfo extraInfo) {
+        return new BsonString(String.format("#%06X", value & 0xFFFFFF));
+    }
+
+    @Override
+    public Integer decodeJson(RawJsonReader reader, ExtraInfo extraInfo) throws IOException {
+        String hex = Codec.STRING.decodeJson(reader, extraInfo);
+        return Integer.parseUnsignedInt(hex.replace("#", ""), 16);
+    }
+
+    @Override
+    public Schema toSchema(SchemaContext context) {
+        StringSchema schema = new StringSchema();
+        schema.setTitle("HexColor");
+        return schema;
+    }
+}
+```
+
+When implementing `Codec<T>` directly, you must provide all four methods: `decode`, `encode`, `decodeJson`, and `toSchema`. The default `decodeJson` implementation falls back to parsing BSON from JSON, but providing a direct implementation using `RawJsonReader` is significantly more efficient.
+
+## Validation Best Practices
+
+### Field-Level Validation
+
+Apply validators that match the field's constraints:
+
+```java
+import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.KeyedCodec;
+import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.codec.validation.Validators;
+
+BuilderCodec.builder(MyClass.class, MyClass::new)
+    .append(new KeyedCodec<>("Name", Codec.STRING), ...)
+    .addValidator(Validators.nonNull())
+    .addValidator(Validators.nonEmptyString())
+    .add()
+
+    .append(new KeyedCodec<>("Health", Codec.FLOAT), ...)
+    .addValidator(Validators.range(0.0f, 100.0f))
+    .add()
+
+    .append(new KeyedCodec<>("Targets", new ArrayCodec<>(...)), ...)
+    .addValidator(Validators.nonNull())
+    .addValidator(Validators.nonEmptyArray())
+    .addValidator(Validators.uniqueInArray())
+    .add()
+
+    .build();
+```
+
+### Codec-Level Validation
+
+For cross-field validation, use the codec-level `validator()`:
+
+```java
+import com.hypixel.hytale.codec.builder.BuilderCodec;
+
+BuilderCodec.builder(MyClass.class, MyClass::new)
+    .append(...)
+    .add()
+    .validator((obj, results) -> {
+        if (obj.min > obj.max) {
+            results.fail("Min must be less than or equal to Max");
+        }
+    })
+    .build();
+```
+
+### Primitive Fields
+
+Primitive codec fields (those wrapping `PrimitiveCodec` like `Codec.INTEGER`, `Codec.FLOAT`, etc.) automatically get a `nonNull` check. Setting a primitive field to null triggers a validation failure, preventing null values from reaching primitive Java fields.
+
+## Versioning Strategies
+
+### Adding a New Field
+
+When adding a field in a new version, set the minimum version on the field:
+
+```java
+import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.KeyedCodec;
+import com.hypixel.hytale.codec.builder.BuilderCodec;
+
+BuilderCodec.builder(MyClass.class, MyClass::new)
+    .append(new KeyedCodec<>("OriginalField", Codec.STRING), ...)
+    .add()
+
+    .append(new KeyedCodec<>("NewField", Codec.INTEGER), ...)
+    .setVersionRange(1, Integer.MAX_VALUE)
+    .add()
+
+    .versioned()
+    .codecVersion(1)
+    .build();
+```
+
+### Replacing a Field
+
+When a field changes type or meaning across versions, register both versions with non-overlapping ranges:
+
+```java
+import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.KeyedCodec;
+import com.hypixel.hytale.codec.builder.BuilderCodec;
+
+BuilderCodec.builder(MyClass.class, MyClass::new)
+    .append(new KeyedCodec<>("Speed", Codec.INTEGER), ...)
+    .setVersionRange(0, 0)
+    .add()
+
+    .append(new KeyedCodec<>("Speed", Codec.FLOAT), ...)
+    .setVersionRange(1, Integer.MAX_VALUE)
+    .add()
+
+    .versioned()
+    .codecVersion(1)
+    .build();
+```
+
+Both fields share the key `"Speed"` but target different version ranges. The codec selects the correct one based on the document's `"Version"` field.
+
+### Version Propagation
+
+When a child codec extends a parent, version ranges propagate:
+- The effective `codecVersion` is `max(child, parent)`
+- The effective `minCodecVersion` is `min(child, parent)`
+- If either parent or child is `versioned()`, the combined codec is versioned
+
+## Schema Generation
+
+Every codec can generate a JSON schema via `toSchema(SchemaContext)`. BuilderCodec produces an `ObjectSchema` with:
+- Properties for each field
+- Required markers from `NonNullValidator`
+- Documentation strings from `.documentation()`
+- Type information from child codecs
+- Metadata-driven UI hints
+
+The schema also includes built-in comment fields (`$Title`, `$Comment`, `$TODO`, `$Author`) which are ignored during decoding but preserved in tooling.
+
+### afterDecode Callback
+
+Use `afterDecode` for post-processing that needs to run after all fields are decoded but before validation:
+
+```java
+import com.hypixel.hytale.codec.builder.BuilderCodec;
+
+BuilderCodec.builder(MyClass.class, MyClass::new)
+    .append(...)
+    .add()
+    .afterDecode(obj -> {
+        if (obj.name != null) {
+            obj.normalizedName = obj.name.toLowerCase();
+        }
+    })
+    .build();
+```
+
+The `afterDecode` callback runs before validators, making it suitable for computing derived values that validators might need to check.
+
+## Related
+
+- [Serialization Overview](/plugin-development/serialization/overview/) - Core Codec\<T\> interface and ExtraInfo
+- [Component Codecs](/plugin-development/serialization/component-codecs/) - Collection codecs, validation, ProtocolCodecs
+- [Asset Codecs](/plugin-development/serialization/asset-codecs/) - AssetBuilderCodec for asset JSON files
