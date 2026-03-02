@@ -1,0 +1,134 @@
+---
+title: "Hexcode Interaction Flow"
+description: "Visual reference for hexcode's interaction architecture"
+---
+
+## Full Interaction Tree
+
+How a mouse click flows through hexcode's interaction system from item input to state machine.
+All interactions are inlined into 8 root files — no standalone interaction JSONs.
+
+```mermaid
+flowchart TD
+    subgraph Item["Hex Staff Item"]
+        Primary["Primary (Left Click)"]
+        Secondary["Secondary (Right Click)"]
+    end
+
+    subgraph PrimaryFlow["Primary Click — Hexcode_Staff_Primary"]
+        PBranch["HexStateBranch"]
+
+        MC["HexMode CASTING"]
+        MD["HexMode DRAWING"]
+        MK["HexMode CRAFTING"]
+        ME["HexModeExit EXECUTION"]
+
+        EC["HexModeExit CASTING"]
+        ED["HexModeExit DRAWING"]
+        EK["HexModeExit CRAFTING"]
+    end
+
+    subgraph SecondaryFlow["Secondary Click — Hexcode_Staff_Secondary"]
+        SBranch["HexStateBranch"]
+
+        subgraph CastingFlowDetail["Root_Hexcode_Secondary_CastingFlow"]
+            direction LR
+            CA1["EnterAnim\n0.2s"]
+            CA2["HexStateChange\n→ CASTING"]
+            CA3["HexHold\n(indefinite)"]
+            CA4["HexStateChange\n→ IDLE"]
+        end
+
+        subgraph DrawingFlowDetail["Root_Hexcode_Secondary_DrawingFlow"]
+            direction LR
+            DA1["EnterAnim\n0.2s"]
+            DA2["HexStateChange\n→ DRAWING"]
+            DA3["HexHold\n(indefinite)"]
+            DA4["HexStateChange\n→ CRAFTING"]
+        end
+    end
+
+    Primary --> PBranch
+    PBranch -->|"state = CASTING"| MC
+    PBranch -->|"state = DRAWING"| MD
+    PBranch -->|"state = CRAFTING"| MK
+    PBranch -->|"state = EXECUTION"| ME
+
+    MC -->|"release"| EC
+    MD -->|"release"| ED
+    MK -->|"release"| EK
+
+    Secondary --> SBranch
+    SBranch -->|"state = IDLE\nor EXECUTION"| CastingFlowDetail
+    SBranch -->|"state = CRAFTING"| DrawingFlowDetail
+
+    CA1 --> CA2 --> CA3 --> CA4
+    DA1 --> DA2 --> DA3 --> DA4
+```
+
+## State Transitions
+
+How the hex staff drives the state machine through interactions.
+
+```mermaid
+stateDiagram-v2
+    [*] --> IDLE
+
+    IDLE --> CASTING : Secondary Hold\n(CastingFlow → HexStateChange)
+    CASTING --> IDLE : Secondary Release\n(CastingFlow → HexStateChange)
+
+    IDLE --> CRAFTING : /hc draw crafting\n(command)
+    CRAFTING --> IDLE : /hc draw crafting\n(command)
+
+    CRAFTING --> DRAWING : Secondary Hold\n(DrawingFlow → HexStateChange)
+    DRAWING --> CRAFTING : Secondary Release\n(DrawingFlow → HexStateChange)
+
+    CASTING --> EXECUTION : Primary Click\n(HexModeExit EXECUTION)
+    EXECUTION --> IDLE : Execution completes
+
+    state CASTING {
+        [*] --> Hovering
+        Hovering --> Dragging : Primary Hold\n(HexMode CASTING)
+        Dragging --> Hovering : Primary Release\n(HexModeExit CASTING)
+    }
+
+    state DRAWING {
+        [*] --> Ready
+        Ready --> Stroking : Primary Hold\n(HexMode DRAWING)
+        Stroking --> Ready : Primary Release\n(HexModeExit DRAWING)
+    }
+```
+
+## File Map
+
+8 root interaction files and 5 Java types — everything is inlined.
+
+```mermaid
+flowchart LR
+    subgraph Files["Root Interaction Files (8)"]
+        R1["Hexcode_Staff_Primary\n<i>contains: HexStateBranch</i>"]
+        R2["Hexcode_Staff_Secondary\n<i>contains: HexStateBranch</i>"]
+        R3["Root_Hexcode_Mode_Casting\n<i>contains: HexMode + HexModeExit</i>"]
+        R4["Root_Hexcode_Mode_Drawing\n<i>contains: HexMode + HexModeExit</i>"]
+        R5["Root_Hexcode_Mode_Crafting\n<i>contains: HexMode + HexModeExit</i>"]
+        R6["Root_Hexcode_Mode_Execution\n<i>contains: HexModeExit</i>"]
+        R7["Root_Secondary_CastingFlow\n<i>contains: Simple + HexStateChange\n+ HexHold + Simple + HexStateChange</i>"]
+        R8["Root_Secondary_DrawingFlow\n<i>contains: Simple + HexStateChange\n+ HexHold + Simple + HexStateChange</i>"]
+    end
+
+    subgraph Java["Java Types (5)"]
+        J1["HexStateBranch"]
+        J2["HexStateChange"]
+        J3["HexHold"]
+        J4["HexMode"]
+        J5["HexModeExit"]
+    end
+
+    R1 -.- J1
+    R2 -.- J1
+    R1 -.->|"branches to"| R3 & R4 & R5 & R6
+    R2 -.->|"branches to"| R7 & R8
+    R3 & R4 & R5 -.- J4 & J5
+    R6 -.- J5
+    R7 & R8 -.- J2 & J3
+```

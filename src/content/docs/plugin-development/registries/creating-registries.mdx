@@ -157,7 +157,7 @@ To create a new asset type that gets loaded from JSON files in asset packs, buil
 
 #### Asset Class
 
-Your asset class must extend `JsonAssetWithMap`:
+Your asset class must implement `JsonAssetWithMap`:
 
 ```java
 import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
@@ -166,7 +166,7 @@ import com.hypixel.hytale.assetstore.codec.AssetBuilderCodec;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 
-public class SpawnTableAsset extends JsonAssetWithMap<String, DefaultAssetMap<String, SpawnTableAsset>> {
+public class SpawnTableAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, SpawnTableAsset>> {
     public String[] entries;
     public float weight;
 
