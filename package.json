@@ -1,7 +1,7 @@
 {
   "name": "doctale",
   "type": "module",
-  "version": "3.0.5",
+  "version": "4.0.0",
   "description": "Comprehensive documentation for Hytale server plugin development",
   "scripts": {
     "dev": "astro dev",
