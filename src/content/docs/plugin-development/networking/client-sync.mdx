@@ -5,7 +5,7 @@ description: "Replicate server state to clients with delta encoding and visibili
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-02-13] */}
+{/* [VERIFIED: 2026-03-21] */}
 
 # Client Synchronization
 
@@ -115,7 +115,7 @@ public class EntityUpdate {
 | 7 | `EquipmentUpdate` | Equipment loadout |
 | 8 | `EntityStatsUpdate` | Stats and attributes |
 | 9 | `TransformUpdate` | Position, rotation, scale |
-| 10 | `MovementStatesUpdate` | Movement flags |
+| 10 | `MovementStatesUpdate` | Movement flags (23 bytes) |
 | 11 | `EntityEffectsUpdate` | Active effects/buffs |
 | 12 | `InteractionsUpdate` | Interaction options |
 | 13 | `DynamicLightUpdate` | Light emission |
@@ -131,6 +131,10 @@ public class EntityUpdate {
 | 23 | `NewSpawnUpdate` | Newly spawned flag (marker) |
 | 24 | `ActiveAnimationsUpdate` | Playing animations |
 | 25 | `PropUpdate` | Prop marker (marker) |
+
+<Aside type="caution" title="Changed in Update 4">
+`MovementStatesUpdate` grew from 22 to 23 bytes due to a new `boolean fallingFar` field added to `MovementStates` between `falling` and `climbing`. This also affects `ClientMovement` (153 → 155 bytes, two embedded `MovementStates`) and `MountMovement` (59 → 60 bytes).
+</Aside>
 
 ### ComponentUpdate Hierarchy
 
@@ -330,6 +334,17 @@ TransformComponent transform = entity.getComponent(transformType);
 transform.setPosition(newPosition);
 // Entity tracker will detect change and sync
 ```
+
+## Notable Wire Format Changes
+
+<Aside type="caution" title="Changed in Update 4">
+Several packet wire formats changed in Update 4:
+- `ChatMessage`: max message length reduced from 4,096,000 to 255 characters
+- `DisplayDebug`: `boolean fade` replaced by `byte flags` bitfield using `DebugFlags` enum (`Fade(0)`, `NoWireframe(1)`, `NoSolid(2)`)
+- `MapImage`: direct `int[] data` pixel array replaced by palette-indexed compression (`int[] palette`, `byte bitsPerIndex`, `byte[] packedIndices`)
+- `ServerInfo`: new nullable `HostAddress fallbackServer` field for specifying a fallback server
+- `SyncInteractionChains`: max updates array length reduced from 4,096,000 to 128
+</Aside>
 
 ## Best Practices
 

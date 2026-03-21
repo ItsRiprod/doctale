@@ -5,7 +5,7 @@ description: "Serialize data to BSON and JSON with type-safe codecs, versioning,
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-02-19] */}
+{/* [VERIFIED: 2026-03-21] */}
 
 # Serialization (Codec) System Overview
 
@@ -26,7 +26,7 @@ The Codec System provides serialization and deserialization for BSON and JSON fo
 - **Dual format support** - Single codec handles both BSON and JSON
 - **Validation** - Built-in validators enforce constraints at decode time
 - **Versioning** - Schema evolution with field-level version ranges
-- **Schema generation** - Automatic JSON schema output via `toSchema()`
+- **Schema generation** - Automatic JSON schema output via `SchemaGenerator`
 - **Inheritance** - Parent/child codec relationships with field merging
 - **Polymorphism** - Type dispatch via discriminator fields
 
@@ -191,6 +191,10 @@ The path tracking (`pushKey`/`popKey`) produces dot-separated paths like `"MyFie
 
 <Aside type="caution" title="Changed in Update 3">
 `BuilderCodec.decodeJson0` was changed from `public` to `private`. Version decoding now happens before field decoding across all decode paths (BSON, JSON, BSON reader), ensuring version-dependent codec logic is resolved before any field processing. The builder pattern also changed from `addField(keyedCodec, setter, getter)` to `append(keyedCodec, setter, getter).add()`. See the [Update 3 changelog](/changelog/update-2-to-3/) for all breaking changes.
+</Aside>
+
+<Aside type="caution" title="Changed in Update 4">
+`GenerateSchemaEvent` was removed. Schema generation is now handled by `SchemaGenerator` at `com.hypixel.hytale.server.core.schema.SchemaGenerator`. Plugins that registered schemas via event handlers should use `SchemaGenerator.registerAssetSchema()` or `SchemaGenerator.registerConfig()` instead. The `StateData` codec also changed: `getId()` was removed, `DEFAULT_CODEC_BUILDER` was renamed to `CODEC_BUILDER`, and `DEFAULT_CODEC` was renamed to `CODEC`.
 </Aside>
 
 ## Related

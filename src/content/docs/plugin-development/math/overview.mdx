@@ -5,11 +5,25 @@ description: "Use vectors, matrices, shapes, raycasts, and random utilities for 
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-02-13] */}
+{/* [VERIFIED: 2026-03-21] */}
 
 # Math Utilities Overview
 
 The Math library provides vectors, matrices, shapes, and utilities for 3D game mathematics.
+
+<Aside type="danger" title="Removed in Update 4">
+Five custom math types were removed and replaced by JOML equivalents:
+
+| Removed Type | JOML Replacement |
+|---|---|
+| `com.hypixel.hytale.math.Mat4f` | `org.joml.Matrix4f` / `Matrix4fc` |
+| `com.hypixel.hytale.math.Vec2f` | `org.joml.Vector2f` / `Vector2fc` |
+| `com.hypixel.hytale.math.Vec3f` | `org.joml.Vector3f` / `Vector3fc` |
+| `com.hypixel.hytale.math.Vec4f` | `org.joml.Vector4f` / `Vector4fc` |
+| `com.hypixel.hytale.math.Quatf` | `org.joml.Quaternionf` / `Quaternionfc` |
+
+The JOML dependency is declared in `Protocol/pom.xml`. All ByteBuf serialization logic previously in these types has been moved to `PacketIO` methods. JOML types use `*fc` read-only interface variants for parameters where immutability is desired. The Hytale-specific vector types (`Vector3d`, `Vector3f`, `Vector3i`, `Vector2i`, etc. in `com.hypixel.hytale.math.vector`) are **not** affected.
+</Aside>
 
 ## Package Location
 
@@ -102,6 +116,10 @@ public class Vector3d {
 
 <Aside type="note" title="New in Update 3">
 `Vector3d.distance()` and `Vector3d.distanceSquared()` static methods were added for computing distances between two points without creating Vector3d objects. `Box.ZERO` was added as a convenience constant for a zero-sized box at the origin. Refer to the [Update 3 changelog](/changelog/update-2-to-3/) for the complete list of changes.
+</Aside>
+
+<Aside type="note" title="New in Update 4">
+`Vector3d.assign(Vector3i)` was added to assign from an integer vector.
 </Aside>
 
 ### Vector3i (Integer)
@@ -554,6 +572,25 @@ public class FloatRange {
     public float getFloat(float factor);
     public float getFloat(double factor);
     public boolean includes(float value);
+}
+```
+
+### ChunkUtil
+
+<Aside type="note" title="New in Update 4">
+`ChunkUtil` gained chunk coordinate validation methods and constants.
+</Aside>
+
+```java
+package com.hypixel.hytale.math.util;
+
+public class ChunkUtil {
+    public static final int MIN_CHUNK_COORD = -67108864;
+    public static final int MAX_CHUNK_COORD = 67108863;
+
+    public static boolean isValidChunkIndex(long index);
+    public static boolean isValidChunkCoords(int x, int z);
+    public static boolean isValidChunkCoord(int coord);
 }
 ```
 

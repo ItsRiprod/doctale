@@ -5,7 +5,7 @@ description: "Handle client-server communication with packets, watchers, and fil
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-02-13] */}
+{/* [VERIFIED: 2026-03-21] */}
 
 # Networking System Overview
 
@@ -98,6 +98,10 @@ A new `NetworkChannel` enum routes packets across separate QUIC streams:
 The `PacketRegistry` was restructured from a single `BY_ID` map to separate `TO_SERVER_BY_ID` and `TO_CLIENT_BY_ID` maps. `getById()` was split into `getToServerPacketById()` and `getToClientPacketById()`. The Netty pipeline (`PacketEncoder`/`PacketDecoder`) now validates that a packet's channel matches the stream channel. Full channel system details are in the [Update 3 changelog](/changelog/update-2-to-3/).
 </Aside>
 
+<Aside type="note" title="New in Update 4">
+A fourth network channel `Voice(3)` was added for dedicated voice chat routing. Voice packets (`VoiceData`, `RelayedVoiceData`) use this channel on a separate QUIC stream. The `VoiceConfig` packet is sent on the `Default` channel.
+</Aside>
+
 ### Packet Constants
 
 Each packet class defines:
@@ -133,11 +137,11 @@ public class ExamplePacket implements Packet {
 
 ## Packet Categories
 
-The protocol defines ~354 packet types across 18 categories:
+The protocol defines ~280 packet types across 20 categories:
 
 | Category | Package | Description |
 |----------|---------|-------------|
-| `connection` | `packets.connection` | Connect, Disconnect, Ping, Pong |
+| `connection` | `packets.connection` | Connect, ClientDisconnect, ServerDisconnect, Ping, Pong |
 | `auth` | `packets.auth` | Authentication tokens and passwords |
 | `player` | `packets.player` | Movement, teleport, inventory actions |
 | `entities` | `packets.entities` | Spawn, despawn, animation, knockback |
@@ -154,6 +158,8 @@ The protocol defines ~354 packet types across 18 categories:
 | `asseteditor` | `packets.asseteditor` | Asset editor operations |
 | `worldmap` | `packets.worldmap` | Map markers |
 | `serveraccess` | `packets.serveraccess` | Access control |
+| `voice` | `packets.voice` | Voice chat data and configuration |
+| `stream` | `packets.stream` | Auxiliary QUIC stream management |
 
 ## PacketHandler
 
@@ -163,11 +169,11 @@ The protocol defines ~354 packet types across 18 categories:
 package com.hypixel.hytale.server.core.io;
 
 public abstract class PacketHandler implements IPacketReceiver {
-    public void write(@Nonnull Packet packet);
-    public void writeNoCache(@Nonnull Packet packet);
-    public void write(@Nonnull Packet... packets);
-    public void write(@Nonnull Packet[] packets, @Nonnull Packet finalPacket);
-    public void writePacket(@Nonnull Packet packet, boolean cache);
+    public void write(@Nonnull ToClientPacket packet);
+    public void writeNoCache(@Nonnull ToClientPacket packet);
+    public void write(@Nonnull ToClientPacket... packets);
+    public void write(@Nonnull ToClientPacket[] packets, @Nonnull ToClientPacket finalPacket);
+    public void writePacket(@Nonnull ToClientPacket packet, boolean cache);
 
     public void sendPing();
     public void handlePong(@Nonnull Pong packet);
@@ -176,14 +182,19 @@ public abstract class PacketHandler implements IPacketReceiver {
     public final void registered(@Nullable PacketHandler oldHandler);
     public final void unregistered(@Nullable PacketHandler newHandler);
 
-    public void disconnect(@Nonnull String message);
+    public void disconnect(@Nonnull Message message);
+    public void disconnect(@Nonnull FormattedMessage message);
 
-    public abstract void accept(@Nonnull Packet packet);
+    public abstract void accept(@Nonnull ToServerPacket packet);
 }
 ```
 
 <Aside type="caution" title="Changed in Update 3">
 `PacketHandler` now supports multiple QUIC streams via a `channels[]` array instead of a single `channel` field. When using QUIC transport, separate streams are created for `Default`, `Chunks`, and `WorldMap` channels. The `IPacketReceiver.sendPacket()` method now accepts `ToClientPacket` instead of `Packet`. The [Update 3 changelog](/changelog/update-2-to-3/) covers all handler changes.
+</Aside>
+
+<Aside type="caution" title="Changed in Update 4">
+`PacketHandler.disconnect(String)` was replaced by `disconnect(Message)` and `disconnect(FormattedMessage)`. The handler now uses `ServerDisconnect` instead of the removed `Disconnect` packet. Auxiliary QUIC stream channels are managed via `getChannel(StreamType)`, `setChannel(StreamType, Channel)`, and `compareAndSetChannel(StreamType, Channel, Channel)`.
 </Aside>
 
 ### Handler Types
@@ -323,6 +334,18 @@ public void sendMultiple(PlayerRef player, Packet... packets) {
 }
 ```
 
+## Auxiliary Streams
+
+<Aside type="note" title="New in Update 4">
+Update 4 introduces auxiliary QUIC streams managed by `StreamManager` in `com.hypixel.hytale.server.core.io.stream`. Clients request new streams via `StreamOpen` (ID 460), and the server responds with `StreamOpenResponse` (ID 461). The voice chat system uses this to open a dedicated `Voice` stream. Handlers are registered via `StreamManager.registerHandler(StreamType, factory)`. Each connection supports up to 4 auxiliary streams.
+</Aside>
+
+## PacketIO Utilities
+
+<Aside type="note" title="New in Update 4">
+`PacketIO` now includes read/write methods for JOML math types: `readVector2f`, `readVector3f`, `readVector4f`, `readQuaternionf`, `readMatrix4f` and their corresponding write methods. All use little-endian byte order. This reflects the migration from custom `com.hypixel.hytale.math` types (Mat4f, Vec2f, etc.) to JOML equivalents.
+</Aside>
+
 ## Wire Protocol
 
 ### Packet Frame Format
@@ -382,9 +405,14 @@ Metrics include min, max, average, and 99th percentile over 1s, 1m, and 5m windo
 | Packet | Direction | Description |
 |--------|-----------|-------------|
 | `Connect` | C→S | Initial connection request |
-| `Disconnect` | Both | Connection termination |
+| `ClientDisconnect` | C→S | Client-initiated disconnect with `ClientDisconnectReason` enum |
+| `ServerDisconnect` | S→C | Server-initiated disconnect with `FormattedMessage` reason |
 | `Ping` | S→C | Latency measurement request |
 | `Pong` | C→S | Latency measurement response |
+
+<Aside type="caution" title="Changed in Update 4">
+The bidirectional `Disconnect` packet was split into `ClientDisconnect` (ID 1, C→S) and `ServerDisconnect` (ID 2, S→C). Client disconnect reasons changed from a variable-length `String` to a fixed-size `ClientDisconnectReason` enum. Server disconnect reasons changed from a plain `String` to a rich `FormattedMessage`. This caused `Ping` to shift from ID 2 to 3 and `Pong` from ID 3 to 4.
+</Aside>
 
 ### Player
 

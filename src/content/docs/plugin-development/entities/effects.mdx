@@ -5,7 +5,7 @@ description: "Apply status effects with duration, stacking, stat modifiers, and 
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-02-13] */}
+{/* [VERIFIED: 2026-03-21] */}
 
 # Entity Effects System
 
@@ -167,6 +167,9 @@ public class EntityEffect {
     // Visual
     String modelChange;
     ApplicationEffects applicationEffects;
+
+    // Conditions
+    Condition[] applyConditions;
 
     // Asset access
     public static AssetMap<EntityEffect> getAssetMap();
@@ -386,6 +389,10 @@ Common built-in effects (defined in game assets):
 
 <Aside type="note" title="New in Update 3">
 `EntityStatType` gained a `hideFromTooltip` boolean field in Update 3, allowing stat types to be hidden from the UI tooltip display. Browse the [Update 3 changelog](/changelog/update-2-to-3/) for all entity-related updates.
+</Aside>
+
+<Aside type="note" title="New in Update 4">
+`EntityEffect` gained an `applyConditions` field — an array of `Condition` objects that must all evaluate to `true` for the effect to remain active. If any condition fails, the effect is automatically removed. The condition system was also relocated from `com.hypixel.hytale.server.core.modules.entitystats.asset.condition` to `com.hypixel.hytale.server.core.modules.entity.condition`. New condition types added in Update 4 include `CheckPlayerGameModeCondition`, `HasEffectCondition`, `InFluidCondition`, and `IsPlayerCondition`.
 </Aside>
 
 ## Related

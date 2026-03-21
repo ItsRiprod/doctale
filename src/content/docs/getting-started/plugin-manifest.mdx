@@ -3,7 +3,7 @@ title: "Plugin Manifest (manifest.json)"
 description: "Configure your plugin's identity, version, dependencies, and entry point in the required manifest.json manifest file."
 ---
 
-{/* [VERIFIED: 2026-02-19] */}
+{/* [VERIFIED: 2026-03-21] */}
 
 import { Aside, FileTree, Steps } from '@astrojs/starlight/components';
 
@@ -187,6 +187,10 @@ Specifies which server version your plugin is compatible with. Since Update 3, t
 Using `"*"` or omitting `ServerVersion` entirely will log a warning: *"Plugin does not specify a target server version. You may encounter issues, please check for plugin updates. This will be a hard error in the future"*. Always set an exact version string for production plugins.
 </Aside>
 
+<Aside type="caution" title="Changed in Update 4">
+The `shouldSkipModValidation()` method and the `skipModValidationForVersion` config field on `HytaleServerConfig` have been removed. Mod validation now uses `assetPack.isImmutable()` combined with the `IGNORE_BROKEN_MODS` server option instead.
+</Aside>
+
 #### `Dependencies`
 **Type:** `Map<PluginIdentifier, SemverRange>`
 
@@ -330,6 +334,10 @@ A fully-featured manifest for a production plugin:
   "IncludesAssetPack": true
 }
 ```
+
+<Aside type="note" title="New in Update 4">
+The server now supports multiple mods directories via the `MODS_DIRECTORIES` option. Plugins can be loaded from additional directories beyond the default `plugins/` folder.
+</Aside>
 
 ## Related
 

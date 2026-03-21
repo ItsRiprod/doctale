@@ -5,11 +5,13 @@ description: "Manage player item storage including hotbar, main storage, armor s
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-02-13] */}
-
 # Player Inventory
 
 The inventory system manages player item storage including hotbar, main storage, armor, utility slots, and backpack.
+
+<Aside type="caution" title="Changed in Update 4">
+The inventory system was overhauled from a monolithic `Inventory` class to ECS-based `InventoryComponent` subclasses. Each inventory section (Hotbar, Storage, Armor, Utility, Backpack, Tool) is now a separate ECS component on the entity. The `Inventory` class still exists but is now a thin wrapper that delegates to the component system. `LivingEntityInventoryChangeEvent` was replaced by the ECS-based `InventoryChangeEvent`.
+</Aside>
 
 ## Package Location
 
@@ -17,7 +19,7 @@ The inventory system manages player item storage including hotbar, main storage,
 
 ## Overview
 
-Player inventory is divided into sections, each with a unique section ID. Active slots track which item the player currently has selected in each section.
+Player inventory is divided into sections, each with a unique section ID. Each section is a separate `InventoryComponent` subclass registered as an ECS component on the `EntityStore`. Active slots track which item the player currently has selected in each section.
 
 ## Inventory Sections
 
@@ -30,17 +32,91 @@ Player inventory is divided into sections, each with a unique section ID. Active
 | -8 | `TOOLS_SECTION_ID` | 23 | Tools (deprecated) |
 | -9 | `BACKPACK_SECTION_ID` | Variable | Expandable storage |
 
-## Core Class
+## Core Classes
 
-### Inventory
+### InventoryComponent (ECS)
 
-Main inventory management class:
+Each inventory section is a separate `InventoryComponent` subclass registered as an ECS component:
 
 ```java
 package com.hypixel.hytale.server.core.inventory;
 
+public abstract class InventoryComponent implements Component<EntityStore> {
+    public ItemContainer getInventory();
+    public void ensureCapacity(short capacity, List<ItemStack> remainder);
+    public void markDirty();
+    public boolean consumeIsDirty();
+    public boolean consumeNeedsSaving();
+}
+```
+
+| Subclass | ComponentType accessor | Active slot |
+|---|---|---|
+| `InventoryComponent.Hotbar` | `InventoryComponent.Hotbar.getComponentType()` | `getActiveSlot()` / `setActiveSlot(byte)` |
+| `InventoryComponent.Storage` | `InventoryComponent.Storage.getComponentType()` | — |
+| `InventoryComponent.Armor` | `InventoryComponent.Armor.getComponentType()` | — |
+| `InventoryComponent.Utility` | `InventoryComponent.Utility.getComponentType()` | `getActiveSlot()` / `setActiveSlot(byte)` |
+| `InventoryComponent.Backpack` | `InventoryComponent.Backpack.getComponentType()` | — |
+| `InventoryComponent.Tool` | `InventoryComponent.Tool.getComponentType()` | `getActiveSlot()` / `setActiveSlot(byte)` |
+| `InventoryComponent.Combined` | `InventoryComponent.Combined.getComponentType()` | — |
+
+#### Combined Container Access
+
+Use the static `getCombined()` method to build a `CombinedItemContainer` from multiple component types:
+
+```java
+CombinedItemContainer combined = InventoryComponent.getCombined(
+    accessor, ref, InventoryComponent.HOTBAR_FIRST
+);
+```
+
+Predefined ordering arrays:
+
+| Array | Sections (in order) |
+|---|---|
+| `HOTBAR_FIRST` | Hotbar, Storage |
+| `STORAGE_FIRST` | Storage, Hotbar |
+| `HOTBAR_STORAGE_BACKPACK` | Hotbar, Storage, Backpack |
+| `BACKPACK_STORAGE_HOTBAR` | Backpack, Storage, Hotbar |
+| `ARMOR_HOTBAR_UTILITY_STORAGE` | Armor, Hotbar, Utility, Storage |
+| `EVERYTHING` | Armor, Hotbar, Utility, Storage, Backpack |
+
+#### Getting the Item in Hand
+
+```java
+ItemStack heldItem = InventoryComponent.getItemInHand(accessor, ref);
+```
+
+This checks the Tool component first, then falls back to the Hotbar component.
+
+### InventoryChangeEvent
+
+`InventoryChangeEvent` is an ECS event fired when an inventory component changes. It replaces the former `LivingEntityInventoryChangeEvent`.
+
+```java
+package com.hypixel.hytale.server.core.inventory;
+
+public class InventoryChangeEvent extends EcsEvent {
+    public ComponentType<EntityStore, ? extends InventoryComponent> getComponentType();
+    public InventoryComponent getInventory();
+    public ItemContainer getItemContainer();
+    public Transaction getTransaction();
+}
+```
+
+### Inventory (Legacy Wrapper)
+
+<Aside type="danger" title="Deprecated in Update 4">
+The `Inventory` class is annotated `@Deprecated(forRemoval = true)` in v4. Use the ECS-based `InventoryComponent` subclasses instead. This wrapper may be removed in a future update.
+</Aside>
+
+The `Inventory` class still exists as a thin wrapper that delegates to the component system:
+
+```java
+package com.hypixel.hytale.server.core.inventory;
+
+@Deprecated(forRemoval = true)
 public class Inventory {
-    // Section ID constants
     public static final int HOTBAR_SECTION_ID = -1;
     public static final int STORAGE_SECTION_ID = -2;
     public static final int ARMOR_SECTION_ID = -3;
@@ -48,7 +124,6 @@ public class Inventory {
     public static final int TOOLS_SECTION_ID = -8;
     public static final int BACKPACK_SECTION_ID = -9;
 
-    // Container access
     public ItemContainer getHotbar();
     public ItemContainer getStorage();
     public ItemContainer getArmor();
@@ -57,23 +132,21 @@ public class Inventory {
     public ItemContainer getBackpack();
     public ItemContainer getSectionById(int sectionId);
 
-    // Active slot management - Hotbar
     public byte getActiveHotbarSlot();
-    public void setActiveHotbarSlot(byte slot);
+    public void setActiveHotbarSlot(
+        Ref<EntityStore> ref, byte slot,
+        ComponentAccessor<EntityStore> componentAccessor
+    );
     public ItemStack getActiveHotbarItem();
     public ItemStack getItemInHand();
 
-    // Active slot management - Utility
     public byte getActiveUtilitySlot();
-    public void setActiveUtilitySlot(byte slot);
+    public void setActiveUtilitySlot(
+        Ref<EntityStore> ref, byte slot,
+        ComponentAccessor<EntityStore> componentAccessor
+    );
     public ItemStack getUtilityItem();
 
-    // Active slot management - Tools (deprecated)
-    public byte getActiveToolsSlot();
-    public void setActiveToolsSlot(byte slot);
-    public ItemStack getToolsItem();
-
-    // Item operations
     public void moveItem(
         int fromSectionId, int fromSlotId,
         int quantity,
@@ -81,35 +154,16 @@ public class Inventory {
     );
 
     public void smartMoveItem(
+        Ref<EntityStore> ref,
         int fromSectionId, int fromSlotId,
         int quantity,
-        SmartMoveType moveType
-    );
-
-    // Bulk operations
-    public ListTransaction<MoveTransaction<ItemStackTransaction>> takeAll(
-        int inventorySectionId
-    );
-
-    public ListTransaction<MoveTransaction<ItemStackTransaction>> putAll(
-        int inventorySectionId
-    );
-
-    public ListTransaction<MoveTransaction<ItemStackTransaction>> quickStack(
-        int inventorySectionId
+        SmartMoveType moveType,
+        PlayerSettings settings,
+        ComponentAccessor<EntityStore> accessor
     );
 
     public List<ItemStack> dropAllItemStacks();
     public void clear();
-
-    // Combined containers
-    public CombinedItemContainer getCombinedHotbarFirst();
-    public CombinedItemContainer getCombinedStorageFirst();
-    public CombinedItemContainer getCombinedBackpackStorageHotbar();
-    public CombinedItemContainer getCombinedArmorHotbarStorage();
-    public CombinedItemContainer getCombinedArmorHotbarUtilityStorage();
-    public CombinedItemContainer getCombinedHotbarUtilityConsumableStorage();
-    public CombinedItemContainer getCombinedEverything();
 }
 ```
 
@@ -128,46 +182,59 @@ The armor section has 6 slots corresponding to `ItemArmorSlot`:
 
 ## Usage Examples
 
-### Accessing Inventory Containers
+### Accessing Inventory Components
 
 ```java
-import com.hypixel.hytale.server.core.inventory.Inventory;
-import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.inventory.InventoryComponent;
+import com.hypixel.hytale.component.ComponentAccessor;
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 
-// Get player inventory
-Player player = /* player reference */;
-Inventory inventory = player.getInventory();
+// access via ECS component system
+Ref<EntityStore> ref = /* entity reference */;
+ComponentAccessor<EntityStore> accessor = /* accessor */;
 
-// Access containers
-ItemContainer hotbar = inventory.getHotbar();      // 9 slots
-ItemContainer storage = inventory.getStorage();    // 36 slots
-ItemContainer armor = inventory.getArmor();        // 6 slots
-ItemContainer utility = inventory.getUtility();    // 4 slots
-ItemContainer backpack = inventory.getBackpack();  // Variable size
+InventoryComponent.Hotbar hotbar = accessor.getComponent(
+    ref, InventoryComponent.Hotbar.getComponentType()
+);
+InventoryComponent.Storage storage = accessor.getComponent(
+    ref, InventoryComponent.Storage.getComponentType()
+);
+InventoryComponent.Armor armor = accessor.getComponent(
+    ref, InventoryComponent.Armor.getComponentType()
+);
 
-// Access by section ID
-ItemContainer section = inventory.getSectionById(Inventory.HOTBAR_SECTION_ID);
+// access underlying item container
+if (hotbar != null) {
+    ItemContainer hotbarContainer = hotbar.getInventory();
+}
 ```
 
 ### Working with Active Slots
 
 ```java
-// Get currently held item (main hand)
-ItemStack heldItem = inventory.getItemInHand();
+// get currently held item (checks Tool then Hotbar component)
+ItemStack heldItem = InventoryComponent.getItemInHand(accessor, ref);
 
-// Get active hotbar slot (0-8)
-byte activeSlot = inventory.getActiveHotbarSlot();
+// get active hotbar slot (0-8)
+InventoryComponent.Hotbar hotbar = accessor.getComponent(
+    ref, InventoryComponent.Hotbar.getComponentType()
+);
+if (hotbar != null) {
+    byte activeSlot = hotbar.getActiveSlot();
+    ItemStack activeItem = hotbar.getActiveItem();
+    hotbar.setActiveSlot((byte) 3);
+}
 
-// Change active slot
-inventory.setActiveHotbarSlot((byte) 3);
-
-// Get specific hotbar item
-ItemStack hotbarItem = inventory.getActiveHotbarItem();
-
-// Utility items
-ItemStack utilityItem = inventory.getUtilityItem();
-inventory.setActiveUtilitySlot((byte) 1);
+// utility items
+InventoryComponent.Utility utility = accessor.getComponent(
+    ref, InventoryComponent.Utility.getComponentType()
+);
+if (utility != null) {
+    ItemStack utilityItem = utility.getActiveItem();
+    utility.setActiveSlot((byte) 1);
+}
 ```
 
 ### Moving Items
@@ -196,19 +263,26 @@ inventory.moveItem(
 
 ```java
 import com.hypixel.hytale.protocol.SmartMoveType;
+import com.hypixel.hytale.server.core.modules.entity.player.PlayerSettings;
 
 // Auto-equip armor or merge stacks
 inventory.smartMoveItem(
+    ref,
     Inventory.STORAGE_SECTION_ID, 15,
     1,
-    SmartMoveType.EquipOrMergeStack
+    SmartMoveType.EquipOrMergeStack,
+    playerSettings,
+    accessor
 );
 
 // Move to hotbar or open window container
 inventory.smartMoveItem(
+    ref,
     Inventory.STORAGE_SECTION_ID, 20,
     1,
-    SmartMoveType.PutInHotbarOrWindow
+    SmartMoveType.PutInHotbarOrWindow,
+    playerSettings,
+    accessor
 );
 ```
 
@@ -216,7 +290,7 @@ inventory.smartMoveItem(
 
 ```java
 // Take all items from a container (e.g., chest)
-var takeTransaction = inventory.takeAll(externalContainerId);
+var takeTransaction = inventory.takeAll(externalContainerId, playerSettings);
 
 // Put all storage items into container
 var putTransaction = inventory.putAll(externalContainerId);
@@ -234,31 +308,27 @@ inventory.clear();
 ### Combined Containers
 
 ```java
-// Search hotbar first, then storage
-CombinedItemContainer hotbarFirst = inventory.getCombinedHotbarFirst();
+import com.hypixel.hytale.server.core.inventory.InventoryComponent;
+import com.hypixel.hytale.server.core.inventory.container.CombinedItemContainer;
 
-// Search storage first, then hotbar
-CombinedItemContainer storageFirst = inventory.getCombinedStorageFirst();
-
-// Search backpack, storage, hotbar
-CombinedItemContainer backpackFirst = inventory.getCombinedBackpackStorageHotbar();
-
-// Search armor, hotbar, storage
-CombinedItemContainer armorHotbarStorage = inventory.getCombinedArmorHotbarStorage();
-
-// Search armor, hotbar, utility, storage
-CombinedItemContainer armorHotbarUtility = inventory.getCombinedArmorHotbarUtilityStorage();
-
-// Search hotbar, utility, storage (consumable-focused)
-CombinedItemContainer hotbarUtility = inventory.getCombinedHotbarUtilityConsumableStorage();
-
-// Search everything (armor, hotbar, utility, storage, backpack)
-CombinedItemContainer everything = inventory.getCombinedEverything();
-
-// Find item in combined container
-ItemStack foundItem = everything.findItem(item ->
-    item.getItem().getId().equals("iron_sword")
+// search hotbar first, then storage
+CombinedItemContainer hotbarFirst = InventoryComponent.getCombined(
+    accessor, ref, InventoryComponent.HOTBAR_FIRST
 );
+
+// search everything (armor, hotbar, utility, storage, backpack)
+CombinedItemContainer everything = InventoryComponent.getCombined(
+    accessor, ref, InventoryComponent.EVERYTHING
+);
+
+// iterate over combined container to find an item
+for (short i = 0; i < everything.getCapacity(); i++) {
+    ItemStack stack = everything.getItemStack(i);
+    if (!ItemStack.isEmpty(stack) && stack.getItem().getId().equals("iron_sword")) {
+        // found the item at slot i
+        break;
+    }
+}
 ```
 
 ### Working with Armor
@@ -284,21 +354,20 @@ if (armor.isEmpty(0)) {
 ### Checking Item in Hand
 
 ```java
-// Get currently held item
-ItemStack heldItem = inventory.getItemInHand();
+// get currently held item via the static helper
+ItemStack heldItem = InventoryComponent.getItemInHand(accessor, ref);
 
 if (heldItem != null) {
     Item item = heldItem.getItem();
     String itemId = item.getId();
     int quantity = heldItem.getQuantity();
 
-    // Check item type
     if (item.getWeapon() != null) {
-        // Holding a weapon
+        // holding a weapon
     } else if (item.getTool() != null) {
-        // Holding a tool
+        // holding a tool
     } else if (item.getBlock() != null) {
-        // Holding a placeable block
+        // holding a placeable block
     }
 }
 ```
@@ -326,3 +395,5 @@ Options for intelligent item placement:
 - [Inventory System](/plugin-development/inventory/overview/) - Full inventory API
 - [Entity System](/plugin-development/entities/overview/) - Player entity
 - [Item System](/asset-development/overview/) - Item types and stacks
+
+{/* [VERIFIED: 2026-03-21] */}

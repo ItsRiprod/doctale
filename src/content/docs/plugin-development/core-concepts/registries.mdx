@@ -5,7 +5,7 @@ description: "Register components, events, commands, and features through the pl
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-02-19] */}
+{/* [VERIFIED: 2026-03-21] */}
 
 # Plugin Registries
 
@@ -32,12 +32,15 @@ The following registries are available:
 | Event Registry | `getEventRegistry()` | Register event listeners |
 | Entity Store Registry | `getEntityStoreRegistry()` | Register entity ECS components/systems |
 | Chunk Store Registry | `getChunkStoreRegistry()` | Register chunk ECS components/systems |
-| Block State Registry | `getBlockStateRegistry()` | Register custom block states |
 | Entity Registry | `getEntityRegistry()` | Register entity types |
 | Task Registry | `getTaskRegistry()` | Register scheduled tasks |
 | Asset Registry | `getAssetRegistry()` | Register asset types |
 | Client Feature Registry | `getClientFeatureRegistry()` | Register client feature flags |
 | Codec Registry | `getCodecRegistry(codec)` | Register to codec maps |
+
+<Aside type="danger" title="Removed in Update 4">
+`getBlockStateRegistry()` was removed. Register block components via `getChunkStoreRegistry().registerComponent(...)` instead. See [Block Components](/plugin-development/blocks/block-states/) for migration details.
+</Aside>
 
 For method tables, code examples, and details on each registry, see [Existing Registries](/plugin-development/registries/existing-registries/).
 

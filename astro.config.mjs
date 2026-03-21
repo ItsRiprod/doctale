@@ -388,6 +388,7 @@ export default defineConfig({
 						{ label: 'Overview', slug: 'changelog/overview' },
 						{ label: 'Update 1 → 2', slug: 'changelog/update-1-to-2' },
 						{ label: 'Update 2 → 3', slug: 'changelog/update-2-to-3' },
+						{ label: 'Update 3 → 4', slug: 'changelog/update-3-to-4' },
 					],
 				},
 				{

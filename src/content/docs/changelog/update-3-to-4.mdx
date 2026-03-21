@@ -1,0 +1,665 @@
+---
+title: "Update 3 to Update 4 Changelog"
+description: "Comprehensive changelog covering all code changes from Hytale Server Update 3 to Update 4."
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+This page covers **all notable changes** between Update 3 and Update 4. Changes are organized by category, from the most impactful breaking changes to internal improvements.
+
+---
+
+## New Features and Systems
+
+### Voice Chat System
+
+A proximity-based voice chat module enables spatial voice communication between players. → [Networking Overview](/plugin-development/networking/overview/) · [Packet Types](/plugin-development/networking/packet-types/)
+
+- `VoiceModule` (`com.hypixel.hytale.server.core.modules.voice.VoiceModule`): full JavaPlugin managing voice state, player muting, and voice routing with 4 dedicated executor threads
+- `VoiceRouter`: spatial routing that determines which listeners receive voice data based on distance (default 32 blocks) and world isolation, with speaker position quantized to 0.5 block resolution (max 12 speakers per listener)
+- `VoiceStreamHandler`: Netty handler for dedicated voice QUIC streams with token bucket rate limiting
+- `VoiceModuleConfig`: persisted config with `voiceEnabled`, `maxHearingDistance`, `fullVolumeDistance`, `deadPlayersCanHear`, `mutedPlayers`
+- `VoicePlayerState`: per-player state tracking with consecutive error counting
+- `/voice` command with subcommands: `enabled`, `maxdistance`, `fullvolumedistance`, `mute`, `unmute`, `muted`, `status`
+- New `NetworkChannel.Voice(3)` for dedicated voice QUIC channel
+- New `SoundCategory.Voice(4)` enum value
+- New packets:
+  - `VoiceData` (ID 450, ToServer, channel: Voice) -- Opus-encoded audio from client
+  - `RelayedVoiceData` (ID 451, ToClient, channel: Voice) -- relayed audio with spatial info (speaker position, underwater state)
+  - `VoiceConfig` (ID 452, ToClient) -- server sends codec config, sample rate, hearing distance
+
+<Aside type="note" title="New in Update 4">
+The voice chat system is entirely new. It uses a dedicated QUIC stream (`StreamType.Voice`) separate from the game stream, with its own rate limiting and spatial routing.
+</Aside>
+
+### Stream IO System
+
+A new auxiliary QUIC stream management system supports multiple stream types beyond the main game connection. → [Networking Overview](/plugin-development/networking/overview/)
+
+- `StreamManager` (`com.hypixel.hytale.server.core.io.stream.StreamManager`): singleton registry for auxiliary stream handlers with priority support
+- `PendingStreamHandler`: validates first packet is `StreamOpen`, checks rate limits and max auxiliary streams (4)
+- New packets:
+  - `StreamOpen` (ID 460, ToServer) -- client requests a stream of a given `StreamType`
+  - `StreamOpenResponse` (ID 461, ToClient) -- server accepts or rejects with reason
+- `StreamType` enum: `Game(0)`, `Voice(1)`
+
+### Emote System
+
+Players can play character emotes with server-side asset management. → [Packet Types](/plugin-development/networking/packet-types/)
+
+- `EmoteAsset` (`com.hypixel.hytale.server.core.cosmetics.EmoteAsset`): asset with CODEC, network serialization to `ProtocolEmote`, and indexed lookup
+- `EmoteAssetPacketGenerator`: generates `UpdateEmotes` packets for init/update/remove
+- New `CosmeticType.EMOTES_INGAME` enum value
+- New packets:
+  - `PlayEmote` (ID 167, ToServer) -- client requests emote by ID
+  - `UpdateEmotes` (ID 86, ToClient, compressed) -- server sends emote definitions
+- New struct `ProtocolEmote`: `id`, `name`, `animation`, `icon`, `isLooping`
+
+### Inventory Component System
+
+The monolithic `Inventory` class has been refactored into an ECS component-based architecture. → [ECS Overview](/plugin-development/core-concepts/ecs-overview/) · [Inventory docs](/plugin-development/inventory/overview/)
+
+- `InventoryComponent` (`com.hypixel.hytale.server.core.inventory.InventoryComponent`): abstract base class with inner static subclasses for each section: `Hotbar`, `Storage`, `Armor`, `Utility`, `Backpack`, `Tool`, `Combined`
+- Section ID constants: `HOTBAR_SECTION_ID`, `STORAGE_SECTION_ID`, `ARMOR_SECTION_ID`, `UTILITY_SECTION_ID`, `BACKPACK_SECTION_ID`, `TOOL_SECTION_ID`
+- Combined container orderings: `HOTBAR_FIRST`, `HOTBAR_STORAGE_BACKPACK`, `STORAGE_FIRST`, `EVERYTHING`
+- Static helpers: `getCombined()` builds `CombinedItemContainer` from multiple component types, `getItemInHand()` checks Tool then Hotbar
+- `InventoryChangeEvent` replaces `LivingEntityInventoryChangeEvent`
+- `InventorySystems`: per-section change event systems (`ArmorChangeEventSystem`, `BackpackChangeEventSystem`, etc.) plus legacy stat change systems
+- `FetchedItemContainer`: lazy-loading wrapper for component-based containers
+
+<Aside type="note" title="New in Update 4">
+Inventory is now fully component-based. The `Inventory` class still exists but is a thin wrapper. All inventory access should use `InventoryComponent` static methods.
+</Aside>
+
+### BlockState to Component Migration
+
+The `BlockState` system has been completely removed and replaced by `Component<ChunkStore>` components registered in `BlockModule`. → [Block Types](/plugin-development/blocks/block-types/) · [ECS Overview](/plugin-development/core-concepts/ecs-overview/)
+
+- `ItemContainerBlock` replaces `ItemContainerBlockState` / `ItemContainerState`
+- `PrefabSpawnerBlock` replaces `PrefabSpawnerState`
+- `BenchBlock` replaces `BenchState`
+- `ProcessingBenchBlock` replaces `ProcessingBenchState`
+- `TreasureChestBlock` replaces `TreasureChestState`
+- `SpawnMarkerBlock` replaces `SpawnMarkerBlockState`
+- `BlockEntity` utility: static `setBlockEntity()` for block entity creation on chunks
+- `BlockReplaceEvent`: dispatched when a block entity is being replaced
+- `ItemContainerBlockSpatialSystem`: KDTree-based spatial tracking for item container blocks
+- `ItemContainerSystems`: lifecycle systems for item container blocks (drop on remove, transfer on replace)
+- `BenchSystems`: lifecycle and tick systems for bench block components (`OnAddOrRemoved`, `ProcessingBenchLifecycle`, `ProcessingBenchTick`)
+
+<Aside type="caution" title="Changed in Update 4">
+The entire `BlockState` hierarchy (`BlockState`, `BlockStateModule`, `BlockStateRegistry`, `BlockStateRegistration`) has been removed. All block state functionality has been migrated to `Component<ChunkStore>` components. `BlockModule.getComponent()` no longer auto-creates block states -- it returns null if no component exists.
+</Aside>
+
+### WorldGen Modifier System
+
+A new data-driven modding API allows mods to modify world generation configurations without replacing entire files. → [World Generation Overview](/plugin-development/worldgen/overview/)
+
+- `WorldGenModifier` (`com.hypixel.hytale.builtin.worldgen.modifier.WorldGenModifier`): data-driven asset with `CODEC`, priority (`EventPriority`), target, and operations
+- `EventHandler`: scoped thread-local handler dispatching matching modifiers by target
+- `Target`: target configuration with root name and glob pattern rules
+- `EventType` enum: `Biome_Covers`, `Biome_Environments`, `Biome_Fluids`, `Biome_Dynamic_Layers`, `Biome_Static_Layers`, `Biome_Prefabs`, `Biome_Tints`, `Cave_Types`, `Cave_Covers`, `Cave_Prefabs`
+- Operations: `AddOp` (adds content to target list) and `RemoveOp` (removes entries matching glob rules, supports `"*"` to clear all)
+- Content system: `FileRef` for referencing content files by dot-separated path
+
+<Aside type="note" title="New in Update 4">
+The `WorldGenModifier` system lets mods add, remove, or replace biome and cave configurations through asset files registered at the `"WorldGen/Modifier"` store path.
+</Aside>
+
+### Condition System Expansion
+
+Entity conditions have been relocated from `modules/entitystats/asset/condition/` to `modules/entity/condition/` and expanded with new types. → [Entity Effects](/plugin-development/entities/effects/)
+
+- `CheckPlayerGameModeCondition`: checks if entity is a player in a specific GameMode
+- `HasEffectCondition`: checks if entity has an active EntityEffect by ID
+- `InFluidCondition`: checks if entity's bounding box intersects fluid blocks (by fluid IDs or tags)
+- `IsPlayerCondition`: checks if entity has Player component
+- `PlayerCondition` removed, replaced by `IsPlayerCondition` and `CheckPlayerGameModeCondition`
+- Conditions now use `ComponentAccessor<EntityStore>` instead of `Store<EntityStore>`
+- `EntityEffect` gained `applyConditions` field -- conditions that must all be true for an effect to remain active
+
+### Revolve Builder Tool Operation
+
+A new builder tool operation (`RevolveOperation`) radially copies block selections around a center point. → [Builtin Plugins](/tutorials/builtin-plugins/)
+
+- Three sampling modes: `Neighbor` (fills gaps), `Reverse` (rotated block selection), `Disabled`
+- Configurable copy count, full revolve mode, center point, entity duplication
+- Constants: `REVOLVE_COPY_LIMIT=1000000`, `MAX_ENTITIES=1000`
+
+### Brush Rotation Operations
+
+Two new scripted brush operations for rotating brush shapes.
+
+- `RotateOperation`: rotates brush shape by axis, angle, and origin (OffsetCenter, ClickCenter, Player)
+- `ClearRotationOperation`: resets brush rotation to identity
+- `BrushConfig` gained `transform` and `transformOrigin` fields with `setTransform()`, `resetTransform()`, `getExecutionOrigin()`
+
+### Prefab Editor Improvements
+
+- `PrefabEditBackCommand`: new `/editprefab back` subcommand for returning to the previous world
+- `PrefabEditorLoadOptionsPage`: UI page when a player has an existing edit session but is outside the edit world (options: load existing, cancel, create new)
+- `AssetPackSaveBrowser`: new UI browser for selecting/creating target asset packs when saving prefabs
+- Save commands now support `--pack` argument for specifying target asset pack
+- Clipboard now includes entity data via `ClipboardEntityChange` struct
+
+### New Packets
+
+→ [Packet Types](/plugin-development/networking/packet-types/)
+
+- `PlaySoundEventLocalPlayer` (ID 362, ToClient) -- plays a sound event for the local player only
+- `AssetEditorModsDirectories` (ID 356, ToClient) -- sends available mod directories to asset editor
+- `PrefabSetAnchor` (ID 426, ToServer) -- sets prefab anchor position (replaces `PrefabSetAnchorInteraction`)
+- `BuilderToolResetClipboardRotation` (ID 427, ToServer) -- resets clipboard rotation
+
+### Crafting Enhancements
+
+- `CraftRecipeEvent.Pre` and `CraftRecipeEvent.Post` events allow cancellation before and after recipe completion → [Builtin Plugins](/tutorials/builtin-plugins/)
+- `BenchWindow.updateQueueSize()` and `CraftingManager.getRemainingQueueSize()` for craft queue tracking
+- `ProcessingBenchBlock` now supports batch completion and game-time-based catch-up processing on load
+
+### Other New Features
+
+- `SchemaGenerator` replaces event-based schema generation (`GenerateSchemaEvent` removed) with `registerConfig()`, `registerAssetSchema()`, `generate()` methods
+- `CommandInteraction`: interaction type that executes a server command as the owning player
+- `BackupChunkLoader`: loads chunks from backup ZIP files with fallback chain for world recovery
+- `UpdateSetupCommand`: `/update setup` command extracts launcher scripts from JAR resources
+- `DisabledFluidResource`: resource component caching disabled fluid IDs from world config, with tag-based resolution
+- `ObjectiveInventoryChangeSystem`: ECS event system replacing inline `LivingEntityInventoryChangeEvent` handler for objectives
+- `InventoryChangeAware` interface for objective tasks that react to inventory changes
+- `WorldMapConfig` hierarchy: `ServerWorldMapConfig` (server-level) and `WorldWorldMapConfig` (per-world) for view radius configuration
+- `SwitchResponseCurve`: binary response curve returning `initialState` below switch point, `finalState` at/above
+- `PortalSpawnConfig`: configuration for portal spawn behavior (return portal, spawn provider override, return block override)
+- `PortalDevice` gained `pendingWorld` field for async world loading state tracking
+- `ConditionalBlockSound`: pairs a SoundEvent with an AmbienceFX condition for ambient block sounds
+- `ItemHudUI`: defines HUD UI elements associated with items (path + type)
+- `EntityHolderEventType` / `EntityHolderEventSystem`: new ECS event type dispatching events with both `Holder` and `Store` context
+- `BiIntConsumer`: functional interface accepting two int parameters
+- `RemovedPlayerFromWorldEvent`: event with `shouldBroadcastLeaveMessage()` and settable leave message
+- `CachedStatsComponent`: simple component caching `canBreathe` boolean for entities
+- `PaletteSetProvider`: thread-local provider for reusable hash sets in palette operations
+- `BlockOperations`: extracted utility methods for `updateBlockArea`, `updateBlockHeight`, `spawnBlockParticles`
+- `HttpResponseException`: IOException subclass carrying HTTP status code and response body
+- Deterministic weather: `WeatherSystem` now uses `FastRandom` seeded from world seed + environment `weatherSeedKey` + date/time hash
+- Area-of-effect watering: `UseWateringCanInteraction` supports `RadiusX` and `RadiusZ` CODEC fields with player-facing-based iteration
+- Memory sounds: `MemoriesGameplayConfig` gained `MemoriesRestoreSoundEventId` and `MemoriesCatchSoundEventId` fields
+
+---
+
+## Breaking Changes
+
+### Disconnect Packet Split
+
+The bidirectional `Disconnect` packet (ID 1) was split into two unidirectional packets. → [Networking Overview](/plugin-development/networking/overview/) · [Packet Types](/plugin-development/networking/packet-types/)
+
+- `Disconnect` (Both, ID 1) removed
+- `ClientDisconnect` (ToServer, ID 1): reason changed from `String` to `ClientDisconnectReason` enum (`PlayerLeave`, `PlayerAbort`, `UserLeave`, `Crash`), fixed 2 bytes
+- `ServerDisconnect` (ToClient, ID 2): reason changed from `String` to `FormattedMessage` (rich text)
+- `Ping` ID shifted from 2 to 3, `Pong` from 3 to 4
+- `QuicApplicationErrorCode` enum replaces `APPLICATION_*` int constants in `ProtocolUtil`
+- `ProtocolUtil.closeApplicationConnection()` now takes `QuicApplicationErrorCode` instead of `int`
+
+<Aside type="caution" title="Changed in Update 4">
+The `Disconnect` packet no longer exists. Use `ClientDisconnect` (client-to-server) and `ServerDisconnect` (server-to-client) instead. Packet IDs for `Ping` and `Pong` have shifted.
+</Aside>
+
+### Math Types Removed (JOML Migration)
+
+Five custom math types removed from `com.hypixel.hytale.math`, replaced by JOML equivalents. → [Math Overview](/plugin-development/math/overview/)
+
+| Removed Type | JOML Replacement |
+|---|---|
+| `Mat4f` | `org.joml.Matrix4f` / `Matrix4fc` |
+| `Vec2f` | `org.joml.Vector2f` / `Vector2fc` |
+| `Vec3f` | `org.joml.Vector3f` / `Vector3fc` |
+| `Vec4f` | `org.joml.Vector4f` / `Vector4fc` |
+| `Quatf` | `org.joml.Quaternionf` / `Quaternionfc` |
+
+Serialization logic moved to `PacketIO` methods: `readVector2f`, `readVector3f`, `readVector4f`, `readQuaternionf`, `readMatrix4f` and corresponding write methods (all little-endian). JOML `*fc` read-only interfaces used for immutable parameters.
+
+Note: `com.hypixel.hytale.math.vector.Vector3d`, `Vector3f`, `Vector3i`, `Vector2i` etc. are NOT removed.
+
+<Aside type="danger" title="Removed in Update 4">
+`Mat4f`, `Vec2f`, `Vec3f`, `Vec4f`, and `Quatf` from `com.hypixel.hytale.math` have been removed. Use JOML types instead.
+</Aside>
+
+### WorldGen Package Restructuring
+
+Massive package reorganization across the entire world generation system (580 files, 171 new, 135 removed). All import paths have changed. → [World Generation Overview](/plugin-development/worldgen/overview/)
+
+**Package renames:**
+- `newsystem/` promoted to `engine/` with `N` prefix dropped on all classes (e.g., `NStagedChunkGenerator` → `StagedChunkGenerator`, `NStage` → `Stage`, `NViewport` → `Viewport`)
+- `framework/` dissolved -- math classes relocated to `math/`, all cartas and shaders removed
+- `seed/` → `rng/` (`SeedBox` relocated, `SeedGenerator` replaced by `RngField`)
+- `threadindexer/` → `workerindexer/`
+- `datastructures/voxelspace/` → `voxelspace/`
+- `fields/` → `noise/` and `noise/pointprovider/`
+- `propassignments/` → `assignments/`
+- `chunkgenerator/` → `engine/chunkgenerator/`
+
+**API renames:**
+- `VoxelSpace.getContent()` → `get()`, `setContent()` → `set()`, `isInsideSpace()` → `getBounds().contains()`
+- `Pattern.readSpace()` → `getBounds_voxelGrid()`, `noPattern()` → `ConstantPattern.INSTANCE_FALSE`, `yesPattern()` → `ConstantPattern.INSTANCE_TRUE`
+- `Scanner.scan()` returns `void` instead of `List<Vector3i>`, new pipe-based `scan(Vector3i, Pipe.One<Vector3i>)`
+- `PositionProvider.positionsIn()` → `generate()`, `noPositionProvider()` → `EmptyPositionProvider.INSTANCE`
+- `Prop.scan()`/`place()` two-phase removed, replaced by single `generate(Context)` returning `boolean`
+- `Prop.noProp()` → `EmptyProp.INSTANCE`, `Scanner.noScanner()` → `EmptyScanner`
+- `PropField` → `PropRuntime`, `PropsSource.getPropFields()` → `getPropRuntimes()`
+- `SpaceSize` → `Bounds3i` throughout
+- `Biome.getBiomeName()` removed from interface
+
+### Prop System Overhaul
+
+The scan/place two-phase pattern for props has been replaced by a single-pass `generate()` method. → [World Generation Overview](/plugin-development/worldgen/overview/)
+
+- `Prop.Context` fields changed: `ScanResult scanResult` → `Vector3i position`, `VoxelSpace<Material> materialSpace` split into `materialReadSpace` + `materialWriteSpace`, `EntityContainer entityBuffer` → `EntityFunnel entityWriteBuffer`, `distanceFromBiomeEdge` → `distanceToBiomeEdge`
+- `Scanner.Context` fields: `WorkerIndexer.Id workerId` → `List<Vector3i> validPositions_out`
+- `PositionProvider.Context`: `Vector3d minInclusive` + `maxExclusive` → `Bounds3d bounds`, `Consumer<Vector3d> consumer` → `Pipe.One<Vector3d> pipe`
+- New pipe system (`pipe/Pipe.java`, `pipe/Control.java`) replaces raw `Consumer<T>` with halt-capable iteration
+
+### Inventory Architecture Change
+
+→ [Inventory docs](/plugin-development/inventory/overview/) · [ECS Overview](/plugin-development/core-concepts/ecs-overview/)
+
+- `Inventory` class stripped of all internal container fields and `NetworkSerializable` implementation
+- All code using `EntityUtils.getEntity() instanceof LivingEntity` + `getInventory()` must migrate to `InventoryComponent.getCombined(accessor, ref, ordering)`
+- `LivingEntityInventoryChangeEvent` removed, replaced by `InventoryChangeEvent` (ECS event)
+- `NPCEntity.setInventorySize()` removed -- inventory creation handled by `NPCSystems.OnNPCAdded`
+
+<Aside type="caution" title="Changed in Update 4">
+All inventory access must use the `InventoryComponent` system. The `Inventory` class is now a thin wrapper. `LivingEntityInventoryChangeEvent` has been replaced by `InventoryChangeEvent`.
+</Aside>
+
+### BlockState System Removal
+
+→ [Block Types](/plugin-development/blocks/block-types/)
+
+The entire block state hierarchy has been removed:
+- `BlockState`, `BlockStateModule`, `BlockStateRegistration`, `BlockStateRegistry`
+- `BreakValidatedBlockState`, `DestroyableBlockState`, `ItemContainerBlockState`, `ItemContainerState`
+- `PlacedByBlockState`, `SendableBlockState`, `TickableBlockState`
+- `BlockModule.getComponent()` no longer auto-creates block states -- returns `null` if no component exists
+- All block state registrations (`BlockStateRegistry.registerBlockState()`) replaced by `ChunkStoreRegistry.registerComponent()`
+
+### PacketHandler Disconnect Signature
+
+`PacketHandler.disconnect(String)` changed to `disconnect(Message)` and `disconnect(FormattedMessage)`. Uses `ServerDisconnect` packet instead of `Disconnect`. → [Networking Overview](/plugin-development/networking/overview/)
+
+### Ref.validate() Return Type
+
+`Ref.validate(Store)` now returns `int` (the entity index) instead of `void`. All `ref.validate(this); ref.getIndex()` pairs consolidated to `ref.validate(this)`. → [ECS Overview](/plugin-development/core-concepts/ecs-overview/)
+
+### ComponentAccessor New Abstract Methods
+
+`ComponentAccessor` gained two new abstract methods: `invoke(Holder, Event)` and `invoke(EntityHolderEventType, Holder, Event)`. Any custom implementation must add these methods.
+
+### SpatialResource Return Type
+
+`SpatialResource.getThreadLocalReferenceList()` return type changed from `ObjectList<Ref<ECS_TYPE>>` to `List<Ref<ECS_TYPE>>`. Uses `ReferenceArrayList` instead of `ObjectArrayList`.
+
+### DebugUtils API Change
+
+Debug shape methods changed from `boolean fade` to `int flags` parameter. → [Builtin Plugins](/tutorials/builtin-plugins/)
+
+- `DebugUtils.addArrow()`, `addDisc()`, `addLine()` last parameter: `boolean fade` → `int flags`
+- Use `DebugUtils.FLAG_FADE` constant instead of `true`
+- `DisplayDebug` packet: `boolean fade` → `byte flags` (bitfield using `DebugFlags` enum: `Fade(0)`, `NoWireframe(1)`, `NoSolid(2)`)
+
+### Builder Tool Data Restructuring
+
+→ [Builtin Plugins](/tutorials/builtin-plugins/)
+
+- `BuilderToolData` and `BrushData` classes removed
+- `Item.builderToolData` type changed from `BuilderToolData` to `BuilderTool` directly
+- `BuilderTool.args` changed from `Map<String, ToolArg>` to `ToolArg[]` (array), deserialized into `LinkedHashMap` by `arg.getId()`
+- `ToolArg` gained `id` field
+- `ItemBase.builderToolData` type changed from `ItemBuilderToolData` to `BuilderToolState`
+- `BuilderToolState.args` changed from `Map<String, BuilderToolArg>` to `BuilderToolArg[]`
+- `BuilderToolState.brushData` field removed
+- `BuilderToolArgUpdate.group` field removed (`BuilderToolArgGroup` enum removed)
+- Brush parameters now read from tool args with `builtin_` prefix (e.g., `builtin_Width`, `builtin_Height`, `builtin_Shape`)
+
+### MapImage Palette Compression
+
+`MapImage` data format changed from direct pixel data to palette-indexed compression. → [Packet Types](/plugin-development/networking/packet-types/)
+
+- `int[] data` replaced by `int[] palette`, `byte bitsPerIndex`, `byte[] packedIndices`
+
+### StateData Changes
+
+- `StateData.id` field and `getId()` method removed
+- `StateData(String id)` constructor removed
+- `DEFAULT_CODEC_BUILDER` renamed to `CODEC_BUILDER`, `DEFAULT_CODEC` renamed to `CODEC`
+- `CodecMapCodec` wrapper removed -- now just a `BuilderCodec`
+
+### HytaleServerConfig Changes
+
+→ [Server Configuration](/plugin-development/server/configuration/)
+
+- `shouldSkipModValidation()` removed from `Constants` and `HytaleServerConfig`
+- `skipModValidationForVersion` field removed
+- Added `ServerWorldMapConfig worldMapConfig` field
+- Added `HostAddress fallbackServer` field (also adds `fallbackServer` field to `ServerInfo` packet)
+- `Options.SINGLEPLAYER_NO_VALIDATION` removed
+- New options: `VERIFY_WORLDS`, `RECOVERY_MODE`, `MODS_DIRECTORIES`, `GENERATE_ASSET_SCHEMA`, `GENERATE_CONFIG_SCHEMA`, `IGNORE_BROKEN_MODS`
+
+### Other Breaking Changes
+
+- `ChatMessage` max string length reduced from 4096000 to 255 (max packet size 16384006 → 1026) → [Packet Types](/plugin-development/networking/packet-types/)
+- `SyncInteractionChains.Updates` array max length reduced from 4096000 to 128
+- `AmbienceFXSoundPlay3D`: new `LocationNameRandom(2)` value inserted, `No` shifted from 2 to 3 (ordinal break)
+- `FileContext` generic bound tightened from `<T>` to `<T extends FileContext<?>>`
+- `FileContextLoader` constructor now requires `String name` parameter
+- `StringUtil.parseArgs()` removed (was `@Deprecated(forRemoval = true)`)
+- `TransformingClassLoader`: `"com.hypixel.protoplus."` removed from parent-delegated packages
+- `ShutdownReason` messages changed from `String` to `Message` type
+- `CursedItems.deleteAll(Player)` overload removed -- use `deleteAll(ItemContainer)` instead
+- `StashPlugin.stash()` signature changed to take `BlockModule.BlockStateInfo` parameter
+- `ReplaceCommand` restructured from flag-based to subcommand-based (`/replace from-to`, `/replace swap`, `/replace regex`)
+- `BlockSpawnerEntry`: legacy `State` BSON_DOCUMENT codec field removed
+- `RotationTuple.rotate()` renamed to `rotatedVector()`
+- `NPC ActionToggleStateEvaluator`: field `enable` → `on`, config key `"Enabled"` → `"On"`, getter `isEnable()` → `isOn()`
+- `WeightedAction` constructor now takes `@Nonnull Action` parameter directly
+- `BuilderWeightedAction.build()` return type changed from `@Nonnull` to `@Nullable`
+- `MotionController.canActFailReason()` added to interface
+- Steering method renames: `hasYaw()` → `hasYawOrDirection()`, `getYaw()` → `getYawOrDirection()`, `hasPitch()` → `hasPitchOrDirection()`, `getPitch()` → `getPitchOrDirection()`
+- `EntityFilterViewSector`: 0 view cone now means "see everything" instead of "see nothing"
+- `SpawnEffect` interface methods now take `BuilderSupport` parameter
+- `RoleUtils.setItemInHand()` now requires `Ref<EntityStore>` and `ComponentAccessor<EntityStore>` parameters
+- `PasteToolUtil.switchToPasteTool()` now requires `Ref<EntityStore>` and `ComponentAccessor<EntityStore>` parameters
+
+---
+
+## Modified APIs
+
+### Protocol Changes
+
+- **Protocol version**: CRC `-1356075132` → `1080406952`, build number `20` → `51`, packet count `268` → `280` (+12), struct count `339` → `343` (+4), enum count `137` → `142` (+5)
+- `AmbienceFXSound`: new `maxBodiesPerEmitter` int field (fixed size 27 → 31 bytes) → [Packet Types](/plugin-development/networking/packet-types/)
+- `BlockType`: new nullable `ConditionalBlockSound[] conditionalSounds` field (variable field count 24 → 25, all subsequent nullable bit positions shifted)
+- `FormattedMessage`: new nullable `FormattedMessageImage image` field (variable field count 7 → 8)
+- `ItemBase`: `builderToolData` type changed from `ItemBuilderToolData` to `BuilderToolState`; new `subCategory` string field; new `ItemHudUI[] hudUI` field (fixed size 147 → 148, variable field count 26 → 28)
+- `ItemCategory`: new nullable `SubCategoryDefinition[] subCategories` field
+- `MovementStates`: new `fallingFar` boolean field between `falling` and `climbing` (fixed size 22 → 23 bytes, cascading to `MovementStatesUpdate`, `MountMovement`, `ClientMovement`)
+- `ClientPlaceBlock`: new `quickReplace` boolean field (fixed size 20 → 21)
+- `ProjectileConfig`: new `launchWorldSoundEventIndex` field (fixed size 163 → 167)
+- `SoundEvent`: new `spatialBlend` float field (fixed size 34 → 38)
+- `BuilderToolArg`: new nullable `id` string field (variable field count 4 → 5)
+- `BuilderToolOnUseInteraction`: new `undoGroupSize` int field (fixed size 57 → 61)
+- `BuilderToolSelectionToolReplyWithClipboard`: new nullable `ClipboardEntityChange[]` field
+- `BuilderToolSelectionTransform`: `Quatf rotation` → `Quaternionfc rotation` (JOML)
+- `EditorBlocksChange`: new `ClipboardEntityChange[]` and `skipPreviewRebuild` boolean fields
+- `AssetEditorCreateAssetPack`: new `targetDirectoryIndex` int field (fixed size 5 → 9)
+- `ServerInfo`: new nullable `HostAddress fallbackServer` field
+- `UpdatePlayerInventory`: removed `builderMaterial` and `sortType` fields (fixed size 2 → 1, variable field count 7 → 6)
+- `SortItemsAction`: removed `sortType` field (packet now 0 bytes)
+- `MapMarker`: removed `customName` field (variable field count 6 → 5)
+- `MapChunk`: `MAX_SIZE` increased from 16384023 to 20480037
+
+### New Protocol Structs
+
+- `ConditionalBlockSound`: `soundEventIndex` + `ambienceFXIndex` (8 bytes)
+- `FormattedMessageImage`: `filePath` + `width` + `height`
+- `ItemHudUI`: `path` + `type` (`ItemHudUIType` enum: `Hud(0)`, `Legend(1)`)
+- `SubCategoryDefinition`: `id` + `name` + `description` + `order`
+- `ClipboardEntityChange`: position, blockId, model, itemId, orientations, scale (45 bytes)
+
+### New Protocol Enums
+
+- `ClientDisconnectReason`: `PlayerLeave(0)`, `PlayerAbort(1)`, `UserLeave(2)`, `Crash(3)`
+- `QuicApplicationErrorCode`: `NoError(0)`, `RateLimited(1)`, `AuthFailed(2)`, `InvalidVersion(3)`, `Timeout(4)`, `ClientOutdated(5)`, `ServerOutdated(6)`
+- `VoiceCodec`: `Opus(0)`
+- `StreamType`: `Game(0)`, `Voice(1)`
+- `DebugFlags`: `Fade(0)`, `NoWireframe(1)`, `NoSolid(2)`
+- `RotationFace`: `Up(0)`, `Down(1)`, `North(2)`, `South(3)`, `East(4)`, `West(5)`, `Camera(6)`
+- `ItemHudUIType`: `Hud(0)`, `Legend(1)`
+
+### World Generation Changes
+
+→ [World Generation Overview](/plugin-development/worldgen/overview/)
+
+- New pipe system (`Pipe.One<Input>`, `Pipe.Two<InputA, InputB>`) with `Control` (stoppable iteration) replaces raw `Consumer<T>`
+- New RNG system: `Rng` (static utility with `getRandomInt`, `mix`, `splitMixLong`) and `RngField` (position-seeded RNG) replace `SeedGenerator`
+- `EntityFunnel` interface replaces direct `EntityContainer` usage in prop context, with `RotationEntityFunnel` for rotation-aware placement
+- `PropDistribution` abstract class with `distribute(Context)` and 5 implementations: `AssignedPropDistribution`, `ConstantPropDistribution`, `NoPropDistribution`, `PositionsPropDistribution`, `UnionPropDistribution`
+- New prop types: `CuboidProp`, `DensitySelectorProp`, `LocatorProp`, `ManualProp`, `MaskProp`, `OrienterProp`, `PondFillerProp`, `PrefabProp`, `StaticRotatorProp`
+- New scanner types: `DirectScanner` (replaces `OriginScanner`), `EmptyScanner`, `LinearScanner`, `QueueScanner`, `RadialScanner`, `RandomScanner`
+- New position providers: `ClustersPositionProvider`, `EmptyPositionProvider`, `Jitter2dPositionProvider`, `Jitter3dPositionProvider`, `ScalerPositionProvider`, `SquareGrid2dPositionProvider`, `SquareGrid3dPositionProvider`, `TriangularGrid2dPositionProvider`
+- New patterns: `ConstantPattern` (singletons `INSTANCE_TRUE`/`INSTANCE_FALSE`), `RotatorPattern`
+- `VoxelSpace`: new `setAll(T)` and `getBounds()` methods; `MaskVoxelSpace` replaces `BooleanVoxelSpace`; new `RotationVoxelSpace`
+- `Bounds3i`/`Bounds3d`: new `ZERO` constant, `contains()` overloads, `offset()`/`offsetOpposite()`, rotation methods (`applyRotationAroundVoxel`, `undoRotationAroundVoxel`), bug fix in `encompass()` for exclusive upper bound
+- `MaterialCache.getMaterialRotated(Material, RotationTuple)` for rotation-aware material lookup
+- `YSampledDensity`: new `isInterpolated` parameter with "Interpolate" CODEC field (default `true`)
+- `ChunkGenerator`: chunk bounds validation with `MIN_CHUNK_COORD`/`MAX_CHUNK_COORD`, returns `NO_CHUNK` for out-of-bounds
+- `CaveType.ENTRY_POOL` static `ListPool<CaveType>` for pooling cave type entry lists
+- `CaveFileContext` for loading cave configuration files within zone contexts
+- Many v3 prop/scanner classes relocated to `deprecated/` sub-packages
+
+### Builtin Package Changes
+
+- `CraftingManager`: multiple method signatures changed to accept explicit coords/blockType/BenchBlock instead of `BenchState`
+- `CraftingPlugin.isValidCraftingMaterialForBench` param changed from `BenchState` to `Bench`
+- `FarmingUtil.giveDrops` gained `HarvestingDropType` parameter
+- `PrefabFarmingStageData.setState` now takes additional `blockType` and `rotation` parameters; bug fix: `prefabRotation.getX(blockZ, blockX)` → `prefabRotation.getZ(blockX, blockZ)`
+- `CoopBlock`: added NPC role change detection in resident management
+- `TintOperation`: complete rewrite with blend modes, opacity, Gaussian smoothing, color picker (alt+primary); tint arg key changed from `"TintColor"` to `"bTintColor"`, new `"cOpacity"` arg
+- `PastePrefabOperation`: simplified to use `edit.setMaterial()` instead of direct chunk manipulation
+- `EditOperation`: new methods `setTint()` with lerp blending, `getTint()`, `removeEntity()`, `trackSpawnedEntity()`, `trackMovedEntity()`
+- `Material` (builder tools): now stores full block data with `support`, `filler`, `holder` fields; new `full()` factory methods
+- `ScriptedBrushAsset`: new `getEditorToolItemId()` and `rebuildBrushToItemCache()` static methods
+- `PrototypePlayerBuilderToolSettings`: new `prototypeItemId` and `undoGroupSize` fields
+- `AssetEditorPlugin.handleCreateAssetPack` now takes `targetDirectoryIndex` parameter, validates against `getModsDirectories()`
+- `PrefabEditSessionManager`: major rework with `isInEditWorld()`, `sendToEditWorld()`, `closeEditSession()` methods
+- `InstanceMigrateCommand`: uses `RemoveReason.UNLOAD` for chunk migration, adds block component migration
+- `Rotation`: new `applyRotationTo()`/`undoRotationTo()` methods for Vector3i/f/d; new `toInverse()` method
+- `RotationTuple`: new rotation math with matrix multiplication, `flip()`, `composeOnAxis()`, `eulerToMatrix()`
+- `BlockFlipType`: new `ORTHOGONAL_INVERSE` enum value with rewritten `flipYaw()` logic
+- `BlockBoundingBoxes`: rotation direction fix (swapped `rotate90Z`/`rotate270Z` for Ninety/TwoSeventy)
+- `BlockType`: gathering/bench interaction hint auto-setup removed; `getDefaultStateKey()` returns null if `data` is null
+- `BlockSoundSet`: uses `MapUtil.combineUnmodifiable()` for merging inherited sound events
+- `Environment`: new `weatherSeedKey` field for shared weather forecasts
+- `FireFluidTicker`: fire tick now runs on world thread; new `ResultingState` support
+- `Item`: `BuilderToolData` replaced by `BuilderTool` directly; new `subCategory` and `hudUI` fields
+- `ItemCategory`: new `SubCategoryDefinition` inner class with `subCategories` array
+- `GameplayConfig`: new `CombatConfig` and `ItemPhysicsConfig` fields
+- `CraftingRecipe`: added `Validators.nonEmptyArray()` for recipe ingredients
+
+### Server Infrastructure Changes
+
+- `PluginManager`: supports multiple mods directories via `Options.MODS_DIRECTORIES`; improved pack loading ordering
+- `HytaleServer`: schema generation via `SchemaGenerator`; shutdown guards (`isShuttingDown()`) on scheduled tasks; `--generate-asset-schema`/`--generate-config-schema` options
+- `Universe`: world verification system with `--verify-worlds` and `--recovery-mode` options; `recoverChunksFromBackups()` method
+- `AssetRegistryLoader.loadAssets()` now returns boolean (failed status); uses `assetPack.isImmutable()` and `IGNORE_BROKEN_MODS` option
+- `AssetModule`: outdated packs warning lists specific pack names
+- `IChunkStorageProvider`: new `getRecoveryLoader()` and `beginRecovery()` methods
+- `CommonAssetValidator`: added `ICON_EMOTE` and `ANIMATION_EMOTE` validators
+
+### NPC System Changes
+
+- `FeatureOverride` enum (`On`, `Off`, `Default`) for NPC feature toggles
+- `NPCDescriptorsCommand`: `/npc descriptors` generates descriptor files
+- `EntityFilterEntityEffect`: entity filter checking for active entity effects
+- `SelfHasEffectCondition` and `TargetHasEffectCondition`: decision-maker conditions for entity effects
+- `VisHelper`: centralized debug visualization helpers for NPC steering/avoidance
+- `BuilderActionBase`: gained `enabled` field (actions can be disabled via config)
+- `Steering`: new `directionHint` field with `hasDirectionHint()`, `getDirectionHint()`, `setDirectionHint()`
+- `GroupSteeringAccumulator`: new `normalizeDistances` mode with random jitter for overlapping entities
+- `MotionControllerBase.DOT_PRODUCT_EPSILON` changed from `0.001` to `0.1`
+- `Role`: new separation modes (`SeparationMode` enum), `normalizeDistances`, `alwaysApplySeparation`, `useOrientationHint`, `avoidanceFallCheck`
+- `BuilderRole`: many new config fields for separation tuning, feature overrides, death/spawn particle config type changes (`double` → `DoubleHolder`, `String` → `AssetHolder`)
+- `BodyMotion`: new default methods `getDesiredTargetDistance()` and `getDesiredTargetEntity()`
+- `SensorEntityPrioritiserAttitude`: O(n) linear search replaced with O(1) `attitudeToPriority` lookup
+
+### Component System Changes
+
+→ [ECS Overview](/plugin-development/core-concepts/ecs-overview/)
+
+- `ArchetypeChunk`: component array indexing changed from `componentType.getIndex()` to archetype iteration index
+- `Holder.addComponentInternal()`: new method returning boolean instead of throwing on duplicate
+- `ComponentType.validateRegistry()` and `equals()` now use identity comparison
+- `Vector3d`: new `assign(Vector3i)` method → [Math Overview](/plugin-development/math/overview/)
+- `ChunkUtil`: new `MIN_CHUNK_COORD`, `MAX_CHUNK_COORD`, `isValidChunkIndex()`, `isValidChunkCoords()` methods
+- `Box.forEachBlockPosition`: overflow protection for positions near `Integer.MAX_VALUE`
+- `Semver.validateBuild()`: relaxed to allow dot-separated build identifiers
+
+### Collection Type Migration (Cross-cutting)
+
+Systematic migration across NPC, spawning, flock, and builtin systems:
+
+| Old Type | New Type | Reason |
+|---|---|---|
+| `ObjectArrayList<Ref<>>` | `ReferenceArrayList<Ref<>>` | Identity-based comparison |
+| `ObjectList<Ref<>>` | `List<Ref<>>` | Decouple from fastutil |
+| `HashSet<Ref<>>` | `ReferenceOpenHashSet<Ref<>>` | Identity-based hashing |
+| `HashMap<Ref<>, V>` | `Reference2ObjectOpenHashMap<Ref<>, V>` | Identity-based hashing |
+
+---
+
+## Removed Features
+
+### Removed Files -- Protocol
+
+→ [Packet Types](/plugin-development/networking/packet-types/)
+
+- `Disconnect.java` -- replaced by `ClientDisconnect` and `ServerDisconnect`
+- `SortType.java` enum -- sorting removed from `SortItemsAction` and `UpdatePlayerInventory`
+- `ItemBuilderToolData.java` struct -- replaced by `BuilderToolState` used directly in `ItemBase`
+- `BuilderToolArgGroup.java` enum -- `group` field removed from `BuilderToolArgUpdate`
+- `BuilderToolBrushData.java` struct -- brush data moved into general args array
+
+### Removed Files -- BlockState System
+
+→ [Block Types](/plugin-development/blocks/block-types/)
+
+- `BlockState.java`, `BlockStateModule.java`, `BlockStateRegistration.java`, `BlockStateRegistry.java`
+- `BreakValidatedBlockState.java`, `DestroyableBlockState.java`
+- `ItemContainerBlockState.java`, `ItemContainerState.java`
+- `PlacedByBlockState.java`, `SendableBlockState.java`, `TickableBlockState.java`
+- `ItemContainerStateSpatialSystem.java` -- replaced by `ItemContainerBlockSpatialSystem`
+
+### Removed Files -- Inventory
+
+- `LivingEntityInventoryChangeEvent.java` -- replaced by `InventoryChangeEvent`
+
+### Removed Files -- Crafting
+
+→ [Builtin Plugins](/tutorials/builtin-plugins/)
+
+- `BenchState.java` -- replaced by `BenchBlock` component
+- `ProcessingBenchState.java` -- replaced by `ProcessingBenchBlock` component + `BenchSystems`
+- `TreasureChestState.java` -- replaced by `TreasureChestBlock` component
+
+### Removed Files -- Server Core
+
+- `GenerateSchemaEvent.java` -- replaced by `SchemaGenerator` class
+- `DestroyConditionInteraction.java` -- removed interaction type
+- `PrefabSpawnerState.java` -- replaced by `PrefabSpawnerBlock`
+- `BrushData.java`, `BuilderToolData.java` -- replaced by inline args in `BuilderTool`
+- `GitCommand.java`, `UpdateAssetsCommand.java`, `UpdatePrefabsCommand.java` -- git-based asset commands removed entirely
+
+### Removed Files -- Math
+
+- `Mat4f.java`, `Vec2f.java`, `Vec3f.java`, `Vec4f.java`, `Quatf.java` -- replaced by JOML types
+
+### Removed Files -- Builtin
+
+→ [Builtin Plugins](/tutorials/builtin-plugins/)
+
+- `PrefabSetAnchorInteraction.java` -- replaced by `PrefabSetAnchor` packet (ID 426) handled in `BuilderToolsPacketHandler`
+- `OctTree.java` -- spatial data structure removed
+- `SpawnMarkerBlockState.java` -- replaced by `SpawnMarkerBlock` component
+
+### Removed Files -- Condition System
+
+- `PlayerCondition.java` -- replaced by `IsPlayerCondition` and `CheckPlayerGameModeCondition`
+- All 14 condition classes relocated from `modules/entitystats/asset/condition/` to `modules/entity/condition/`
+
+### Removed Files -- World Generation
+
+→ [World Generation Overview](/plugin-development/worldgen/overview/)
+
+- `framework/` package (26 files): all math, cartas, interfaces, and shaders removed or relocated
+- `newsystem/` package (30 files): all promoted to `engine/` with `N` prefix dropped
+- `datastructures/` package: `BiCoordinateCache` (4 classes), `CollectionFactory`, `TieredList`, `Compressor`, `BooleanVoxelSpace`, `VoxelConsumer`, `VoxelCoordinate` removed
+- `fields/` package (8 files): all relocated to `noise/`
+- `SeedGenerator.java` -- replaced by `RngField`
+- `SpaceSize.java` -- replaced by `Bounds3i`
+- `ContextDependency.java` -- context dependency system removed
+- `BackwardIntIterator.java`, `ForwardIntIterator.java`, `IntIterators.java` -- removed
+- `GapPattern.java` + `GapPatternAsset.java` -- replaced by `RotatorPattern`
+- `NoPropAsset.java` -- replaced by `EmptyPropAsset`
+- `OriginScanner.java` + `OriginScannerAsset.java` -- replaced by `DirectScanner` / `DirectScannerAsset`
+- `PropField.java` -- replaced by `PropRuntime`
+- Many prop/scanner classes moved to `deprecated/` sub-packages
+
+---
+
+## Performance and Internal Improvements
+
+### WorldGen Allocation Reduction
+
+All density nodes, position providers, props, and scanners received optimization passes. Pre-allocated `r`-prefixed fields (e.g., `rChildPosition`, `rChildContext`, `rControl`) replace per-call allocations. `Bounds3d`/`Bounds3i` with `.assign()` methods replace new `Vector3d` allocations. The pipe system's `Control.stop` field replaces collection size checks for early termination.
+
+### Palette Set Reuse
+
+`PaletteSetProvider` provides thread-local `ByteOpenHashSet` and `ShortOpenHashSet` instances, reducing allocation pressure in `AbstractByteSectionPalette` and `AbstractShortSectionPalette`.
+
+### ListPool for WorldGen
+
+`ListPool` provides thread-safe object pooling for `ObjectArrayList` instances in worldgen hot paths (used by `CaveType.ENTRY_POOL`).
+
+### Identity-Based Collections
+
+Systematic migration from standard collections to identity-based fastutil collections for `Ref<>` types across NPC, spawning, flock, and builtin systems. This eliminates the overhead of `equals()`/`hashCode()` calls on entity references that use identity comparison.
+
+### BucketItemPool Array Optimization
+
+`BucketItemPool` replaced `List<BucketItem<E>>` pool with raw `BucketItem<E>[]` array with manual size tracking and `System.arraycopy` growth.
+
+### ArchetypeChunk Index Optimization
+
+Component array indexing changed from `componentType.getIndex()` to archetype-local iteration index, reducing indirection.
+
+### SensorEntityPrioritiser O(1) Lookup
+
+`SensorEntityPrioritiserAttitude` replaced O(n) linear search through `attitudeByPriority` array with O(1) `attitudeToPriority` lookup array.
+
+### EventBus Shutdown Safety
+
+`EventBus.dispatchFor()` now checks `registry.isAlive()` before dispatching, returning `NO_OP` if registry is dead.
+
+### IndexedStorageFile mmap Fallback
+
+`IndexedStorageFile` now handles platforms without memory-mapped I/O by catching `UnsupportedOperationException` from `fileChannel.map()` and falling back to `fileChannel.read/write`.
+
+### Block Tick Batch Processing
+
+`BlockTickPlugin` preprocessing refactored to batch-collect ticking block type IDs via `section.forEachValue()` then batch-find and batch-set ticking via `section.find()` and `section.setTicking(IntList, boolean)`.
+
+### ProcessingBench Batch Completion
+
+`ProcessingBenchBlock` now uses binary search for maximum completions that fit output capacity, with game-time-based catch-up processing on load (max 86400 seconds of elapsed time).
+
+### Command Internationalization
+
+Additional commands and disconnect messages migrated from hardcoded English strings to `Message.translation()` keys across `AssetEditorPlugin`, `AuthenticationPacketHandler`, `HandshakeHandler`, `SetupPacketHandler`, `HytaleServer` shutdown, `CraftingWindow`, and `HubPortalInteraction`.
+
+### Null Safety and Validation
+
+- `CraftingRecipe`: added `Validators.nonEmptyArray()` for recipe ingredients
+- Spawn count/reference mismatch detection with warning logs in `SpawnReferenceSystems`
+- Null check for `spawnEntity()` return values in `FlockPlugin` and `NPCAllCommand`
+- `Box.forEachBlockPosition` overflow protection near `Integer.MAX_VALUE`
+- `ChunkUtil` coordinate validation methods
+
+### Path Visualization
+
+NPC path visualization added to `RoleSystems` (waypoint spheres, connecting lines, NPC-to-path lines) with new debug flags: `VisSeparationSummed`, `VisSeparationTargets`, `VisOrientation`, `VisSteeringPre`, `VisSteeringPost`, `VisTranslation`, `VisPath`.
+
+### Build Metadata
+
+- Implementation version: `2026.02.17-255364b8e` → `2026.03.20-db226053c`
+- Branch changed from `release` to `pre-release`
+- Bundled JWKS updated (key ID: `2025-10-01`)
+- New launcher scripts: `start.sh` and `start.bat` with staged update support, `jvm.options` file, and auto-restart on exit code 8
+
+{/* [VERIFIED: 2026-03-21] */}

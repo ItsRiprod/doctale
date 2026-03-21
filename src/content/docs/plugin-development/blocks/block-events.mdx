@@ -3,7 +3,7 @@ title: "Block Events"
 description: "React to and modify block breaks, placements, damage, and interactions through the ECS event system."
 ---
 
-{/* [VERIFIED: 2026-02-12] */}
+{/* [VERIFIED: 2026-03-21] */}
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 
@@ -18,6 +18,10 @@ All four block events live here:
 - `PlaceBlockEvent`
 - `DamageBlockEvent`
 - `UseBlockEvent` (with `Pre` and `Post` subtypes)
+
+<Aside type="note" title="New in Update 4">
+`BlockReplaceEvent` is a new ECS event at `com.hypixel.hytale.server.core.modules.block.BlockReplaceEvent`, dispatched on the `ChunkStore` when a block entity is being replaced. It provides the chunk reference, block position, and the new entity holder. Handle it via `EntityEventSystem<ChunkStore, BlockReplaceEvent>` or `EntityHolderEventSystem<ChunkStore, BlockReplaceEvent>`.
+</Aside>
 
 ## How ECS Events Work
 

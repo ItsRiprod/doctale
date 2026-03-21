@@ -1,23 +1,28 @@
 ---
 title: "Block System Overview"
-description: "Manage block types, block states, and block operations through the core block system APIs."
+description: "Manage block types, block components, and block operations through the core block system APIs."
 ---
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-03-21] */}
 
 import { Aside, Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
 
 # Block System Overview
 
-The Block System manages all block types, block states, and block-related operations in Hytale. Blocks are the fundamental building units of the world.
+The Block System manages all block types, block components, and block-related operations in Hytale. Blocks are the fundamental building units of the world.
+
+<Aside type="caution" title="Changed in Update 4">
+The `BlockState` system was fully removed. Per-block instance data now uses `Component<ChunkStore>` registered via the chunk store registry. See [Block Components](/plugin-development/blocks/block-states/) for the new pattern.
+</Aside>
 
 ## Package Locations
 
 | Component | Package |
 |-----------|---------|
 | BlockType | `com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType` |
-| BlockState | `com.hypixel.hytale.server.core.universe.world.meta.BlockState` |
-| BlockStateRegistry | `com.hypixel.hytale.server.core.universe.world.meta.BlockStateRegistry` |
+| BlockModule | `com.hypixel.hytale.server.core.modules.block.BlockModule` |
+| BlockEntity | `com.hypixel.hytale.server.core.modules.block.BlockEntity` |
+| BlockReplaceEvent | `com.hypixel.hytale.server.core.modules.block.BlockReplaceEvent` |
 | TickProcedure | `com.hypixel.hytale.server.core.asset.type.blocktick.config.TickProcedure` |
 
 ## Core Components
@@ -25,8 +30,9 @@ The Block System manages all block types, block states, and block-related operat
 | Component | Description |
 |-----------|-------------|
 | `BlockType` | Asset definition for block behavior and appearance |
-| `BlockState` | Per-block instance data for stateful blocks (deprecated) |
-| `BlockStateRegistry` | Registration of custom block state types |
+| `Component<ChunkStore>` | Per-block instance data for stateful blocks |
+| `BlockEntity` | Utility for setting block entities on chunks |
+| `BlockReplaceEvent` | ECS event for block entity replacement |
 | `TickProcedure` | Block tick behavior (growth, decay, etc.) |
 
 ## Sub-Pages
@@ -38,8 +44,8 @@ The Block System manages all block types, block states, and block-related operat
     href="/plugin-development/blocks/block-types/"
   />
   <LinkCard
-    title="Block States"
-    description="Per-block instance data and custom state registration (deprecated API)"
+    title="Block Components"
+    description="Per-block instance data using Component<ChunkStore>"
     href="/plugin-development/blocks/block-states/"
   />
   <LinkCard
@@ -95,25 +101,18 @@ world.setBlock(x, y, z, blockType, settings);
 
 ### Handling Events
 
-```java title="Block event handling"
-getEventRegistry().register(BreakBlockEvent.class, event -> {
-    BlockType blockType = event.getBlockType();
-    Vector3i position = event.getPosition();
-
-    // Cancel to prevent breaking
-    event.setCancelled(true);
-});
-
-getEventRegistry().register(PlaceBlockEvent.class, event -> {
-    BlockType blockType = event.getBlockType();
-    // Handle placement
-});
+```java title="Block event handling (ECS)"
+getEntityStoreRegistry().registerSystem(
+    new MyBreakBlockSystem()
+);
 ```
+
+See [Block Events](/plugin-development/blocks/block-events/) for full examples using `EntityEventSystem`.
 
 ## Best Practices
 
 1. **Use groups**: Organize related blocks with the `Group` property
-2. **Minimize states**: Only use block states when truly needed
+2. **Use block components sparingly**: Only use `Component<ChunkStore>` when truly needed for persistent data
 3. **Optimize hitboxes**: Use appropriate hitbox complexity
 4. **Consider support**: Define support requirements for physics
 5. **Batch updates**: Group block changes when possible
