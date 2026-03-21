@@ -3,7 +3,7 @@ title: "Development Environment Setup"
 description: "Set up Java 25 and the official plugin template for creating Hytale server plugins."
 ---
 
-{/* [VERIFIED: 2026-02-17] */}
+{/* [VERIFIED: 2026-03-21] */}
 
 import { Aside, FileTree, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 
@@ -153,6 +153,25 @@ Setting `hytale.home_path` in `gradle.properties` is only needed for Assets.zip 
 
 Alternatively, copy the built JAR from `build/libs/` to any Hytale server's `plugins/` directory.
 
+<Aside type="note" title="New in Update 4">
+The server now includes `start.sh` and `start.bat` launcher scripts that handle staged updates, automatic restart on exit code 8, and custom JVM options via a `jvm.options` file. You can extract these scripts with the `/update setup` command. When using the launcher scripts, the server runs from inside the `Server/` directory with `--backup` enabled by default (30-minute frequency).
+</Aside>
+
+### Server Launcher Scripts
+
+For production or standalone testing, you can use the official launcher scripts instead of `./gradlew runServer`. These scripts provide:
+
+- **Staged updates**: Automatically applies files from `updater/staging/` before starting
+- **Auto-restart**: Restarts the server when it exits with code 8 (update signal)
+- **Custom JVM options**: Create a `jvm.options` file alongside the script with one argument per line
+- **Crash detection**: Warns if the server crashes within 30 seconds of an update
+
+```properties title="jvm.options"
+-Xms2G
+-Xmx4G
+-XX:+UseG1GC
+```
+
 ## Manual Setup (Without the Template)
 
 If you prefer not to use the ScaffoldIt template, you can set up a plain Gradle or Maven project manually.
@@ -223,6 +242,10 @@ The server dependency is **compile-only/provided** — do not bundle it with you
 
 <Aside type="note" title="New in Update 3">
 The server now bundles JOML 1.10.8 and RocksDB 10.4.2 as runtime dependencies. These are available without including them in your plugin. See the [Update 3 changelog](/changelog/update-2-to-3/) for details.
+</Aside>
+
+<Aside type="caution" title="Changed in Update 4">
+The custom math types `Mat4f`, `Vec2f`, `Vec3f`, `Vec4f`, and `Quatf` from `com.hypixel.hytale.math` have been removed. Use the JOML equivalents instead: `org.joml.Matrix4f`, `org.joml.Vector2f`, `org.joml.Vector3f`, `org.joml.Vector4f`, and `org.joml.Quaternionf`. The read-only interface variants (`Matrix4fc`, `Vector3fc`, etc.) are used where immutability is desired. Note that Hytale's own `com.hypixel.hytale.math.vector.Vector3d`, `Vector3f`, `Vector3i`, and `Vector2i` are **not** removed — only the top-level math types were replaced.
 </Aside>
 
 ## IDE Configuration

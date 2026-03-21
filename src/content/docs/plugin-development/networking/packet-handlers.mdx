@@ -5,7 +5,7 @@ description: "Process incoming packets and manage connection state with PacketHa
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-02-13] */}
+{/* [VERIFIED: 2026-03-21] */}
 
 # Packet Handlers
 
@@ -117,9 +117,9 @@ public abstract class PacketHandler implements IPacketReceiver {
     public static final int MAX_PACKET_ID = 512;
 
     // Send packets
-    public void write(@Nonnull Packet packet);
-    public void write(@Nonnull Packet... packets);
-    public void writeNoCache(@Nonnull Packet packet);
+    public void write(@Nonnull ToClientPacket packet);
+    public void write(@Nonnull ToClientPacket... packets);
+    public void writeNoCache(@Nonnull ToClientPacket packet);
 
     // Lifecycle (template methods)
     protected void registered0(@Nullable PacketHandler oldHandler);
@@ -130,12 +130,17 @@ public abstract class PacketHandler implements IPacketReceiver {
     public void handlePong(@Nonnull Pong packet);
 
     // Process incoming packet
-    public abstract void accept(@Nonnull Packet packet);
+    public abstract void accept(@Nonnull ToServerPacket packet);
 
     // Disconnect
-    public void disconnect(@Nonnull String message);
+    public void disconnect(@Nonnull Message message);
+    public void disconnect(@Nonnull FormattedMessage message);
 }
 ```
+
+<Aside type="caution" title="Changed in Update 4">
+`PacketHandler.disconnect(String)` was replaced by `disconnect(Message)` and `disconnect(FormattedMessage)`. The disconnect now sends a `ServerDisconnect` packet with a rich `FormattedMessage` reason instead of a plain `Disconnect` packet with a `String`.
+</Aside>
 
 ## GenericPacketHandler
 
@@ -197,7 +202,7 @@ import com.hypixel.hytale.protocol.Packet;
 import com.hypixel.hytale.protocol.packets.interaction.DismountNPC;
 import com.hypixel.hytale.server.core.io.handlers.IPacketHandler;
 import com.hypixel.hytale.server.core.io.handlers.SubPacketHandler;
-import com.hypixel.hytale.server.core.player.PlayerRef;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
 
 public class MyPacketHandler implements SubPacketHandler {
     private final IPacketHandler packetHandler;
@@ -253,6 +258,11 @@ public class MyPlugin extends JavaPlugin {
 |---------|---------|-----------------|
 | `InventoryPacketHandler` | `server.core.io.handlers` | 171-179 (inventory ops) |
 | `MountGamePacketHandler` | `builtin.mounts` | 293-294 (mount/dismount) |
+| `VoicePacketHandler` | `server.core.modules.voice` | 450 (rejects voice data on game stream) |
+
+<Aside type="note" title="New in Update 4">
+`VoicePacketHandler` is a `SubPacketHandler` that rejects `VoiceData` packets received on the main game stream, logging a warning that the client should use the dedicated voice stream. Voice data is handled by `VoiceStreamHandler`, a Netty `SimpleChannelInboundHandler` registered on auxiliary QUIC voice streams via `StreamManager.registerHandler(StreamType.Voice, VoiceStreamHandler::new)`.
+</Aside>
 
 ## Packet Dispatch Flow
 
@@ -320,7 +330,7 @@ packetHandler.setQueuePackets(false);
 import com.hypixel.hytale.protocol.packets.interface_.ChatMessage;
 import com.hypixel.hytale.server.core.io.handlers.IPacketHandler;
 import com.hypixel.hytale.server.core.io.handlers.SubPacketHandler;
-import com.hypixel.hytale.server.core.player.PlayerRef;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
 
 public class ChatFilterHandler implements SubPacketHandler {
     private final IPacketHandler packetHandler;

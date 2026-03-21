@@ -3,7 +3,7 @@ title: "Plugin Lifecycle"
 description: "Understand plugin states, lifecycle hooks, and how to properly initialize resources and clean up on shutdown."
 ---
 
-{/* [VERIFIED: 2026-02-17] */}
+{/* [VERIFIED: 2026-03-21] */}
 
 import { Aside, FileTree, Steps } from '@astrojs/starlight/components';
 
@@ -92,7 +92,7 @@ This is the primary initialization method where you should:
 - Register event listeners
 - Register commands
 - Register ECS components and systems
-- Register block states
+- Register block components via `getChunkStoreRegistry()`
 - Register asset types
 - Set up any plugin infrastructure
 
@@ -186,12 +186,16 @@ The following registries are available through your plugin base class:
 | `getEventRegistry()` | Register event listeners |
 | `getEntityStoreRegistry()` | Register entity ECS components and systems |
 | `getChunkStoreRegistry()` | Register chunk ECS components and systems |
-| `getBlockStateRegistry()` | Register custom block states |
+| ~~`getBlockStateRegistry()`~~ | ~~Register custom block states~~ |
 | `getEntityRegistry()` | Register entity types |
 | `getTaskRegistry()` | Register scheduled tasks |
 | `getAssetRegistry()` | Register asset types |
 | `getClientFeatureRegistry()` | Register client feature flags |
 | `getCodecRegistry(codec)` | Register to codec maps |
+
+<Aside type="danger" title="Removed in Update 4">
+`getBlockStateRegistry()` and the entire `BlockState` system have been removed. Block data is now stored as `Component<ChunkStore>` registered via `getChunkStoreRegistry()`. For example, `BenchState` is now `BenchBlock`, `ItemContainerBlockState` is now `ItemContainerBlock`, and `PrefabSpawnerState` is now `PrefabSpawnerBlock`.
+</Aside>
 
 ## Utility Methods
 

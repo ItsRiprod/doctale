@@ -1,18 +1,22 @@
 ---
 title: "Packet Types Catalog"
-description: "Complete catalog of all 268 packet types in the Hytale protocol organized by category and direction."
+description: "Complete catalog of all 280 packet types in the Hytale protocol organized by category and direction."
 ---
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
-{/* [VERIFIED: 2026-01-19] */}
+{/* [VERIFIED: 2026-03-21] */}
 
 # Packet Types Catalog
 
-Complete catalog of all 268 packet types in the Hytale protocol, organized by category.
+Complete catalog of all 280 packet types in the Hytale protocol, organized by category.
 
 <Aside type="note" title="New in Update 3">
 Update 3 added 3 new packets (`BuilderToolSetEntityCollision`, `UpdateAnchorUI`, `CreateUserMarker`), removed 2 packets (`AssetEditorEnableAssetPack`, `Status`), and converted `AssetEditorRebuildCaches` from a packet to a plain utility class. All packets now declare a direction (`ToServerPacket`, `ToClientPacket`, or both) and a `NetworkChannel`. See the [full Update 3 changelog](/changelog/update-2-to-3/) for all protocol changes.
+</Aside>
+
+<Aside type="note" title="New in Update 4">
+Update 4 adds 12 new packets across voice chat, stream management, emotes, and builder tools. The `Disconnect` packet was split into `ClientDisconnect` and `ServerDisconnect`, shifting `Ping` and `Pong` IDs. Two new packet categories were added: `voice` and `stream`. The total packet count increased from 268 to 280.
 </Aside>
 
 ## Package Location
@@ -34,9 +38,14 @@ Update 3 added 3 new packets (`BuilderToolSetEntityCollision`, `UpdateAnchorUI`,
 | ID | Name | Direction | Description |
 |----|------|-----------|-------------|
 | 0 | `Connect` | C→S | Initial connection with protocol hash, UUID, username |
-| 1 | `Disconnect` | Both | Connection termination with reason |
-| 2 | `Ping` | S→C | Latency measurement request |
-| 3 | `Pong` | C→S | Latency measurement response |
+| 1 | `ClientDisconnect` | C→S | Client-initiated disconnect with `ClientDisconnectReason` enum |
+| 2 | `ServerDisconnect` | S→C | Server-initiated disconnect with `FormattedMessage` reason |
+| 3 | `Ping` | S→C | Latency measurement request |
+| 4 | `Pong` | C→S | Latency measurement response |
+
+<Aside type="caution" title="Changed in Update 4">
+The bidirectional `Disconnect` (ID 1) was split into `ClientDisconnect` (ID 1, C→S) and `ServerDisconnect` (ID 2, S→C). `ClientDisconnect` uses a fixed-size `ClientDisconnectReason` enum instead of a variable-length `String`. `ServerDisconnect` uses `FormattedMessage` for rich disconnect reasons. `Ping` shifted from ID 2 to 3, and `Pong` from ID 3 to 4.
+</Aside>
 
 ## Authentication Packets
 
@@ -131,6 +140,11 @@ Update 3 added 3 new packets (`BuilderToolSetEntityCollision`, `UpdateAnchorUI`,
 | 83 | `UpdateFluids` | S→C | Fluid type definitions |
 | 84 | `UpdateTagPatterns` | S→C | Tag pattern definitions |
 | 85 | `UpdateProjectileConfigs` | S→C | Projectile configurations |
+| 86 | `UpdateEmotes` | S→C | Emote definitions (compressed) |
+
+<Aside type="note" title="New in Update 4">
+`UpdateEmotes` (ID 86) sends emote asset definitions (`ProtocolEmote` structs) to clients, supporting init, update, and remove operations.
+</Aside>
 
 ## Player Packets
 
@@ -193,6 +207,11 @@ Update 3 added 3 new packets (`BuilderToolSetEntityCollision`, `UpdateAnchorUI`,
 | 159 | `ServerSetPaused` | S→C | Server pause state |
 | 360 | `UpdateSunSettings` | S→C | Sun/lighting settings |
 | 361 | `UpdatePostFxSettings` | S→C | Post-processing settings |
+| 362 | `PlaySoundEventLocalPlayer` | S→C | Local player sound event |
+
+<Aside type="note" title="New in Update 4">
+`PlaySoundEventLocalPlayer` (ID 362) plays a sound event attached to the local player with volume and pitch modifiers.
+</Aside>
 
 ## Entity Packets
 
@@ -207,6 +226,11 @@ Update 3 added 3 new packets (`BuilderToolSetEntityCollision`, `UpdateAnchorUI`,
 | 164 | `ApplyKnockback` | S→C | Knockback force |
 | 165 | `SpawnModelParticles` | S→C | Model particle effects |
 | 166 | `MountMovement` | S→C | Mount movement updates |
+| 167 | `PlayEmote` | C→S | Client requests to play an emote |
+
+<Aside type="note" title="New in Update 4">
+`PlayEmote` (ID 167) allows clients to request playing an emote by ID.
+</Aside>
 
 ## Inventory Packets
 
@@ -405,6 +429,11 @@ Update 3 added 3 new packets (`BuilderToolSetEntityCollision`, `UpdateAnchorUI`,
 | 353 | `AssetEditorUpdateSecondsPerGameDay` | C→S | Adjust time speed |
 | 354 | `AssetEditorUpdateWeatherPreviewLock` | C→S | Lock weather |
 | 355 | `AssetEditorUpdateModelPreview` | C→S | Update model preview |
+| 356 | `AssetEditorModsDirectories` | S→C | Mod directories list |
+
+<Aside type="note" title="New in Update 4">
+`AssetEditorModsDirectories` (ID 356) sends the list of available mod directories to the asset editor client.
+</Aside>
 
 ## Builder Tools Packets
 
@@ -437,22 +466,59 @@ Update 3 added 3 new packets (`BuilderToolSetEntityCollision`, `UpdateAnchorUI`,
 | 422 | `BuilderToolSetEntityLight` | C→S | Entity light |
 | 423 | `BuilderToolSetNPCDebug` | C→S | NPC debug |
 | 425 | `BuilderToolSetEntityCollision` | C→S | Set entity collision |
+| 426 | `PrefabSetAnchor` | C→S | Set prefab anchor position |
+| 427 | `BuilderToolResetClipboardRotation` | C→S | Reset clipboard rotation |
 
 <Aside type="note" title="New in Update 3">
 `BuilderToolSetEntityCollision` (packet ID 425) was added in Update 3 for enabling/disabling entity collision via builder tools. All new packets are listed in the [Update 3 changelog](/changelog/update-2-to-3/).
 </Aside>
 
+<Aside type="note" title="New in Update 4">
+`PrefabSetAnchor` (ID 426) sets a prefab anchor position (x, y, z). `BuilderToolResetClipboardRotation` (ID 427) resets clipboard rotation state (empty packet).
+</Aside>
+
+## Voice Chat Packets
+
+<Aside type="note" title="New in Update 4">
+The voice chat system is entirely new in Update 4. Voice packets use the dedicated `NetworkChannel.Voice(3)` QUIC stream.
+</Aside>
+
+**Package:** `protocol.packets.voice`
+
+| ID | Name | Direction | Description |
+|----|------|-----------|-------------|
+| 450 | `VoiceData` | C→S | Opus-encoded voice audio (max 512 bytes opus data) |
+| 451 | `RelayedVoiceData` | S→C | Relayed voice with speaker position and entity ID |
+| 452 | `VoiceConfig` | S→C | Voice chat configuration (codec, distances, rate limits) |
+
+`VoiceData` is sent on `NetworkChannel.Voice`. `RelayedVoiceData` includes spatial information (`Position speakerPosition`, `boolean speakerIsUnderwater`) for 3D audio. `VoiceConfig` is sent on `NetworkChannel.Default` and configures codec (`VoiceCodec.Opus`), sample rate, max hearing distance, and rate limits.
+
+## Stream Management Packets
+
+<Aside type="note" title="New in Update 4">
+Stream management packets support auxiliary QUIC streams beyond the main game stream. Used by the voice chat system to open dedicated voice streams.
+</Aside>
+
+**Package:** `protocol.packets.stream`
+
+| ID | Name | Direction | Description |
+|----|------|-----------|-------------|
+| 460 | `StreamOpen` | C→S | Request to open an auxiliary stream (`StreamType`) |
+| 461 | `StreamOpenResponse` | S→C | Accept/reject stream open request |
+
+`StreamType` values: `Game(0)`, `Voice(1)`. Each connection supports up to 4 auxiliary streams.
+
 ## Summary
 
 | Category | Count | Primary Direction |
 |----------|-------|-------------------|
-| Connection | 4 | Bidirectional |
+| Connection | 5 | Mixed |
 | Authentication | 9 | S→C |
 | Setup | 15 | S→C |
-| Assets | 46 | S→C |
+| Assets | 47 | S→C |
 | Player | 20 | Mixed |
-| World | 28 | S→C |
-| Entities | 7 | S→C |
+| World | 29 | S→C |
+| Entities | 8 | Mixed |
 | Inventory | 10 | Mixed |
 | Window | 5 | S→C |
 | Interface | 23 | S→C |
@@ -461,9 +527,11 @@ Update 3 added 3 new packets (`BuilderToolSetEntityCollision`, `UpdateAnchorUI`,
 | Machinima | 3 | S→C |
 | Camera | 4 | Mixed |
 | Interaction | 5 | Mixed |
-| Asset Editor | 56 | Mixed |
-| Builder Tools | 24 | C→S |
-| **Total** | **268** | |
+| Asset Editor | 57 | Mixed |
+| Builder Tools | 26 | C→S |
+| Voice Chat | 3 | Mixed |
+| Stream | 2 | Mixed |
+| **Total** | **280** | |
 
 ## Related
 

@@ -1,9 +1,9 @@
 ---
 title: "Built-in Plugins Reference"
-description: "Learn from Hytale's 32 built-in plugin packages that demonstrate modding patterns and provide core gameplay features."
+description: "Learn from Hytale's built-in plugin packages that demonstrate modding patterns and provide core gameplay features."
 ---
 
-{/* [VERIFIED: 2026-02-17] */}
+{/* [VERIFIED: 2026-03-21] */}
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
@@ -80,6 +80,10 @@ The `adventure/` directory doesn't contain a single plugin — it's a package of
 | TagSetPlugin | `tagset/` | Tag set management |
 | RandomTickPlugin | `randomtick/` | Random block ticking (grass spread, block changes) |
 
+<Aside type="note" title="New in Update 4">
+Two new core modules have been added in Update 4: **VoiceModule** (proximity voice chat) and **EmoteAsset** (emote system). VoiceModule is a `JavaPlugin` in `server/core/modules/voice/` rather than a builtin plugin. EmoteAsset is registered via `CosmeticsModule` in `server/core/cosmetics/`.
+</Aside>
+
 <Aside type="note" title="New in Update 3">
 `RandomTickPlugin` was added in Update 3. It provides Minecraft-style random block ticking with built-in `ChangeIntoBlockProcedure` and `SpreadToProcedure` procedures. See [Block Ticking](/plugin-development/blocks/block-ticking/) for details. All Update 3 additions are listed in the [changelog](/changelog/update-2-to-3/).
 </Aside>
@@ -112,6 +116,10 @@ WeatherSystem.InvalidateWeatherAfterTeleport  // Sync after teleport
 
 - `/weather <type>` - Change weather
 
+<Aside type="note" title="New in Update 4">
+Weather randomization is now deterministic. The weather seed is computed from `worldSeed + environment.getWeatherSeedKey().hashCode() + dateTime.hashCode()` using `FastRandom` instead of `ThreadLocalRandom`. Environments can share weather forecasts by using the same `weatherSeedKey`.
+</Aside>
+
 ### Key Patterns
 
 ```java
@@ -140,15 +148,19 @@ Complete crafting system with benches, recipes, and UI.
 | Component | Store | Description |
 |-----------|-------|-------------|
 | `CraftingManager` | EntityStore | Player crafting state |
-| `BenchState` | BlockState | Crafting bench state |
-| `ProcessingBenchState` | BlockState | Processing bench state |
+| `BenchBlock` | ChunkStore | Crafting bench block component |
+| `ProcessingBenchBlock` | ChunkStore | Processing bench block component |
 
-### Block States
+<Aside type="caution" title="Changed in Update 4">
+`BenchState` and `ProcessingBenchState` (which extended `BlockState`) have been replaced by `BenchBlock` and `ProcessingBenchBlock` (`Component<ChunkStore>`). Register them via `getChunkStoreRegistry().registerComponent()` instead of `blockStateRegistry.registerBlockState()`. Lifecycle logic previously in the state classes is now in `BenchSystems` (inner classes `OnAddOrRemoved`, `ProcessingBenchTick`, `ProcessingBenchLifecycle`). `CraftRecipeEvent.Pre` and `CraftRecipeEvent.Post` events are now dispatched during crafting, allowing plugins to cancel or modify recipe results.
+</Aside>
+
+### Block Components
 
 ```java
-// Register block state for crafting benches
-blockStateRegistry.registerBlockState(
-    BenchState.class, "crafting", BenchState.CODEC);
+// Register block component for crafting benches
+getChunkStoreRegistry().registerComponent(
+    BenchBlock.class, BenchBlock::new);
 ```
 
 ### Interactions
@@ -169,7 +181,7 @@ List<CraftingRecipe> recipes = CraftingPlugin.getBenchRecipes(bench);
 CraftingPlugin.learnRecipe(ref, recipeId, componentAccessor);
 
 // Check if item is valid material
-CraftingPlugin.isValidCraftingMaterialForBench(benchState, itemStack);
+CraftingPlugin.isValidCraftingMaterialForBench(bench, itemStack);
 ```
 
 ### Commands
@@ -305,6 +317,10 @@ FluidPlugin registers three `FluidTicker` codecs and six `FluidSystems` that ope
 | `Fire` | `FireFluidTicker` | Fire fluid behavior |
 | `Finite` | `FiniteFluidTicker` | Finite fluid volumes |
 
+<Aside type="note" title="New in Update 4">
+`DisabledFluidResource` is a new `Resource<ChunkStore>` that caches disabled fluid IDs from `WorldConfig.getDisabledFluidTickers()`. This allows per-world control over which fluids tick. When a fluid ID is in the disabled set, its tick is skipped entirely.
+</Aside>
+
 ---
 
 ## BlockTickPlugin
@@ -373,6 +389,64 @@ The `adventure/` package contains 15 independent plugins that together form Hyta
 | StashPlugin | `adventure/stash/` | Player stash/storage system |
 | TeleporterPlugin | `adventure/teleporter/` | In-world teleporter devices (with clear-out and portal state systems) |
 | WorldLocationConditionPlugin | `adventure/worldlocationcondition/` | Location-based conditions |
+
+---
+
+## VoiceModule (Core)
+
+**Location**: `server/core/modules/voice/`
+
+<Aside type="note" title="New in Update 4">
+VoiceModule is a core server module, not a builtin plugin. It is documented here because it is a significant new system modders may interact with.
+</Aside>
+
+Proximity voice chat system with spatial audio routing.
+
+### Configuration
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `voiceEnabled` | true | Enable/disable voice chat |
+| `maxHearingDistance` | 32 | Maximum distance to hear other players |
+| `fullVolumeDistance` | 4 | Distance at which voice is at full volume |
+| `deadPlayersCanHear` | — | Whether dead players can still hear voice |
+| `mutedPlayers` | empty | Set of muted player UUIDs |
+
+### Key Details
+
+- Uses dedicated QUIC streams via `StreamManager.registerHandler(StreamType.Voice, ...)`
+- Maximum 12 simultaneous speakers per listener
+- Speaker positions quantized to 0.5 block resolution
+- Rate limited to 60 packets/second with burst capacity of 25
+- 4 dedicated executor threads
+
+### Commands
+
+- `/voice enabled <true|false>` - Toggle voice chat
+- `/voice maxdistance <distance>` - Set max hearing distance
+- `/voice mute <player>` - Mute a player
+- `/voice unmute <player>` - Unmute a player
+- `/voice status` - Show voice chat status
+
+---
+
+## EmoteAsset (Core)
+
+**Location**: `server/core/cosmetics/EmoteAsset.java`
+
+<Aside type="note" title="New in Update 4">
+Emotes are registered as assets via `CosmeticsModule` using `IndexedLookupTableAssetMap` and support network serialization to `ProtocolEmote`.
+</Aside>
+
+### Asset Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Emote identifier |
+| `name` | string | Display name |
+| `animationPath` | string | Path to animation asset |
+| `iconPath` | string | Path to icon asset |
+| `isLooping` | boolean | Whether the emote loops |
 
 ---
 
@@ -446,9 +520,9 @@ protected void setup() {
     getCodecRegistry(Interaction.CODEC)
         .register("MyInteraction", MyInteraction.class, MyInteraction.CODEC);
 
-    // Register block state
-    getBlockStateRegistry().registerBlockState(
-        MyBlockState.class, "myBlockState", MyBlockState.CODEC);
+    // Register block component
+    getChunkStoreRegistry().registerComponent(
+        MyBlockComponent.class, MyBlockComponent::new);
 }
 ```
 

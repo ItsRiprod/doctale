@@ -3,7 +3,7 @@ title: "Entity Component System (ECS) Overview"
 description: "Learn ECS architecture that separates data (components) from behavior (systems) for efficient entity management."
 ---
 
-{/* [VERIFIED: 2026-02-13] */}
+{/* [VERIFIED: 2026-03-21] */}
 
 import { Aside, FileTree, Steps, Tabs, TabItem, Badge } from '@astrojs/starlight/components';
 
@@ -257,6 +257,7 @@ public class HealthRegenSystem extends System<EntityStore> {
 | `ArchetypeChunkSystem` | Processes archetype chunks |
 | `EventSystem` | Responds to ECS events |
 | `EntityEventSystem` | Handles entity-specific events |
+| `EntityHolderEventSystem` | Handles events with entity holder context |
 | `WorldEventSystem` | Handles world-level events |
 | `QuerySystem` | Query-based entity iteration |
 | `RefSystem` | Tracks entity references |
@@ -294,6 +295,36 @@ public class HealthRegenSystem extends EntityTickingSystem<EntityStore> {
         if (health.getHealth() < health.getMaxHealth()) {
             health.setHealth(Math.min(health.getHealth() + 0.1f * dt, health.getMaxHealth()));
         }
+    }
+}
+```
+
+### EntityHolderEventSystem
+
+<Aside type="note" title="New in Update 4">
+`EntityHolderEventSystem` is a new system type that handles events dispatched on entity holders (via `EntityHolderEventType`). Unlike `EntityEventSystem` which receives an archetype chunk index, this system receives a `Holder` directly.
+</Aside>
+
+```java
+import com.hypixel.hytale.component.system.EntityHolderEventSystem;
+
+public class MyHolderEventSystem
+        extends EntityHolderEventSystem<ChunkStore, BlockReplaceEvent> {
+
+    public MyHolderEventSystem() {
+        super(BlockReplaceEvent.class);
+    }
+
+    @Override
+    public void handle(Holder<ChunkStore> holder, Store<ChunkStore> store,
+                       CommandBuffer<ChunkStore> commandBuffer,
+                       BlockReplaceEvent event) {
+        // handle replacement
+    }
+
+    @Override
+    public Query<ChunkStore> getQuery() {
+        return Archetype.empty();
     }
 }
 ```
@@ -347,7 +378,11 @@ public Query<EntityStore> getQuery() {
 ## Entity References (Refs)
 
 <Aside type="caution" title="Changed in Update 3">
-`Ref` no longer overrides `equals()` and `hashCode()` — refs now use identity comparison (object reference equality) instead of value comparison. A new `validate(Store)` method was added that checks both store identity and index validity. Details and other breaking changes are covered in the [Update 3 changelog](/changelog/update-2-to-3/).
+`Ref` no longer overrides `equals()` and `hashCode()` — refs now use identity comparison (object reference equality) instead of value comparison. A `validate(Store)` method was added that checks both store identity and index validity. Details and other breaking changes are covered in the [Update 3 changelog](/changelog/update-2-to-3/).
+</Aside>
+
+<Aside type="caution" title="Changed in Update 4">
+`Ref.validate(Store)` now returns `int` (the entity index) instead of `void`. Collections holding `Ref` instances should use `ReferenceArrayList` and `ReferenceOpenHashSet` (identity-based) instead of `ObjectArrayList` and `HashSet`. `SpatialResource.getThreadLocalReferenceList()` now returns `List<Ref<ECS_TYPE>>` instead of `ObjectList<Ref<ECS_TYPE>>`.
 </Aside>
 
 `Ref<ECS_TYPE>` is a reference to an entity in a store.
