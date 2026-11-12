@@ -1,0 +1,32 @@
+@import 'tailwindcss';
+/* Fumadocs reads shadcn/ui variables; every site theme is a pulled shadcn registry item (app/themes). */
+@import 'fumadocs-ui/css/shadcn.css';
+@import 'fumadocs-ui/css/preset.css';
+
+/* Themes. WS-A generates this list (app/themes/index.css) from the registry; Phase 0 imports two by hand.
+   The first/default theme also targets bare :root/.dark. `data-theme` must sit on <html>, because shadcn.css resolves
+   --color-fd-* from --background etc. on :root. */
+@import './themes/modern-minimal.css';
+@import './themes/catppuccin.css';
+
+/* Keep Tailwind's class scanner out of the huge extracted-server dumps and legacy Astro sources. */
+@source not '../hyaleServer-extracted-v1';
+@source not '../hytaleServer-extracted-v2';
+@source not '../hytaleServer-extracted-v3';
+@source not '../hytaleServer-prerelease-extracted-v4';
+@source not '../legacy';
+@source not '../reports';
+
+/* Phase 0 spike: per-site-theme Shiki theme. WS-C generates these rules from the theme index. */
+:root[data-theme='catppuccin'] .shiki code span {
+  color: var(--shiki-catppuccin-mocha);
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+html > body[data-scroll-locked] {
+  margin-right: 0px !important;
+  --removed-body-scroll-bar-size: 0px !important;
+}

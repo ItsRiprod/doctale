@@ -7,4 +7,4 @@ compatibility_date = "2024-01-01"
 # Static assets only - no worker script needed
 # Astro builds static HTML files that are served directly
 [assets]
-directory = "dist"
+directory = "out"

@@ -1,3 +1,9 @@
+> **Migration in progress (branch `fumadocs`).** The site is moving from Astro/Starlight to Next.js + Fumadocs.
+> Until cutover, the rules for content and components are the contract in
+> [MIGRATION-PLAN.md §2](./MIGRATION-PLAN.md#2-the-contract-frozen-in-phase-0-everyone-builds-against-it). In short: content lives in `content/docs/`,
+> pages never import components (all are global), and the Starlight names (`Aside`, `Tabs`/`TabItem`, `Steps`, `FileTree`,
+> `Card`/`CardGrid`/`LinkCard`, `Badge`) keep working. Starlight-specific instructions below are outdated and will be rewritten in Phase 3.
+
 # Contributing to Hytale Server Modding Docs
 
 Thank you for your interest in contributing! This documentation is community-driven and we welcome improvements from anyone.
