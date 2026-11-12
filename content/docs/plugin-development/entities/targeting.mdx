@@ -1,0 +1,320 @@
+---
+title: "Player Targeting"
+description: "Get what a player is looking at via raycast, handle mouse input, and implement click-and-drag targeting mechanics."
+sidebarTitle: Targeting
+---
+
+{/* [VERIFIED: 2026-02-13] */}
+
+Getting what a player is looking at, handling mouse input, and implementing targeting mechanics like click-and-drag interactions.
+
+## Package Locations
+
+- **TargetUtil**: `com.hypixel.hytale.server.core.util.TargetUtil`
+- **Mouse Events**: `com.hypixel.hytale.server.core.event.events.player`
+- **Sync Data**: `com.hypixel.hytale.protocol.InteractionSyncData`
+- **Raycast**: `com.hypixel.hytale.server.core.modules.interaction.interaction.config.selector.RaycastSelector`
+
+## TargetUtil
+
+The primary utility class for raycast-based targeting. Use this to determine what entity or block a player is looking at. All methods take a `Ref<EntityStore>` as the entity reference (works for players and any entity with the right components).
+
+### Methods
+
+| Method | Return Type | Description |
+|--------|-------------|-------------|
+| `getTargetEntity(Ref<EntityStore> ref, ComponentAccessor<EntityStore> componentAccessor)` | `Ref<EntityStore>` | Entity the ref is looking at (default 8-block radius) |
+| `getTargetEntity(Ref<EntityStore> ref, float radius, ComponentAccessor<EntityStore> componentAccessor)` | `Ref<EntityStore>` | Entity the ref is looking at (custom radius) |
+| `getTargetBlock(Ref<EntityStore> ref, double maxDistance, ComponentAccessor<EntityStore> componentAccessor)` | `Vector3i` | Block the ref is looking at |
+| `getTargetLocation(Ref<EntityStore> ref, double maxDistance, ComponentAccessor<EntityStore> componentAccessor)` | `Vector3d` | Precise hit location with decimals |
+| `getLook(Ref<EntityStore> ref, ComponentAccessor<EntityStore> componentAccessor)` | `Transform` | Eye position and look direction |
+
+### Basic Usage
+
+```java title="Getting target entity and block"
+Ref<EntityStore> targetEntity = TargetUtil.getTargetEntity(playerRef, componentAccessor);
+if (targetEntity != null) {
+    processTarget(targetEntity);
+}
+
+Ref<EntityStore> closerTarget = TargetUtil.getTargetEntity(playerRef, 4.0f, componentAccessor);
+
+Vector3i targetBlock = TargetUtil.getTargetBlock(playerRef, 30.0, componentAccessor);
+
+Vector3d targetLocation = TargetUtil.getTargetLocation(playerRef, 30.0, componentAccessor);
+```
+
+### Custom Raycasting
+
+```java title="Using look direction for custom raycast"
+Transform look = TargetUtil.getLook(playerRef, componentAccessor);
+Vector3d eyePosition = look.getPosition();
+Vector3d direction = look.getDirection();
+
+Vector3d endPoint = eyePosition.add(direction.mul(50.0));
+```
+
+### Area Queries
+
+These methods find all entities within a given shape. Useful for AoE attacks, proximity checks, or any mechanic that needs to know about nearby entities.
+
+| Method | Return Type | Description |
+|--------|-------------|-------------|
+| `getAllEntitiesInSphere(Vector3d position, double radius, ComponentAccessor<EntityStore> componentAccessor)` | `List<Ref<EntityStore>>` | All entities within a sphere |
+| `getAllEntitiesInCylinder(Vector3d position, double radius, double height, ComponentAccessor<EntityStore> componentAccessor)` | `List<Ref<EntityStore>>` | All entities within a cylinder |
+| `getAllEntitiesInBox(Vector3d min, Vector3d max, ComponentAccessor<EntityStore> componentAccessor)` | `List<Ref<EntityStore>>` | All entities within an axis-aligned box |
+
+```java title="Area query examples"
+Vector3d center = new Vector3d(100.0, 64.0, 200.0);
+
+List<Ref<EntityStore>> nearby = TargetUtil.getAllEntitiesInSphere(center, 10.0, componentAccessor);
+
+List<Ref<EntityStore>> inCylinder = TargetUtil.getAllEntitiesInCylinder(center, 5.0, 3.0, componentAccessor);
+
+Vector3d min = new Vector3d(90.0, 60.0, 190.0);
+Vector3d max = new Vector3d(110.0, 70.0, 210.0);
+List<Ref<EntityStore>> inBox = TargetUtil.getAllEntitiesInBox(min, max, componentAccessor);
+```
+
+<Aside type="tip">
+These area queries collect from both the entity spatial resource and the player spatial resource internally, so you get both players and non-player entities in the results.
+</Aside>
+
+## Mouse Events
+
+Mouse events provide real-time information about player clicks and cursor movement, including what entity or block is under the cursor.
+
+### PlayerMouseButtonEvent
+
+Fired when a player clicks a mouse button.
+
+```java title="PlayerMouseButtonEvent fields"
+public class PlayerMouseButtonEvent extends PlayerEvent<Void> implements ICancellable {
+    public PlayerRef getPlayerRef();
+    public float getClientUseTime();
+    public ItemStack getItemInHand();
+    public TargetBlock getTargetBlock();      // Block being clicked
+    public TargetEntity getTargetEntity();    // Entity being clicked
+    public Vector2f getScreenPoint();         // Screen coordinates (x, y)
+    public MouseButton getMouseButton();      // PRIMARY, SECONDARY, etc.
+}
+```
+
+### PlayerMouseMotionEvent
+
+Fired when a player moves their mouse.
+
+```java title="PlayerMouseMotionEvent fields"
+public class PlayerMouseMotionEvent extends PlayerEvent<Void> implements ICancellable {
+    public PlayerRef getPlayerRef();
+    public TargetBlock getTargetBlock();      // Block under cursor
+    public TargetEntity getTargetEntity();    // Entity under cursor
+    public Vector2f getScreenPoint();         // Screen coordinates
+    public MouseMotionEvent getMouseMotion(); // Motion delta info
+}
+```
+
+### Mouse Button Types
+
+| Value | Description |
+|-------|-------------|
+| `PRIMARY` | Left click |
+| `SECONDARY` | Right click |
+| `ABILITY1` | Ability slot 1 |
+| `ABILITY2` | Ability slot 2 |
+| `ABILITY3` | Ability slot 3 |
+
+## Click-and-Drag Implementation
+
+<Aside type="tip">
+For implementing mechanics where players click on entities and drag them to new positions, use a combination of `PlayerMouseButtonEvent` to detect the initial click and `PlayerMouseMotionEvent` to track movement.
+</Aside>
+
+### Example: Entity Dragging System
+
+```java title="EntityDragHandler.java"
+public class EntityDragHandler {
+    private Map<UUID, Ref<EntityStore>> draggingEntities = new HashMap<>();
+
+    public void setup(EventRegistry eventRegistry) {
+        eventRegistry.register(PlayerMouseButtonEvent.class, event -> {
+            if (event.getMouseButton() != MouseButton.SECONDARY) {
+                return;
+            }
+
+            TargetEntity target = event.getTargetEntity();
+            if (target == null) {
+                return;
+            }
+
+            Ref<EntityStore> entityRef = target.getEntityRef();
+            if (isDraggable(entityRef)) {
+                UUID playerUuid = event.getPlayerRef().getUuid();
+                draggingEntities.put(playerUuid, entityRef);
+                event.setCancelled(true);
+            }
+        });
+
+        eventRegistry.register(PlayerMouseMotionEvent.class, event -> {
+            UUID playerUuid = event.getPlayerRef().getUuid();
+            Ref<EntityStore> draggedEntity = draggingEntities.get(playerUuid);
+
+            if (draggedEntity == null) {
+                return;
+            }
+
+            TargetBlock targetBlock = event.getTargetBlock();
+            if (targetBlock != null) {
+                Vector3i blockPos = targetBlock.getPosition();
+                Vector3d newPos = blockPos.toVector3d().add(0.5, 1.0, 0.5);
+                moveEntityTo(draggedEntity, newPos);
+            }
+        });
+    }
+
+    public void stopDragging(UUID playerUuid) {
+        draggingEntities.remove(playerUuid);
+    }
+
+    private boolean isDraggable(Ref<EntityStore> entity) {
+        return true;
+    }
+
+    private void moveEntityTo(Ref<EntityStore> entity, Vector3d position) {
+    }
+}
+```
+
+### Detecting Button Release
+
+<Aside type="caution">
+Mouse button release events may need to be detected via the interaction system or by tracking button state changes between `PlayerMouseButtonEvent` calls.
+</Aside>
+
+## InteractionSyncData
+
+When working within the interaction system, `InteractionSyncData` provides client-sent raycast information:
+
+```java title="InteractionSyncData fields"
+public class InteractionSyncData {
+    public int entityId;           // ID of targeted entity
+    public float[] raycastHit;     // Hit position (x, y, z)
+    public float raycastDistance;  // Distance to hit point
+    public float[] raycastNormal;  // Surface normal at hit (x, y, z)
+    public float[] attackerPos;    // Attacker position
+    public float[] attackerRot;    // Attacker rotation (yaw, pitch)
+    public int[] blockPosition;    // Block being targeted
+    public HitEntityData[] hitEntities; // Array of hit entities with details
+}
+```
+
+## Interaction Context Metadata
+
+Within interaction handlers, access targets via the context metadata store:
+
+```java title="Accessing targets in interactions"
+public void handleInteraction(InteractionContext context) {
+    DynamicMetaStore<InteractionContext> meta = context.getMetaStore();
+
+    Ref<EntityStore> targetEntity = meta.get(Interaction.TARGET_ENTITY);
+
+    BlockPosition targetBlock = meta.get(Interaction.TARGET_BLOCK);
+
+    Vector4d hitLocation = meta.get(Interaction.HIT_LOCATION);
+
+    String hitDetail = meta.get(Interaction.HIT_DETAIL);
+}
+```
+
+### Metadata Keys
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `Interaction.TARGET_ENTITY` | `Ref<EntityStore>` | Targeted entity reference |
+| `Interaction.TARGET_BLOCK` | `BlockPosition` | Targeted block position |
+| `Interaction.HIT_LOCATION` | `Vector4d` | Precise hit point |
+| `Interaction.HIT_DETAIL` | `String` | Additional hit information |
+
+## RaycastSelector
+
+For advanced targeting configuration within the interaction system:
+
+```java title="RaycastSelector configuration"
+public class RaycastSelector implements Selector {
+    public float Distance = 30f;        // Max raycast distance
+    public float[] Offset;              // Offset from origin
+    public String BlockTag;             // Filter blocks by tag
+    public boolean IgnoreFluids = true; // Skip fluid blocks
+
+    public Vector3d selectTargetPosition(InteractionContext context);
+
+    public List<Ref<EntityStore>> selectTargetEntities(InteractionContext context);
+
+    public List<BlockPosition> selectTargetBlocks(InteractionContext context);
+}
+```
+
+## Quick Reference
+
+| Need | Solution |
+|------|----------|
+| Get targeted entity | `TargetUtil.getTargetEntity()` |
+| Get targeted entity (custom range) | `TargetUtil.getTargetEntity(ref, radius, accessor)` |
+| Get targeted block | `TargetUtil.getTargetBlock()` |
+| Get precise hit location | `TargetUtil.getTargetLocation()` |
+| Get look direction | `TargetUtil.getLook()` |
+| All entities in sphere | `TargetUtil.getAllEntitiesInSphere()` |
+| All entities in cylinder | `TargetUtil.getAllEntitiesInCylinder()` |
+| All entities in box | `TargetUtil.getAllEntitiesInBox()` |
+| Detect click on entity | `PlayerMouseButtonEvent.getTargetEntity()` |
+| Track cursor movement | `PlayerMouseMotionEvent` |
+| Client raycast data | `InteractionSyncData` |
+| Targets in interactions | `InteractionContext.getMetaStore()` |
+
+## Best Practices
+
+<Steps>
+1. **Always null-check targets** - Both `getTargetEntity()` and `getTargetBlock()` can return null if the entity isn't looking at anything valid
+
+2. **Validate distance** - Verify the target is within an acceptable range for your mechanic
+
+3. **Cancel events when handling** - Call `event.setCancelled(true)` when consuming mouse events to prevent default behavior
+
+4. **Clean up on disconnect** - Remove any drag state or tracking data when players disconnect
+
+5. **Use TargetUtil for simplicity** - Prefer `TargetUtil` methods over manual raycast calculations
+</Steps>
+
+## HeadRotation vs TransformComponent
+
+`TransformComponent.getRotation()` returns the **body rotation** (which way the entity's body is facing), not where they are actually looking. Players can look around without rotating their body.
+
+Use `HeadRotation` for look direction:
+
+```java title="Correct - HeadRotation"
+HeadRotation headRotation = store.getComponent(playerRef, HeadRotation.getComponentType());
+Vector3f rotation = headRotation.getRotation();
+float pitch = rotation.getPitch();
+float yaw = rotation.getYaw();
+float roll = rotation.getRoll();
+```
+
+```java title="Wrong - TransformComponent gives body rotation"
+TransformComponent transform = store.getComponent(playerRef, TransformComponent.getComponentType());
+float yaw = transform.getRotation().y;
+```
+
+This is exactly what `TargetUtil.getLook()` does internally -- it reads the `HeadRotation` component and builds a `Transform` from the eye position and head rotation:
+
+```java title="How getLook() works"
+HeadRotation headRotationComponent = componentAccessor.getComponent(ref, HeadRotation.getComponentType());
+Vector3f headRotation = headRotationComponent.getRotation();
+return new Transform(position.getX(), position.getY() + eyeHeight, position.getZ(),
+    headRotation.getPitch(), headRotation.getYaw(), headRotation.getRoll());
+```
+
+## Related
+
+- [Event Catalog](/plugin-development/events/event-catalog/) - Complete event reference including mouse events
+- [Interaction System](/plugin-development/interactions/overview/) - Interaction chain system
+- [ECS Overview](/plugin-development/ecs/overview/) - Entity component system for manipulating entities

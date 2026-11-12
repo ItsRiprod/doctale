@@ -1,0 +1,601 @@
+---
+title: "Event Catalog"
+description: "Complete catalog of all events in the Hytale server including player, ECS, entity, and permission events."
+---
+
+{/* [VERIFIED: 2026-02-13] */}
+
+Complete catalog of all events in the Hytale server, organized by category.
+
+## Package Location
+
+- Base Interfaces: `com.hypixel.hytale.event`
+- Player Events: `com.hypixel.hytale.server.core.event.events.player`
+- ECS Events: `com.hypixel.hytale.server.core.event.events.ecs`
+- Entity Events: `com.hypixel.hytale.server.core.event.events.entity`
+- Permission Events: `com.hypixel.hytale.server.core.event.events.permissions`
+- Lifecycle Events: `com.hypixel.hytale.server.core.event.events`
+
+## Event Hierarchy
+
+```mermaid
+flowchart TD
+    subgraph BaseEvents["Base Event Interfaces"]
+        IBaseEvent["IBaseEvent&lt;KeyType&gt;"]
+    end
+
+    subgraph SyncEvents["Synchronous Events"]
+        IEvent["IEvent&lt;KeyType&gt;"]
+        PlayerEvent["PlayerEvent&lt;KeyType&gt;"]
+        PlayerRefEvent["PlayerRefEvent&lt;KeyType&gt;"]
+        EntityEvent["EntityEvent&lt;EntityType, KeyType&gt;"]
+    end
+
+    subgraph AsyncEvents["Asynchronous Events"]
+        IAsyncEvent["IAsyncEvent&lt;KeyType&gt;"]
+        PlayerChatEvent
+    end
+
+    subgraph ECSEvents["ECS Events"]
+        EcsEvent
+        CancellableEcsEvent
+    end
+
+    subgraph Mixins["Cancellation Mixins"]
+        ICancellable
+        ICancellableEcsEvent
+    end
+
+    IBaseEvent --> IEvent
+    IBaseEvent --> IAsyncEvent
+    IBaseEvent --> EcsEvent
+
+    IEvent --> PlayerEvent
+    IEvent --> PlayerRefEvent
+    IEvent --> EntityEvent
+
+    IAsyncEvent --> PlayerChatEvent
+
+    EcsEvent --> CancellableEcsEvent
+
+    ICancellable --> ICancellableEcsEvent
+```
+
+## Player Events
+
+### Connection Lifecycle
+
+| Event | Cancellable | Description |
+|-------|-------------|-------------|
+| `PlayerSetupConnectEvent` | Yes | Early connection before entity creation |
+| `PlayerConnectEvent` | No | Player connected, entity available |
+| `PlayerReadyEvent` | No | Player fully ready to play |
+| `AddPlayerToWorldEvent` | No | Player being added to world |
+| `PlayerDisconnectEvent` | No | Player disconnecting |
+| `PlayerSetupDisconnectEvent` | No | Early disconnection during setup |
+| `DrainPlayerFromWorldEvent` | No | Player being removed from world |
+
+#### PlayerSetupConnectEvent
+
+```java
+public class PlayerSetupConnectEvent implements IEvent<Void>, ICancellable {
+    public PacketHandler getPacketHandler();
+    public String getUsername();
+    public UUID getUuid();
+    public PlayerAuthentication getAuth();
+    public byte[] getReferralData();
+    public boolean isReferralConnection();
+    public HostAddress getReferralSource();
+    public ClientReferral getClientReferral();
+    public void referToServer(String host, int port);
+    public void referToServer(String host, int port, byte[] data);
+    public String getReason();
+    public void setReason(String reason);
+
+    public void setCancelled(boolean cancelled);
+    public boolean isCancelled();
+}
+```
+
+#### PlayerConnectEvent
+
+```java
+public class PlayerConnectEvent implements IEvent<Void> {
+    public Holder<EntityStore> getHolder();
+    public PlayerRef getPlayerRef();
+    public World getWorld();
+    public void setWorld(World world);
+}
+```
+
+#### PlayerReadyEvent
+
+```java
+public class PlayerReadyEvent extends PlayerEvent<String> {
+    public int getReadyId();
+}
+```
+
+#### AddPlayerToWorldEvent
+
+```java
+public class AddPlayerToWorldEvent implements IEvent<String> {
+    public Holder<EntityStore> getHolder();
+    public World getWorld();
+    public boolean shouldBroadcastJoinMessage();
+    public void setBroadcastJoinMessage(boolean broadcastJoinMessage);
+}
+```
+
+#### PlayerDisconnectEvent
+
+```java
+public class PlayerDisconnectEvent extends PlayerRefEvent<Void> {
+    public PlayerRef getPlayerRef();
+    public PacketHandler.DisconnectReason getDisconnectReason();
+}
+```
+
+#### PlayerSetupDisconnectEvent
+
+```java
+public class PlayerSetupDisconnectEvent implements IEvent<Void> {
+    public String getUsername();
+    public UUID getUuid();
+    public PlayerAuthentication getAuth();
+    public PacketHandler.DisconnectReason getDisconnectReason();
+}
+```
+
+#### DrainPlayerFromWorldEvent
+
+```java
+public class DrainPlayerFromWorldEvent implements IEvent<String> {
+    public Holder<EntityStore> getHolder();
+    public World getWorld();
+    public void setWorld(World world);
+    public Transform getTransform();
+    public void setTransform(Transform transform);
+}
+```
+
+### Player Actions
+
+| Event | Cancellable | Description |
+|-------|-------------|-------------|
+| `PlayerChatEvent` | Yes | Chat message (async) |
+| `PlayerMouseButtonEvent` | Yes | Mouse button click |
+| `PlayerMouseMotionEvent` | Yes | Mouse movement |
+| `PlayerInteractEvent` | Yes | Player interaction (deprecated) |
+| `PlayerCraftEvent` | No | Crafting (deprecated) |
+
+#### PlayerChatEvent
+
+```java
+public class PlayerChatEvent implements IAsyncEvent<String>, ICancellable {
+    public PlayerRef getSender();
+    public void setSender(PlayerRef sender);
+    public List<PlayerRef> getTargets();
+    public void setTargets(List<PlayerRef> targets);
+    public String getContent();
+    public void setContent(String content);
+    public PlayerChatEvent.Formatter getFormatter();
+    public void setFormatter(PlayerChatEvent.Formatter formatter);
+
+    public void setCancelled(boolean cancelled);
+    public boolean isCancelled();
+}
+```
+
+#### PlayerMouseButtonEvent
+
+```java
+public class PlayerMouseButtonEvent extends PlayerEvent<Void> implements ICancellable {
+    public PlayerRef getPlayerRefComponent();
+    public long getClientUseTime();
+    public Item getItemInHand();
+    public Vector3i getTargetBlock();
+    public Entity getTargetEntity();
+    public Vector2f getScreenPoint();
+    public MouseButtonEvent getMouseButton();
+
+    public void setCancelled(boolean cancelled);
+    public boolean isCancelled();
+}
+```
+
+#### PlayerMouseMotionEvent
+
+```java
+public class PlayerMouseMotionEvent extends PlayerEvent<Void> implements ICancellable {
+    public long getClientUseTime();
+    public Item getItemInHand();
+    public Vector3i getTargetBlock();
+    public Entity getTargetEntity();
+    public Vector2f getScreenPoint();
+    public MouseMotionEvent getMouseMotion();
+
+    public void setCancelled(boolean cancelled);
+    public boolean isCancelled();
+}
+```
+
+## ECS Events
+
+### Block Events
+
+| Event | Cancellable | Description |
+|-------|-------------|-------------|
+| `BreakBlockEvent` | Yes | Block being broken |
+| `PlaceBlockEvent` | Yes | Block being placed |
+| `DamageBlockEvent` | Yes | Block taking damage |
+| `UseBlockEvent.Pre` | Yes | Before block usage |
+| `UseBlockEvent.Post` | No | After block usage |
+
+#### BreakBlockEvent
+
+```java
+public class BreakBlockEvent extends CancellableEcsEvent {
+    public ItemStack getItemInHand();
+    public Vector3i getTargetBlock();
+    public void setTargetBlock(Vector3i targetBlock);
+    public BlockType getBlockType();
+
+    public void setCancelled(boolean cancelled);
+    public boolean isCancelled();
+}
+```
+
+#### PlaceBlockEvent
+
+```java
+public class PlaceBlockEvent extends CancellableEcsEvent {
+    public ItemStack getItemInHand();
+    public Vector3i getTargetBlock();
+    public void setTargetBlock(Vector3i targetBlock);
+    public RotationTuple getRotation();
+    public void setRotation(RotationTuple rotation);
+
+    public void setCancelled(boolean cancelled);
+    public boolean isCancelled();
+}
+```
+
+#### DamageBlockEvent
+
+```java
+public class DamageBlockEvent extends CancellableEcsEvent {
+    public ItemStack getItemInHand();
+    public Vector3i getTargetBlock();
+    public void setTargetBlock(Vector3i targetBlock);
+    public BlockType getBlockType();
+    public float getCurrentDamage();
+    public float getDamage();
+    public void setDamage(float damage);
+
+    public void setCancelled(boolean cancelled);
+    public boolean isCancelled();
+}
+```
+
+#### UseBlockEvent
+
+```java
+public abstract class UseBlockEvent extends EcsEvent {
+    public InteractionType getInteractionType();
+    public InteractionContext getContext();
+    public Vector3i getTargetBlock();
+    public BlockType getBlockType();
+
+    public static final class Pre extends UseBlockEvent implements ICancellableEcsEvent {
+        public void setCancelled(boolean cancelled);
+        public boolean isCancelled();
+    }
+
+    public static final class Post extends UseBlockEvent { }
+}
+```
+
+### Item Events
+
+| Event | Cancellable | Description |
+|-------|-------------|-------------|
+| `DropItemEvent.Drop` | Yes | Item being dropped |
+| `DropItemEvent.PlayerRequest` | Yes | Player drop request |
+| `InteractivelyPickupItemEvent` | Yes | Item being picked up |
+| `SwitchActiveSlotEvent` | Yes | Active slot changing |
+
+#### DropItemEvent.Drop
+
+```java
+public static class Drop extends DropItemEvent {
+    public ItemStack getItemStack();
+    public void setItemStack(ItemStack itemStack);
+    public float getThrowSpeed();
+    public void setThrowSpeed(float speed);
+}
+```
+
+#### DropItemEvent.PlayerRequest
+
+```java
+public static class PlayerRequest extends DropItemEvent {
+    public int getInventorySectionId();
+    public short getSlotId();
+}
+```
+
+#### InteractivelyPickupItemEvent
+
+```java
+public class InteractivelyPickupItemEvent extends CancellableEcsEvent {
+    public ItemStack getItemStack();
+    public void setItemStack(ItemStack itemStack);
+
+    public void setCancelled(boolean cancelled);
+    public boolean isCancelled();
+}
+```
+
+#### SwitchActiveSlotEvent
+
+```java
+public class SwitchActiveSlotEvent extends CancellableEcsEvent {
+    public int getPreviousSlot();
+    public byte getNewSlot();
+    public void setNewSlot(byte newSlot);
+    public int getInventorySectionId();
+    public boolean isServerRequest();
+    public boolean isClientRequest();
+
+    public void setCancelled(boolean cancelled);
+    public boolean isCancelled();
+}
+```
+
+### Crafting Events
+
+| Event | Cancellable | Description |
+|-------|-------------|-------------|
+| `CraftRecipeEvent.Pre` | Yes | Before crafting |
+| `CraftRecipeEvent.Post` | Yes | After crafting |
+
+#### CraftRecipeEvent
+
+```java
+public abstract class CraftRecipeEvent extends CancellableEcsEvent {
+    public CraftingRecipe getCraftedRecipe();
+    public int getQuantity();
+
+    public static final class Pre extends CraftRecipeEvent { }
+    public static final class Post extends CraftRecipeEvent { }
+}
+```
+
+### Exploration Events
+
+| Event | Cancellable | Description |
+|-------|-------------|-------------|
+| `DiscoverZoneEvent.Display` | Yes | Zone discovery display |
+
+#### DiscoverZoneEvent
+
+```java
+public abstract class DiscoverZoneEvent extends EcsEvent {
+    public WorldMapTracker.ZoneDiscoveryInfo getDiscoveryInfo();
+
+    public static class Display extends DiscoverZoneEvent implements ICancellableEcsEvent {
+        public void setCancelled(boolean cancelled);
+        public boolean isCancelled();
+    }
+}
+```
+
+### Gameplay Events
+
+| Event | Cancellable | Description |
+|-------|-------------|-------------|
+| `ChangeGameModeEvent` | Yes | Game mode change |
+
+#### ChangeGameModeEvent
+
+```java
+public class ChangeGameModeEvent extends CancellableEcsEvent {
+    public GameMode getGameMode();
+    public void setGameMode(GameMode gameMode);
+
+    public void setCancelled(boolean cancelled);
+    public boolean isCancelled();
+}
+```
+
+## Entity Events
+
+| Event | Cancellable | Description |
+|-------|-------------|-------------|
+| `EntityRemoveEvent` | No | Entity being removed |
+| `LivingEntityInventoryChangeEvent` | No | Inventory change |
+
+#### EntityRemoveEvent
+
+```java
+public class EntityRemoveEvent extends EntityEvent<Entity, String> {
+    public Entity getEntity();
+}
+```
+
+#### LivingEntityInventoryChangeEvent
+
+```java
+public class LivingEntityInventoryChangeEvent extends EntityEvent<LivingEntity, String> {
+    public LivingEntity getEntity();
+    public ItemContainer getItemContainer();
+    public Transaction getTransaction();
+}
+```
+
+## Permission Events
+
+### Player Permission Events
+
+| Event | Cancellable | Description |
+|-------|-------------|-------------|
+| `PlayerPermissionChangeEvent.PermissionsAdded` | No | Permissions granted |
+| `PlayerPermissionChangeEvent.PermissionsRemoved` | No | Permissions revoked |
+| `PlayerPermissionChangeEvent.GroupAdded` | No | Player added to permission group (via change event) |
+| `PlayerPermissionChangeEvent.GroupRemoved` | No | Player removed from permission group (via change event) |
+| `PlayerGroupEvent.Added` | No | Added to group |
+| `PlayerGroupEvent.Removed` | No | Removed from group |
+
+```java
+public abstract class PlayerPermissionChangeEvent implements IEvent<Void> {
+    public UUID getPlayerUuid();
+
+    public static class PermissionsAdded extends PlayerPermissionChangeEvent {
+        public Set<String> getAddedPermissions();
+    }
+
+    public static class PermissionsRemoved extends PlayerPermissionChangeEvent {
+        public Set<String> getRemovedPermissions();
+    }
+
+    public static class GroupAdded extends PlayerPermissionChangeEvent {
+        public String getGroupName();
+    }
+
+    public static class GroupRemoved extends PlayerPermissionChangeEvent {
+        public String getGroupName();
+    }
+}
+```
+
+```java
+public class PlayerGroupEvent extends PlayerPermissionChangeEvent {
+    public UUID getPlayerUuid();
+    public String getGroupName();
+
+    public static class Added extends PlayerGroupEvent { }
+    public static class Removed extends PlayerGroupEvent { }
+}
+```
+
+### Group Permission Events
+
+| Event | Cancellable | Description |
+|-------|-------------|-------------|
+| `GroupPermissionChangeEvent.Added` | No | Permissions added to group |
+| `GroupPermissionChangeEvent.Removed` | No | Permissions removed from group |
+
+```java
+public abstract class GroupPermissionChangeEvent implements IEvent<Void> {
+    public String getGroupName();
+
+    public static class Added extends GroupPermissionChangeEvent {
+        public Set<String> getAddedPermissions();
+    }
+
+    public static class Removed extends GroupPermissionChangeEvent {
+        public Set<String> getRemovedPermissions();
+    }
+}
+```
+
+## Lifecycle Events
+
+| Event | Cancellable | Description |
+|-------|-------------|-------------|
+| `BootEvent` | No | Server boot complete |
+| `ShutdownEvent` | No | Server shutdown |
+
+#### ShutdownEvent
+
+```java
+public class ShutdownEvent implements IEvent<Void> {
+    public static final short DISCONNECT_PLAYERS = -48;
+    public static final short UNBIND_LISTENERS = -40;
+    public static final short SHUTDOWN_WORLDS = -32;
+}
+```
+
+## Registering Event Listeners
+
+### Synchronous Events
+
+```java
+@Override
+protected void setup() {
+    getEventRegistry().register(PlayerConnectEvent.class,
+        event -> {
+            PlayerRef player = event.getPlayerRef();
+            getLogger().info("Player connected: " + player.getUsername());
+        }
+    );
+}
+```
+
+### With Priority
+
+```java
+getEventRegistry().register(
+    EventPriority.EARLY,
+    PlayerChatEvent.class,
+    event -> {
+        // Process early in chain
+    }
+);
+```
+
+### Cancellable Events
+
+```java
+getEventRegistry().register(BreakBlockEvent.class,
+    event -> {
+        if (isProtectedBlock(event.getTargetBlock())) {
+            event.setCancelled(true);
+        }
+    }
+);
+```
+
+### Async Events
+
+```java
+getEventRegistry().register(PlayerChatEvent.class,
+    event -> {
+        // Runs on async thread
+        String filtered = filterMessage(event.getContent());
+        event.setContent(filtered);
+    }
+);
+```
+
+## Event Summary
+
+| Category | Count | Cancellable |
+|----------|-------|-------------|
+| Player Connection | 7 | 1 |
+| Player Actions | 5 | 4 |
+| Block Events | 5 | 4 |
+| Item Events | 4 | 4 |
+| Crafting Events | 2 | 2 |
+| Exploration Events | 1 | 1 |
+| Gameplay Events | 1 | 1 |
+| Entity Events | 2 | 0 |
+| Permission Events | 8 | 0 |
+| Lifecycle Events | 2 | 0 |
+| **Total** | **37** | **17** |
+
+## Deprecated Events
+
+| Event | Replacement |
+|-------|-------------|
+| `PlayerInteractEvent` | Use ECS events |
+| `PlayerCraftEvent` | Use `CraftRecipeEvent.Pre/Post` |
+| `LivingEntityUseBlockEvent` | Use `UseBlockEvent` |
+| `PrepareUniverseEvent` | (none) |
+
+## Related
+
+- [Event System](/plugin-development/core-concepts/event-system/) - Event system overview
+- [Component Catalog](/plugin-development/ecs/component-catalog/) - ECS components
+- [Permission System](/plugin-development/permissions/overview/) - Permission events

@@ -1,0 +1,9 @@
+{
+  "title": "World",
+  "pages": [
+    "environments",
+    "weather",
+    "instances",
+    "prefabs"
+  ]
+}

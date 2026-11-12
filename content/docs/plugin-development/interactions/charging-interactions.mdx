@@ -1,0 +1,425 @@
+---
+title: "Charging Mechanics"
+description: "Implement hold-to-charge interactions with multi-tier release, forking, and damage cancellation"
+---
+
+{/* [VERIFIED: 2026-02-13] - From ChargingInteraction.java and WieldingInteraction.java */}
+
+Charging interactions allow players to hold a button to charge up an action, then release to execute based on charge level.
+
+## ChargingInteraction Overview
+
+ChargingInteraction extends the basic interaction system with:
+
+- **Multi-tier charging** - Different effects at different charge levels
+- **Visual progress** - UI progress bar during charge
+- **Damage cancellation** - Cancel charge if player takes damage
+- **Forking during charge** - Execute actions while holding (e.g., shield bash)
+- **Mouse sensitivity** - Reduced turn rate while charging
+
+## Basic Charging Configuration
+
+```json title="Simple charging interaction"
+{
+  "Type": "Charging",
+  "DisplayProgress": true,
+  "FailOnDamage": true,
+  "Next": {
+    "0.5": "Quick_Release",
+    "1.5": "Medium_Charge",
+    "3.0": "Full_Charge"
+  },
+  "Failed": "Charge_Interrupted"
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `DisplayProgress` | `bool` | Show charge progress bar in UI |
+| `FailOnDamage` | `bool` | Cancel if player takes damage |
+| `Next` | `object` | Map of charge thresholds to interactions |
+| `Failed` | `string` | Interaction to run if charge cancelled |
+| `Delay` | `object` | Delay configuration based on entity health |
+
+## Multi-Tier Charge System
+
+The `Next` field maps charge duration (in seconds) to interactions:
+
+```json
+{
+  "Next": {
+    "0.0": "Instant_Release",   // Immediate release (tap)
+    "0.5": "Quick_Attack",      // Half second charge
+    "1.5": "Charged_Attack",    // 1.5 second charge
+    "3.0": "Maximum_Charge"     // Full charge
+  }
+}
+```
+
+### Tier Selection Algorithm
+
+```java
+// From ChargingInteraction.java - simplified
+private float jumpToChargeValue(float chargeValue) {
+    float closestKey = 0.0f;
+    float closestDiff = Float.MAX_VALUE;
+
+    // Find closest tier at or below current charge
+    for (float tier : next.keySet()) {
+        if (tier <= chargeValue) {
+            float diff = chargeValue - tier;
+            if (diff < closestDiff) {
+                closestDiff = diff;
+                closestKey = tier;
+            }
+        }
+    }
+
+    return closestKey;
+}
+```
+
+When the player releases, the system finds the highest tier reached and executes that interaction.
+
+## Forking During Charge
+
+Allow additional inputs while charging (e.g., shield bash while blocking):
+
+```json title="Charging with forks"
+{
+  "Type": "Charging",
+  "DisplayProgress": true,
+  "Next": {
+    "2.0": "Bow_Fire_Weak",
+    "4.0": "Bow_Fire_Full"
+  },
+  "Forks": {
+    "Secondary": "Root_Bow_Cancel",
+    "Ability1": "Root_Special_Arrow"
+  }
+}
+```
+
+| Fork Key | When Triggered |
+|----------|----------------|
+| `Primary` | Left click while charging |
+| `Secondary` | Right click while charging |
+| `Ability1-3` | Ability keys while charging |
+
+### Fork Implementation
+
+```java
+// From ChargingInteraction - fork handling
+if (forks != null && type != InteractionType.Secondary) {
+    InteractionType[] forkTypes = InteractionType.VALUES;
+    for (InteractionType forkType : forkTypes) {
+        String forkInteraction = forks.get(forkType);
+        if (forkInteraction != null) {
+            // Check if fork was triggered
+            if (forkTriggered(context, forkType)) {
+                RootInteraction forkRoot = RootInteraction
+                    .getRootInteractionOrUnknown(forkInteraction);
+                context.fork(context.duplicate(), forkRoot, true);
+            }
+        }
+    }
+}
+```
+
+## Damage Cancellation
+
+When `FailOnDamage` is enabled, taking damage interrupts the charge:
+
+```json
+{
+  "Type": "Charging",
+  "FailOnDamage": true,
+  "Delay": {
+    "MinDelay": 0.1,
+    "MaxDelay": 0.5,
+    "MaxTotalDelay": 1.0,
+    "MinHealth": 0.2,
+    "MaxHealth": 0.8
+  },
+  "Failed": "Charge_Cancelled"
+}
+```
+
+### Delay Configuration
+
+Damage cancellation delay varies based on current health:
+
+| Field | Description |
+|-------|-------------|
+| `MinDelay` | Delay at `MaxHealth` ratio (short delay when healthy) |
+| `MaxDelay` | Delay at `MinHealth` ratio (long delay when hurt) |
+| `MaxTotalDelay` | Caps the total computed delay value |
+| `MinHealth` | Health ratio for maximum delay |
+| `MaxHealth` | Health ratio for minimum delay |
+
+At full health, there's less delay before damage cancels the charge. When low on health, there's more delay (giving defensive players a buffer).
+
+## WieldingInteraction (Blocking)
+
+`WieldingInteraction` extends ChargingInteraction for blocking/guarding:
+
+```json title="Shield block with wielding"
+{
+  "Type": "Wielding",
+  "DisplayProgress": false,
+  "RunTime": 0.0,
+  "DamageModifiers": {
+    "Physical": 0.3,
+    "Fire": 0.5
+  },
+  "KnockbackModifiers": {
+    "Physical": 0.2
+  },
+  "BlockedEffects": {
+    "WorldSoundEventId": "SFX_Shield_Block",
+    "CameraEffect": "Shield_Impact"
+  },
+  "BlockedInteractions": "Root_Shield_Blocked",
+  "StaminaCost": {
+    "CostType": "MAX_HEALTH_PERCENTAGE",
+    "Value": 0.04
+  },
+  "Forks": {
+    "Primary": "Root_Shield_Bash"
+  }
+}
+```
+
+### Wielding-Specific Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `DamageModifiers` | `object` | Damage reduction per damage type (0.3 = 30% damage) |
+| `KnockbackModifiers` | `object` | Knockback reduction per damage cause |
+| `BlockedEffects` | `object` | Effects when successfully blocking |
+| `BlockedInteractions` | `string` | RootInteraction on successful block |
+| `StaminaCost` | `object` | Stamina drain configuration |
+| `AngledWielding` | `object` | Direction-based blocking |
+
+### Angled Wielding
+
+Block effectiveness varies based on attack direction:
+
+```json
+{
+  "AngledWielding": {
+    "Angle": 90,
+    "AngleDistance": 45,
+    "KnockbackModifiers": {
+      "Physical": 0.5
+    },
+    "DamageModifiers": {
+      "Physical": 0.6
+    }
+  }
+}
+```
+
+Attacks from within the blocking angle get the main modifiers. Attacks from outside use the `AngledWielding` modifiers (worse protection).
+
+### Stamina System
+
+```json
+{
+  "StaminaCost": {
+    "CostType": "MAX_HEALTH_PERCENTAGE",
+    "Value": 0.04
+  }
+}
+```
+
+| CostType | Description |
+|----------|-------------|
+| `MAX_HEALTH_PERCENTAGE` | Stamina cost = damage / (Value * MaxHealth) |
+| `DAMAGE` | Stamina cost = damage / Value |
+
+When stamina reaches zero, the block breaks and the player is staggered.
+
+## Mouse Sensitivity During Charge
+
+Charging reduces mouse sensitivity for aim stability. This is controlled by two fields on ChargingInteraction:
+
+```json
+{
+  "Type": "Charging",
+  "MouseSensitivityAdjustmentTarget": 0.4,
+  "MouseSensitivityAdjustmentDuration": 0.3
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `MouseSensitivityAdjustmentTarget` | `float` | `1.0` | Target sensitivity multiplier (lower = less sensitive) |
+| `MouseSensitivityAdjustmentDuration` | `float` | `1.0` | Time in seconds to ease into the adjusted sensitivity |
+
+These fields also exist on `ApplicationEffects`, so they can be set inside `Effects` as well. Useful for:
+- Bow aiming
+- Heavy attack wind-ups
+- Channeled spells
+
+## Client Synchronization
+
+Charging uses `WaitForDataFrom.Client` - the server waits for the client to report when the button was released:
+
+```java
+// From ChargingInteraction.java
+@Override
+public WaitForDataFrom getWaitForDataFrom() {
+    return WaitForDataFrom.Client;
+}
+
+@Override
+protected void tick0(...) {
+    InteractionSyncData clientData = context.getClientState();
+
+    if (clientData == null) {
+        // Still waiting for client data
+        context.getState().state = InteractionState.NotFinished;
+        return;
+    }
+
+    // Use client's charge value
+    float chargeValue = clientData.chargeValue;
+    float selectedTier = jumpToChargeValue(chargeValue);
+    context.jump(context.getLabel(tierIndex));
+}
+```
+
+### Synced Data
+
+```java
+// InteractionSyncData fields for charging
+public float chargeValue;           // How long charged
+public Map<InteractionType, Integer> forkCounts;  // Fork triggers
+public InteractionState state;      // Finished/Failed
+```
+
+## Complete Example: Charged Bow
+
+```json title="Root_Bow_Primary.json"
+{
+  "RequireNewClick": true,
+  "Cooldown": { "Cooldown": 0.2 },
+  "Interactions": ["Bow_Draw"]
+}
+```
+
+```json title="Bow_Draw.json"
+{
+  "Type": "Charging",
+  "DisplayProgress": true,
+  "FailOnDamage": false,
+  "MouseSensitivityAdjustmentTarget": 0.6,
+  "MouseSensitivityAdjustmentDuration": 0.3,
+  "Effects": {
+    "ItemAnimationId": "Draw",
+    "WorldSoundEventId": "SFX_Bow_Draw"
+  },
+  "Next": {
+    "0.0": "Bow_Release_Quick",
+    "0.5": "Bow_Release_Half",
+    "1.0": "Bow_Release_Full"
+  },
+  "Forks": {
+    "Secondary": "Root_Bow_Cancel"
+  }
+}
+```
+
+```json title="Bow_Release_Full.json"
+{
+  "Type": "Serial",
+  "Interactions": [
+    {
+      "Type": "Simple",
+      "RunTime": 0.1,
+      "Effects": {
+        "ItemAnimationId": "Release",
+        "WorldSoundEventId": "SFX_Bow_Release"
+      }
+    },
+    {
+      "Type": "SpawnProjectile",
+      "ProjectileId": "Arrow_Standard",
+      "SpeedMultiplier": 1.5,
+      "DamageMultiplier": 2.0
+    }
+  ]
+}
+```
+
+## Complete Example: Shield Guard
+
+```json title="Root_Shield_Guard.json"
+{
+  "RequireNewClick": false,
+  "Interactions": ["Shield_Guard"]
+}
+```
+
+```json title="Shield_Guard.json"
+{
+  "Type": "Wielding",
+  "DisplayProgress": false,
+  "DamageModifiers": {
+    "Physical": 0.2,
+    "Fire": 0.4,
+    "Ice": 0.4
+  },
+  "KnockbackModifiers": {
+    "Physical": 0.1,
+    "Explosive": 0.3
+  },
+  "MouseSensitivityAdjustmentTarget": 0.8,
+  "MouseSensitivityAdjustmentDuration": 0.2,
+  "Effects": {
+    "ItemAnimationId": "Guard"
+  },
+  "BlockedEffects": {
+    "WorldSoundEventId": "SFX_Shield_Block",
+    "WorldParticles": [{ "SystemId": "Shield_Spark" }],
+    "CameraEffect": "Shield_Hit"
+  },
+  "BlockedInteractions": "Root_Shield_Stagger",
+  "StaminaCost": {
+    "CostType": "MAX_HEALTH_PERCENTAGE",
+    "Value": 0.05
+  },
+  "AngledWielding": {
+    "Angle": 120,
+    "AngleDistance": 60,
+    "DamageModifiers": {
+      "Physical": 0.6
+    }
+  },
+  "Forks": {
+    "Primary": "Root_Shield_Bash"
+  },
+  "Next": {
+    "0.0": "Shield_Lower"
+  },
+  "Failed": "Shield_Break"
+}
+```
+
+## Inheritance Hierarchy
+
+```
+Interaction (base)
+    └── ChargingInteraction
+            └── WieldingInteraction
+```
+
+Both charging and wielding share the same core mechanics, with wielding adding damage reduction and stamina systems.
+
+## Related
+
+- [Charging Deep Dive](/plugin-development/interactions/charging-deep-dive/) - Detailed analysis
+- [Asset-Based Interactions](/plugin-development/interactions/asset-interactions/) - JSON interaction guide
+- [Control Flow Patterns](/plugin-development/interactions/control-flow-interactions/) - Serial, Parallel, etc.
+- [Client-Server Sync](/plugin-development/interactions/client-server-sync/) - Synchronization details

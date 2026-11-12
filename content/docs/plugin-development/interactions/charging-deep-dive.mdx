@@ -1,0 +1,530 @@
+---
+title: "Charging Interaction Deep Dive"
+description: "Detailed analysis of ChargingInteraction implementation for understanding complex interaction patterns"
+sidebarTitle: Charging Deep Dive
+---
+
+{/* [VERIFIED: 2026-01-25] - From ChargingInteraction.java analysis */}
+
+This page provides an in-depth analysis of `ChargingInteraction`, the most complex interaction in Hytale. Understanding this implementation teaches patterns used throughout the interaction system.
+
+## Why Study ChargingInteraction?
+
+ChargingInteraction demonstrates:
+- Multi-tier charging with `Float2ObjectMap`
+- Forking during charge execution
+- Damage-based cancellation with health-scaled delays
+- Client-server synchronization with `WaitForDataFrom.Client`
+- Label-based branching via `compile()`
+
+**Real-world usage:** Swords (heavy attacks), Bows (draw strength), Shields (via WieldingInteraction).
+
+## JSON Configuration Reference
+
+<Tabs>
+<TabItem label="Basic">
+```json
+{
+  "Type": "Charging",
+  "DisplayProgress": true,
+  "Next": {
+    "0.5": "Quick_Release",
+    "1.5": "Charged_Release"
+  }
+}
+```
+</TabItem>
+<TabItem label="Advanced">
+```json
+{
+  "Type": "Charging",
+  "DisplayProgress": true,
+  "FailOnDamage": true,
+  "CancelOnOtherClick": true,
+  "AllowIndefiniteHold": false,
+  "MouseSensitivityAdjustmentTarget": 0.5,
+  "MouseSensitivityAdjustmentDuration": 0.3,
+  "Delay": {
+    "MinDelay": 0.1,
+    "MaxDelay": 0.5,
+    "MaxTotalDelay": 1.0,
+    "MinHealth": 0.2,
+    "MaxHealth": 0.8
+  },
+  "Next": {
+    "0.5": "Tier1",
+    "1.5": "Tier2",
+    "3.0": "Tier3"
+  },
+  "Forks": {
+    "Secondary": "Root_Shield_Bash"
+  },
+  "Failed": "Charge_Interrupted"
+}
+```
+</TabItem>
+<TabItem label="Field Reference">
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `DisplayProgress` | `bool` | `true` | Show charge bar UI |
+| `FailOnDamage` | `bool` | `false` | Cancel on damage |
+| `CancelOnOtherClick` | `bool` | `true` | Cancel on other input |
+| `AllowIndefiniteHold` | `bool` | `false` | Hold past max tier |
+| `Next` | `map<float,string>` | - | Tier thresholds |
+| `Forks` | `map<type,string>` | - | Fork interactions |
+| `Failed` | `string` | - | Failure interaction |
+| `Delay` | `object` | - | Damage delay config |
+</TabItem>
+</Tabs>
+
+## How It Works
+
+```mermaid
+flowchart TD
+    Start["Player holds button"]
+    Start --> Charging
+
+    subgraph Charging["ChargingInteraction"]
+        direction TB
+        Sim["simulateTick0()<br/><i>Client: tracks charge time</i>"]
+        SimCheck{"isCharging()?"}
+        Sim --> SimCheck
+        SimCheck -->|yes| NotFinished["NotFinished, continue"]
+        SimCheck -->|no| Finished["Finished, send chargeValue"]
+
+        Tick["tick0()<br/><i>Server: waits for client data</i>"]
+        ClientData["clientData"]
+        Tick --> ClientData
+        ClientData --> CV1["chargeValue = -1: still charging"]
+        ClientData --> CV2["chargeValue = -2: cancelled"]
+        ClientData --> CV3["chargeValue >= 0: find tier, jump"]
+    end
+
+    CV3 --> Jump["jumpToChargeValue(chargeValue)"]
+    Jump --> FindTier["Find closest tier <= chargeValue"]
+    FindTier --> ContextJump["context.jump(label[tierIndex])"]
+    ContextJump --> Execute["Execute tier interaction"]
+```
+
+## Java Implementation Analysis
+
+### Core Fields
+
+```java
+public class ChargingInteraction extends Interaction {
+    // State constants
+    private static final float CHARGING_HELD = -1.0F;     // Still holding
+    private static final float CHARGING_CANCELED = -2.0F; // Cancelled
+
+    // Configuration
+    protected boolean allowIndefiniteHold;
+    protected boolean displayProgress = true;
+    protected boolean cancelOnOtherClick = true;
+    protected boolean failOnDamage;
+    protected float mouseSensitivityAdjustmentTarget = 1.0F;
+    protected float mouseSensitivityAdjustmentDuration = 1.0F;
+
+    // Charge tiers (sorted keys for efficient lookup)
+    @Nullable protected Float2ObjectMap<String> next;
+    protected float[] sortedKeys;
+    protected float highestChargeValue;
+
+    // Fork handling
+    protected Map<InteractionType, String> forks;
+    @Nullable protected ChargingDelay chargingDelay;
+    @Nullable protected String failed;
+
+    // Per-instance state
+    private static final MetaKey<Object2IntMap<InteractionType>> FORK_COUNTS =
+        Interaction.META_REGISTRY.registerMetaObject(i -> new Object2IntOpenHashMap<>());
+    private static final MetaKey<InteractionChain> FORKED_CHAIN =
+        Interaction.META_REGISTRY.registerMetaObject(i -> null);
+}
+```
+
+### The simulateTick0() Method (Client)
+
+```java
+@Override
+protected void simulateTick0(
+    boolean firstRun,
+    float time,
+    InteractionType type,
+    InteractionContext context,
+    CooldownHandler cooldownHandler
+) {
+    Ref<EntityStore> ref = context.getEntity();
+    IInteractionSimulationHandler simulationHandler =
+        context.getInteractionManager().getInteractionSimulationHandler();
+
+    // Check if still charging
+    boolean stillCharging = simulationHandler.isCharging(
+        firstRun, time, type, context, ref, cooldownHandler
+    );
+    boolean underMaxTime = this.allowIndefiniteHold || time < this.highestChargeValue;
+
+    if (stillCharging && underMaxTime) {
+        // Check for damage cancellation
+        if (this.failOnDamage && simulationHandler.shouldCancelCharging(
+            firstRun, time, type, context, ref, cooldownHandler
+        )) {
+            context.getState().state = InteractionState.Failed;
+            return;
+        }
+
+        context.getState().state = InteractionState.NotFinished;
+    } else {
+        // Released or maxed - send charge value to server
+        context.getState().state = InteractionState.Finished;
+        float chargeValue = simulationHandler.getChargeValue(
+            firstRun, time, type, context, ref, cooldownHandler
+        );
+        context.getState().chargeValue = chargeValue;
+
+        if (this.next != null) {
+            this.jumpToChargeValue(context, chargeValue);
+        }
+    }
+}
+```
+
+### The tick0() Method (Server)
+
+```java
+@Override
+protected void tick0(
+    boolean firstRun,
+    float time,
+    InteractionType type,
+    InteractionContext context,
+    CooldownHandler cooldownHandler
+) {
+    InteractionSyncData clientData = context.getClientState();
+
+    // Check for failure state
+    if (clientData.state == InteractionState.Failed && context.hasLabels()) {
+        context.getState().state = InteractionState.Failed;
+        // Jump to failed label (after all tier labels)
+        context.jump(context.getLabel(this.next != null ? this.next.size() : 0));
+        return;
+    }
+
+    // Handle forks
+    if (clientData.forkCounts != null && this.forks != null) {
+        Object2IntMap<InteractionType> serverForkCounts =
+            context.getInstanceStore().getMetaObject(FORK_COUNTS);
+        InteractionChain forked = context.getInstanceStore().getMetaObject(FORKED_CHAIN);
+
+        // Clean up finished forks
+        if (forked != null && forked.getServerState() != InteractionState.NotFinished) {
+            forked = null;
+        }
+
+        // Process new fork triggers from client
+        boolean matches = true;
+        for (Entry<InteractionType, Integer> e : clientData.forkCounts.entrySet()) {
+            int serverCount = serverForkCounts.getInt(e.getKey());
+            String forkInteraction = this.forks.get(e.getKey());
+
+            if (forked == null && serverCount < e.getValue() && forkInteraction != null) {
+                // Client triggered a fork we haven't processed
+                InteractionContext forkContext = context.duplicate();
+                forked = context.fork(
+                    e.getKey(),
+                    forkContext,
+                    RootInteraction.getRootInteractionOrUnknown(forkInteraction),
+                    true
+                );
+                context.getInstanceStore().putMetaObject(FORKED_CHAIN, forked);
+                serverForkCounts.put(e.getKey(), ++serverCount);
+            }
+
+            matches &= serverCount == e.getValue();
+        }
+
+        if (!matches) {
+            context.getState().state = InteractionState.NotFinished;
+            return;
+        }
+    }
+
+    // Process charge value
+    if (clientData.chargeValue == CHARGING_HELD) {
+        // Still charging
+        context.getState().state = InteractionState.NotFinished;
+    } else if (clientData.chargeValue == CHARGING_CANCELED) {
+        // Cancelled without release
+        context.getState().state = InteractionState.Finished;
+    } else {
+        // Released - find tier
+        context.getState().state = InteractionState.Finished;
+        float chargeValue = clientData.chargeValue;
+
+        if (this.next != null) {
+            this.jumpToChargeValue(context, chargeValue);
+
+            // Record charge time for damage calculations
+            DamageDataComponent damageData = commandBuffer.getComponent(
+                ref, DamageDataComponent.getComponentType()
+            );
+            damageData.setLastChargeTime(
+                commandBuffer.getResource(TimeResource.getResourceType()).getNow()
+            );
+        }
+    }
+}
+```
+
+### Tier Selection Algorithm
+
+```java
+private void jumpToChargeValue(InteractionContext context, float chargeValue) {
+    float closestDiff = Float.MAX_VALUE;
+    int closestValue = -1;
+    int index = 0;
+
+    // sortedKeys is pre-sorted in ascending order during codec decode
+    for (float threshold : this.sortedKeys) {
+        if (chargeValue < threshold) {
+            // Haven't reached this tier yet
+            index++;
+        } else {
+            // Reached this tier - check if it's the closest
+            float diff = chargeValue - threshold;
+            if (closestValue == -1 || diff < closestDiff) {
+                closestDiff = diff;
+                closestValue = index;
+            }
+            index++;
+        }
+    }
+
+    if (closestValue != -1) {
+        context.jump(context.getLabel(closestValue));
+    }
+}
+```
+
+**Example:** With tiers `[0.5, 1.5, 3.0]` and `chargeValue = 2.0`:
+- 0.5: diff = 1.5, closestValue = 0
+- 1.5: diff = 0.5, closestValue = 1 (closer)
+- 3.0: not reached (2.0 < 3.0)
+- Result: Jump to label 1 (Tier 2)
+
+## Client-Server Synchronization
+
+### Why WaitForDataFrom.Client?
+
+```java
+@Override
+public WaitForDataFrom getWaitForDataFrom() {
+    return WaitForDataFrom.Client;
+}
+```
+
+The client knows the precise moment the player released the button. The server can't detect this - it only receives periodic updates. So the server waits for the client to report:
+
+1. `chargeValue = -1.0` - Still charging
+2. `chargeValue = -2.0` - Cancelled (damage, other click)
+3. `chargeValue >= 0.0` - Released at this charge level
+
+### Synced Data
+
+```java
+// From InteractionSyncData
+public float chargeValue;
+public Map<InteractionType, Integer> forkCounts;
+public InteractionState state;
+```
+
+The `forkCounts` map tracks how many times each fork type was triggered. This ensures the server creates forks in sync with client actions.
+
+## The compile() Method
+
+Creates the operation structure with labels for branching:
+
+```java
+@Override
+public void compile(OperationsBuilder builder) {
+    Label end = builder.createUnresolvedLabel();
+
+    // Create labels: one per tier + one for failed
+    Label[] labels = new Label[(this.next != null ? this.next.size() : 0) + 1];
+    for (int i = 0; i < labels.length; i++) {
+        labels[i] = builder.createUnresolvedLabel();
+    }
+
+    // Add this operation with its labels
+    builder.addOperation(this, labels);
+    builder.jump(end);
+
+    // Compile each tier's interaction chain
+    if (this.sortedKeys != null) {
+        for (int i = 0; i < this.sortedKeys.length; i++) {
+            float key = this.sortedKeys[i];
+            builder.resolveLabel(labels[i]);
+            Interaction interaction = Interaction.getInteractionOrUnknown(this.next.get(key));
+            interaction.compile(builder);
+            builder.jump(end);
+        }
+    }
+
+    // Compile failed interaction
+    int failedIndex = this.sortedKeys != null ? this.sortedKeys.length : 0;
+    builder.resolveLabel(labels[failedIndex]);
+    if (this.failed != null) {
+        Interaction interaction = Interaction.getInteractionOrUnknown(this.failed);
+        interaction.compile(builder);
+    }
+
+    builder.resolveLabel(end);
+}
+```
+
+**Resulting structure:**
+```mermaid
+flowchart TB
+    CI["[ChargingInteraction]"] --> End["[end]"]
+    CI --> L0["[Label 0] Tier1 chain"]
+    CI --> L1["[Label 1] Tier2 chain"]
+    CI --> L2["[Label 2] Tier3 chain"]
+    CI --> L3["[Label 3] Failed chain"]
+    L0 --> End
+    L1 --> End
+    L2 --> End
+    L3 --> End
+```
+
+## Real-World Examples
+
+<Tabs>
+<TabItem label="Sword Heavy Attack">
+```json
+{
+  "Type": "Charging",
+  "DisplayProgress": true,
+  "FailOnDamage": true,
+  "Next": {
+    "0.5": "Sword_Heavy_Quick",
+    "1.5": "Sword_Heavy_Full"
+  },
+  "Failed": "Sword_Heavy_Cancel"
+}
+```
+</TabItem>
+<TabItem label="Bow Draw">
+```json
+{
+  "Type": "Charging",
+  "DisplayProgress": true,
+  "AllowIndefiniteHold": true,
+  "MouseSensitivityAdjustmentTarget": 0.6,
+  "Next": {
+    "0.0": "Bow_Fire_Weak",
+    "0.5": "Bow_Fire_Medium",
+    "1.0": "Bow_Fire_Strong",
+    "2.0": "Bow_Fire_Max"
+  },
+  "Forks": {
+    "Secondary": "Root_Bow_Cancel"
+  }
+}
+```
+</TabItem>
+<TabItem label="Shield Block">
+```json
+{
+  "Type": "Wielding",
+  "DisplayProgress": false,
+  "DamageModifiers": {
+    "Physical": 0.3
+  },
+  "KnockbackModifiers": {
+    "Physical": 0.2
+  },
+  "Forks": {
+    "Primary": "Root_Shield_Bash"
+  },
+  "StaminaCost": {
+    "CostType": "MAX_HEALTH_PERCENTAGE",
+    "Value": 0.04
+  }
+}
+```
+</TabItem>
+</Tabs>
+
+## Inheritance Hierarchy
+
+```
+Interaction (base)
+    │
+    └── ChargingInteraction
+            │
+            └── WieldingInteraction
+                    │
+                    ├── DamageModifiers
+                    ├── KnockbackModifiers
+                    ├── AngledWielding
+                    ├── StaminaCost
+                    └── BlockedEffects
+```
+
+WieldingInteraction adds blocking mechanics on top of charging - see [Charging Mechanics](/plugin-development/interactions/charging-interactions/) for details.
+
+## Common Patterns
+
+### Quick Attack vs Charged Attack
+
+```json
+{
+  "Next": {
+    "0.0": "Quick_Attack",  // Tap = immediate attack
+    "1.0": "Charged_Attack" // Hold = powerful attack
+  }
+}
+```
+
+### Multi-Tier Scaling
+
+```json
+{
+  "Next": {
+    "0.5": "Tier1_10_Damage",
+    "1.0": "Tier2_20_Damage",
+    "2.0": "Tier3_40_Damage",
+    "3.0": "Tier4_80_Damage"
+  }
+}
+```
+
+### Guard with Counter
+
+```json
+{
+  "Type": "Wielding",
+  "Forks": {
+    "Primary": "Root_Counter_Attack"
+  },
+  "BlockedInteractions": "Root_Perfect_Block_Counter"
+}
+```
+
+## Debugging Tips
+
+<Aside type="caution">
+**Charge doesn't register:** Check that `sortedKeys` is populated. If `Next` is empty, no tiers exist.
+
+**Wrong tier selected:** Verify threshold values. The algorithm finds the highest tier **at or below** the charge value.
+
+**Forks not working:** Ensure `forkCounts` sync. The server only creates forks when client counts exceed server counts.
+
+**Infinite charge:** If `AllowIndefiniteHold = false`, check that `highestChargeValue` is set correctly during decode.
+</Aside>
+
+## Related
+
+- [Charging Mechanics](/plugin-development/interactions/charging-interactions/) - User guide
+- [Interaction Lifecycle](/plugin-development/interactions/interaction-lifecycle/) - tick0 pattern
+- [Client-Server Sync](/plugin-development/interactions/client-server-sync/) - Synchronization
+- [Channeling Staff Tutorial](/tutorials/examples/channeling-staff/) - Practical example

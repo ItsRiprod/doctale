@@ -1,0 +1,125 @@
+---
+title: "Plugin Registries"
+description: "Register components, events, commands, and features through the plugin registry system with automatic cleanup."
+sidebarTitle: Registries
+---
+
+{/* [VERIFIED: 2026-03-21] */}
+
+Hytale provides a registry system for plugins to register their components, events, commands, and other features. All registries are accessed through your plugin's base class and automatically handle cleanup when your plugin is disabled.
+
+<Aside type="note">
+For detailed documentation, see the [Registry System Overview](/plugin-development/registries/overview/), [Existing Registries](/plugin-development/registries/existing-registries/), and [Creating Registries](/plugin-development/registries/creating-registries/) pages.
+</Aside>
+
+## Package Location
+
+- Plugin base: `com.hypixel.hytale.server.core.plugin.PluginBase`
+- Component registry: `com.hypixel.hytale.component.ComponentRegistryProxy`
+- Event registry: `com.hypixel.hytale.event.EventRegistry`
+- Command registry: `com.hypixel.hytale.server.core.command.system.CommandRegistry`
+
+## Overview
+
+The following registries are available:
+
+| Registry | Method | Purpose |
+|----------|--------|---------|
+| Command Registry | `getCommandRegistry()` | Register commands |
+| Event Registry | `getEventRegistry()` | Register event listeners |
+| Entity Store Registry | `getEntityStoreRegistry()` | Register entity ECS components/systems |
+| Chunk Store Registry | `getChunkStoreRegistry()` | Register chunk ECS components/systems |
+| Entity Registry | `getEntityRegistry()` | Register entity types |
+| Task Registry | `getTaskRegistry()` | Register scheduled tasks |
+| Asset Registry | `getAssetRegistry()` | Register asset types |
+| Client Feature Registry | `getClientFeatureRegistry()` | Register client feature flags |
+| Codec Registry | `getCodecRegistry(codec)` | Register to codec maps |
+
+<Aside type="danger" title="Removed in Update 4">
+`getBlockStateRegistry()` was removed. Register block components via `getChunkStoreRegistry().registerComponent(...)` instead. See [Block Components](/plugin-development/blocks/block-states/) for migration details.
+</Aside>
+
+For method tables, code examples, and details on each registry, see [Existing Registries](/plugin-development/registries/existing-registries/).
+
+## Plugin Utilities
+
+In addition to registries, your plugin has access to these utility methods:
+
+### Logger
+
+```java
+HytaleLogger logger = getLogger();
+logger.at(Level.INFO).log("Plugin loaded!");
+logger.at(Level.WARNING).log("Something might be wrong");
+logger.at(Level.SEVERE).withCause(exception).log("Error occurred: %s", message);
+```
+
+### Data Directory
+
+<Aside type="note" title="New in Update 3">
+`PathUtil` now provides path traversal protection via trusted root validation. Use `PathUtil.resolvePathWithinDir(directory, relativePath)` for safe path resolution that prevents directory traversal attacks. `PathUtil.isValidName(name)` validates filenames (rejects blank, `/`, `\`, `.`, `..`). See the [full Update 3 changelog](/changelog/update-2-to-3/) for everything that changed.
+</Aside>
+
+```java
+Path dataDir = getDataDirectory();
+Path configFile = dataDir.resolve("custom-data.json");
+```
+
+### Identifier
+
+```java
+PluginIdentifier id = getIdentifier();
+String fullId = id.toString(); // "Group/Name"
+```
+
+### Manifest
+
+```java
+PluginManifest manifest = getManifest();
+String version = manifest.getVersion();
+String description = manifest.getDescription();
+```
+
+### Permissions
+
+```java
+String basePerm = getBasePermission(); // "group.name"
+String myPerm = basePerm + ".myfeature"; // "group.name.myfeature"
+```
+
+### State Checking
+
+```java
+if (isEnabled()) {
+    // plugin is active (SETUP, START, or ENABLED states)
+}
+
+if (isDisabled()) {
+    // plugin is in NONE, SHUTDOWN, or DISABLED state
+}
+
+PluginState state = getState();
+```
+
+## Automatic Cleanup
+
+All registrations are automatically cleaned up when your plugin shuts down, in reverse order of registration (LIFO). You don't need to manually unregister event listeners, commands, ECS components, tasks, or codec registrations.
+
+For details on the cleanup mechanism and `shutdownAndCleanup()`, see [Creating Registries](/plugin-development/registries/creating-registries/).
+
+## Best Practices
+
+1. **Register in `setup()`**: Perform all registrations in the `setup()` method
+2. **Store references**: Keep references to component/resource types for later use
+3. **Use appropriate priorities**: Choose event priorities based on your needs
+4. **Let cleanup happen automatically**: Don't manually unregister unless necessary
+
+## Related
+
+- [Registry System Overview](/plugin-development/registries/overview/)
+- [Existing Registries](/plugin-development/registries/existing-registries/)
+- [Creating Registries](/plugin-development/registries/creating-registries/)
+- [Plugin Lifecycle](/getting-started/plugin-lifecycle/)
+- [Event System](/plugin-development/core-concepts/event-system/)
+- [Command System](/plugin-development/core-concepts/commands/)
+- [ECS Overview](/plugin-development/core-concepts/ecs-overview/)

@@ -1,0 +1,9 @@
+{
+  "title": "Serialization",
+  "pages": [
+    "overview",
+    "component-codecs",
+    "asset-codecs",
+    "custom-codecs"
+  ]
+}

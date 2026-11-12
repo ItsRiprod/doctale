@@ -1,0 +1,300 @@
+---
+title: "Plugin Lifecycle"
+description: "Understand plugin states, lifecycle hooks, and how to properly initialize resources and clean up on shutdown."
+---
+
+{/* [VERIFIED: 2026-03-21] */}
+
+
+Hytale plugins follow a well-defined lifecycle with distinct states and phases. Understanding this lifecycle is essential for properly initializing resources, registering handlers, and cleaning up when your plugin shuts down.
+
+## Plugin States
+
+A plugin transitions through the following states during its lifecycle:
+
+```mermaid
+flowchart LR
+    NONE --> SETUP --> START --> ENABLED --> SHUTDOWN --> DISABLED
+    SETUP -->|error| FAILED
+    START -->|error| FAILED
+    ENABLED -->|error| FAILED
+    SHUTDOWN -->|error| FAILED
+    DISABLED -->|"reload (new instance)"| NONE
+```
+
+### State Definitions
+
+| State | Description |
+|-------|-------------|
+| `NONE` | Initial state before any lifecycle methods are called |
+| `SETUP` | Plugin is executing its `setup()` method |
+| `START` | Plugin is executing its `start()` method |
+| `ENABLED` | Plugin is fully active and operational |
+| `SHUTDOWN` | Plugin is executing its `shutdown()` method |
+| `DISABLED` | Plugin has been shut down cleanly |
+| `FAILED` | Plugin encountered an error and was marked as failed |
+
+<Aside type="note" title="New in Update 3">
+The `FAILED` plugin state was added in Update 3. Failed plugins track their `failureCause` and can trigger a server shutdown with `ShutdownReason.MOD_ERROR` if configured to do so. The server can also identify which third-party plugin caused a crash via `PluginIdentifier.identifyThirdPartyPlugin()`. See the [Update 3 changelog](/changelog/update-2-to-3/) for a full summary of lifecycle changes.
+</Aside>
+
+## Lifecycle Methods
+
+Your plugin class should override these methods to participate in the lifecycle:
+
+### Constructor
+
+```java
+public class MyPlugin extends JavaPlugin {
+    public MyPlugin(JavaPluginInit init) {
+        super(init);
+        // DO NOT register anything here!
+        // Only store references if needed
+    }
+}
+```
+
+<Aside type="caution" title="Important">
+The constructor receives a `JavaPluginInit` object that must be passed to the superclass. Do not perform any registrations or access server resources in the constructor.
+</Aside>
+
+### `preLoad()` - Configuration Loading
+
+```java
+@Override
+@Nullable
+public CompletableFuture<Void> preLoad() {
+    // Called before setup() to load configurations asynchronously
+    return super.preLoad();
+}
+```
+
+This method is called before `setup()` and is primarily used for loading configuration files. If you use `withConfig()` to register configuration codecs, their loading happens here automatically.
+
+**Timing:** Called asynchronously before the plugin enters SETUP state.
+
+### `setup()` - Registration Phase
+
+```java
+@Override
+protected void setup() {
+    // Register components, systems, commands, events, etc.
+    getEventRegistry().register(PlayerConnectEvent.class, this::onPlayerConnect);
+    getCommandRegistry().registerCommand(new MyCommand());
+    getEntityStoreRegistry().registerSystem(new MySystem());
+}
+```
+
+This is the primary initialization method where you should:
+- Register event listeners
+- Register commands
+- Register ECS components and systems
+- Register block components via `getChunkStoreRegistry()`
+- Register asset types
+- Set up any plugin infrastructure
+
+**State:** Plugin transitions from NONE to SETUP during this method.
+
+<Aside type="caution" title="Important">
+Only use registration methods during `setup()`. Registrations made after this phase may not work correctly.
+</Aside>
+
+### `start()` - Activation Phase
+
+```java
+@Override
+protected void start() {
+    // Plugin is about to become fully active
+    // Perform any post-setup initialization
+    getLogger().at(Level.INFO).log("MyPlugin has started successfully!");
+}
+```
+
+Called after `setup()` completes successfully. Use this for:
+- Logging startup messages
+- Starting background tasks
+- Connecting to external services
+- Any initialization that depends on all registrations being complete
+
+**State:** Plugin transitions from SETUP to START, then to ENABLED after this method returns.
+
+### `shutdown()` - Cleanup Phase
+
+```java
+@Override
+protected void shutdown() {
+    // Clean up resources before the plugin is disabled
+    // Note: Registered handlers are automatically unregistered
+}
+```
+
+Called when the plugin is being disabled. Use this for:
+- Saving data
+- Closing connections
+- Releasing external resources
+
+**State:** Plugin transitions to SHUTDOWN during this method, then to DISABLED.
+
+<Aside type="note" title="Note">
+You don't need to manually unregister events, commands, or ECS components. The plugin system automatically cleans up all registrations made through the registry methods.
+</Aside>
+
+## Configuration System
+
+Plugins can declare configuration files that are automatically loaded during `preLoad()`:
+
+```java
+public class MyPlugin extends JavaPlugin {
+    private final Config<MyConfig> config;
+
+    public MyPlugin(JavaPluginInit init) {
+        super(init);
+        // Register config BEFORE setup (in constructor or field initializer)
+        this.config = withConfig(MyConfig.CODEC);
+    }
+
+    @Override
+    protected void setup() {
+        // Config is loaded and ready to use
+        MyConfig cfg = config.get();
+        if (cfg.isFeatureEnabled()) {
+            // ...
+        }
+    }
+}
+```
+
+### Configuration Methods
+
+| Method | Description |
+|--------|-------------|
+| `withConfig(BuilderCodec<T> codec)` | Register a config using default name "config" |
+| `withConfig(String name, BuilderCodec<T> codec)` | Register a config with a custom name |
+
+Configuration files are stored in `<data-directory>/<name>.json` and are automatically loaded before `setup()` is called.
+
+## Available Registries
+
+The following registries are available through your plugin base class:
+
+| Method | Description |
+|--------|-------------|
+| `getCommandRegistry()` | Register commands |
+| `getEventRegistry()` | Register event listeners |
+| `getEntityStoreRegistry()` | Register entity ECS components and systems |
+| `getChunkStoreRegistry()` | Register chunk ECS components and systems |
+| ~~`getBlockStateRegistry()`~~ | ~~Register custom block states~~ |
+| `getEntityRegistry()` | Register entity types |
+| `getTaskRegistry()` | Register scheduled tasks |
+| `getAssetRegistry()` | Register asset types |
+| `getClientFeatureRegistry()` | Register client feature flags |
+| `getCodecRegistry(codec)` | Register to codec maps |
+
+<Aside type="danger" title="Removed in Update 4">
+`getBlockStateRegistry()` and the entire `BlockState` system have been removed. Block data is now stored as `Component<ChunkStore>` registered via `getChunkStoreRegistry()`. For example, `BenchState` is now `BenchBlock`, `ItemContainerBlockState` is now `ItemContainerBlock`, and `PrefabSpawnerState` is now `PrefabSpawnerBlock`.
+</Aside>
+
+## Utility Methods
+
+| Method | Return Type | Description |
+|--------|-------------|-------------|
+| `getLogger()` | `HytaleLogger` | Plugin-specific logger |
+| `getDataDirectory()` | `Path` | Plugin's data folder |
+| `getIdentifier()` | `PluginIdentifier` | Plugin's unique identifier |
+| `getManifest()` | `PluginManifest` | Plugin's manifest data |
+| `getBasePermission()` | `String` | Root permission node (group.name) |
+| `getFile()` | `Path` | Path to plugin JAR (JavaPlugin only) |
+| `isEnabled()` | `boolean` | Returns true if state is SETUP, START, or ENABLED |
+| `isDisabled()` | `boolean` | Returns true if state is NONE, DISABLED, SHUTDOWN, or FAILED |
+| `getState()` | `PluginState` | Current lifecycle state |
+
+## Complete Example
+
+```java
+package com.example.myplugin;
+
+import com.hypixel.hytale.server.core.plugin.JavaPlugin;
+import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
+import com.hypixel.hytale.server.core.event.events.player.PlayerConnectEvent;
+import java.util.logging.Level;
+
+public class MyPlugin extends JavaPlugin {
+
+    private static MyPlugin instance;
+
+    public static MyPlugin getInstance() {
+        return instance;
+    }
+
+    public MyPlugin(JavaPluginInit init) {
+        super(init);
+    }
+
+    @Override
+    protected void setup() {
+        instance = this;
+
+        getEventRegistry().register(PlayerConnectEvent.class, this::onPlayerConnect);
+
+        getCommandRegistry().registerCommand(new MyCommand());
+
+        getLogger().at(Level.INFO).log("MyPlugin setup complete!");
+    }
+
+    @Override
+    protected void start() {
+        getLogger().at(Level.INFO).log("MyPlugin v%s started!", getManifest().getVersion());
+    }
+
+    @Override
+    protected void shutdown() {
+        getLogger().at(Level.INFO).log("MyPlugin shutting down...");
+        instance = null;
+    }
+
+    private void onPlayerConnect(PlayerConnectEvent event) {
+        getLogger().at(Level.INFO).log("Player connected: %s", event.getPlayerRef().getUsername());
+    }
+}
+```
+
+<Aside type="note" title="New in Update 3">
+`PluginIdentifier` now has a `identifyThirdPartyPlugin(Throwable)` method that walks exception cause chains and stack traces to identify which third-party plugin caused an error, using classloader names matching the pattern `ThirdParty(<pluginId>)`. `ManifestUtil.getVersion()` returns `String` (the raw version from META-INF), while `PluginManifest.getVersion()` returns a `Semver` object. More details in the [Update 3 changelog](/changelog/update-2-to-3/).
+</Aside>
+
+## Error Handling
+
+If an exception occurs during `setup()` or `start()`:
+1. The exception is logged with the plugin's logger
+2. The plugin transitions to `FAILED` state
+3. Registrations are cleaned up when the plugin is later shut down by the plugin manager
+
+```java
+@Override
+protected void setup() {
+    try {
+        // Risky initialization
+    } catch (Exception e) {
+        getLogger().at(Level.SEVERE).withCause(e).log("Failed to initialize");
+        throw e; // Re-throw to trigger plugin disable
+    }
+}
+```
+
+## Best Practices
+
+<Steps>
+1. **Register in `setup()`**: Always perform registrations during the setup phase
+2. **Validate in `start()`**: Use the start phase to verify all dependencies are available
+3. **Clean up in `shutdown()`**: Release any external resources (files, connections, etc.)
+4. **Don't block**: Avoid long-running operations in lifecycle methods
+5. **Use the logger**: Log important events for debugging
+6. **Check state**: Use `isEnabled()` before accessing plugin resources from external code
+</Steps>
+
+## Related
+
+- [Plugin Manifest](/getting-started/plugin-manifest/) - Configure your plugin's metadata
+- [First Plugin Tutorial](/getting-started/first-plugin/) - Build your first plugin
+- [Event System](/plugin-development/core-concepts/event-system/) - Register event listeners
+- [Command System](/plugin-development/core-concepts/commands/) - Register commands

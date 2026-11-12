@@ -1,0 +1,284 @@
+---
+title: "Knockback System"
+description: "Apply velocity impulses to entities from combat or environmental interactions using KnockbackComponent."
+sidebarTitle: Knockback
+---
+
+{/* [VERIFIED: 2026-02-13] */}
+
+The knockback system applies velocity impulses to entities, typically from combat hits or explosions. It works through a dedicated ECS component that integrates with the physics velocity system.
+
+## Package Location
+
+`com.hypixel.hytale.server.core.entity.knockback`
+
+## Overview
+
+When an entity takes a hit, a `KnockbackComponent` gets attached to it. This component stores the velocity to apply, how long to apply it, and optional modifiers. Each tick, the `KnockbackSystems` read this component, feed the velocity into the physics `Velocity` component as an instruction, and remove the component once the duration expires.
+
+## Core Classes
+
+### KnockbackComponent
+
+The component that stores pending knockback state on an entity:
+
+```java
+package com.hypixel.hytale.server.core.entity.knockback;
+
+public class KnockbackComponent implements Component<EntityStore> {
+    public static ComponentType<EntityStore, KnockbackComponent> getComponentType();
+
+    // velocity to apply
+    public Vector3d getVelocity();
+    public void setVelocity(Vector3d velocity);
+
+    // how velocity gets applied (Add or Set)
+    public ChangeVelocityType getVelocityType();
+    public void setVelocityType(ChangeVelocityType velocityType);
+
+    // optional resistance/drag config for the velocity
+    public VelocityConfig getVelocityConfig();
+    public void setVelocityConfig(VelocityConfig velocityConfig);
+
+    // velocity multipliers (stacked, then applied all at once)
+    public void addModifier(double modifier);
+    public void applyModifiers();
+
+    // duration and timing
+    public float getDuration();
+    public void setDuration(float duration);
+    public float getTimer();
+    public void setTimer(float time);
+    public void incrementTimer(float time);
+}
+```
+
+<Aside type="tip">
+`KnockbackComponent` is a transient component. It gets added when knockback is triggered and automatically removed by `KnockbackSystems` once the timer exceeds the duration (or immediately if duration is 0).
+</Aside>
+
+### ChangeVelocityType
+
+Controls how the knockback velocity merges with existing velocity. Only two values exist:
+
+```java
+package com.hypixel.hytale.protocol;
+
+public enum ChangeVelocityType {
+    Add(0),   // add to existing velocity
+    Set(1);   // replace existing velocity
+}
+```
+
+### VelocityConfig
+
+Optional configuration controlling how the applied velocity decays over time. Lives in `com.hypixel.hytale.server.core.modules.splitvelocity`:
+
+```java
+public class VelocityConfig {
+    float groundResistance = 0.82f;
+    float groundResistanceMax;
+    float airResistance = 0.96f;
+    float airResistanceMax;
+    float threshold = 1.0f;
+    VelocityThresholdStyle style = VelocityThresholdStyle.Linear;
+}
+```
+
+The `threshold` is the velocity length before resistance starts transitioning from the base value to the max value. The `style` controls whether that transition is `Linear` or `Exp` (exponential).
+
+<Aside type="note">
+Both `VelocityConfig` classes exist: a protocol version in `com.hypixel.hytale.protocol` (for network serialization) and a server version in `com.hypixel.hytale.server.core.modules.splitvelocity` (with codec support for JSON config). The server version has a `toPacket()` method to convert between them.
+</Aside>
+
+### VelocityThresholdStyle
+
+```java
+package com.hypixel.hytale.protocol;
+
+public enum VelocityThresholdStyle {
+    Linear(0),
+    Exp(1);
+}
+```
+
+## How Knockback Gets Applied
+
+The `KnockbackSystems` class contains two tick systems that process knockback each frame:
+
+### For NPCs (ApplyKnockback)
+
+Runs on all living entities **except** players:
+
+1. Calls `applyModifiers()` on the knockback component (scales velocity by all stacked modifiers)
+2. Feeds the velocity into the `Velocity` component via `addInstruction(velocity, config, type)`
+3. Increments the timer by `dt`
+4. Removes the `KnockbackComponent` when `timer > duration` (or immediately if `duration == 0`)
+
+### For Players (ApplyPlayerKnockback)
+
+Runs on player entities only. Handles the same logic but with an additional branch for server-side prediction via `KnockbackSimulation` (controlled by the `DO_SERVER_PREDICTION` flag).
+
+When server prediction is off (the default), it works the same as the NPC system. When on, it routes velocity through `KnockbackSimulation` instead, which tracks client-server position reconciliation.
+
+## Knockback Config Types
+
+Knockback vectors are calculated by subclasses of the abstract `Knockback` class in `com.hypixel.hytale.server.core.modules.interaction.interaction.config.server.combat`. These are typically defined in interaction JSON configs.
+
+### Base Knockback Fields
+
+All knockback types share these fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Force` | `float` | Knockback strength multiplier |
+| `Duration` | `float` | How long the force is continuously applied. If 0, applied once. |
+| `VelocityType` | `ChangeVelocityType` | `Add` (default) or `Set` |
+| `VelocityConfig` | `VelocityConfig` | Optional resistance/decay config |
+
+### DirectionalKnockback
+
+Pushes the target away from the attacker, with optional relative offsets:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `RelativeX` | `float` | Relative X offset (rotated by attacker yaw) |
+| `VelocityY` | `float` | Fixed Y velocity (vertical component) |
+| `RelativeZ` | `float` | Relative Z offset (rotated by attacker yaw) |
+
+The XZ knockback direction is calculated as `source - target` (away from attacker), normalized, with optional relative offsets rotated by the attacker's yaw. The result is scaled by `Force`.
+
+### PointKnockback
+
+Pushes the target away from a point (with optional offset from source):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `VelocityY` | `float` | Fixed Y velocity |
+| `RotateY` | `int` | Rotation offset for the knockback direction |
+| `OffsetX` | `int` | X offset from source position |
+| `OffsetZ` | `int` | Z offset from source position |
+
+### ForceKnockback
+
+Applies knockback in a fixed direction (rotated by attacker yaw):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Direction` | `Vector3d` | Normalized direction vector (default: UP) |
+
+The direction gets rotated by the attacker's yaw and scaled by `Force`.
+
+## Usage Examples
+
+### Applying Basic Knockback
+
+```java
+import com.hypixel.hytale.server.core.entity.knockback.KnockbackComponent;
+import com.hypixel.hytale.math.vector.Vector3d;
+import com.hypixel.hytale.protocol.ChangeVelocityType;
+
+Ref<EntityStore> targetRef = /* target entity */;
+KnockbackComponent knockback = commandBuffer.getComponent(targetRef, KnockbackComponent.getComponentType());
+if (knockback == null) {
+    knockback = new KnockbackComponent();
+    commandBuffer.putComponent(targetRef, KnockbackComponent.getComponentType(), knockback);
+}
+
+Vector3d direction = Vector3d.directionTo(attackerPos, targetPos).normalize();
+direction.scale(8.0);
+direction.y = 3.0;
+
+knockback.setVelocity(direction);
+knockback.setVelocityType(ChangeVelocityType.Add);
+knockback.setDuration(0.0f);
+knockback.setTimer(0.0f);
+```
+
+<Aside type="caution">
+Always check if the entity already has a `KnockbackComponent` before creating a new one. Use `commandBuffer.putComponent()` to add it -- the system manages removal automatically.
+</Aside>
+
+### Knockback with Modifiers
+
+Modifiers are multipliers that stack and get applied all at once when `applyModifiers()` is called (which happens automatically each tick by `KnockbackSystems`):
+
+```java
+knockback.setVelocity(new Vector3d(10, 3, 0));
+knockback.setVelocityType(ChangeVelocityType.Set);
+knockback.setDuration(0.5f);
+knockback.setTimer(0.0f);
+
+knockback.addModifier(0.9);   // 90% - slight reduction
+knockback.addModifier(1.2);   // 120% - strength buff
+// when applied: velocity *= 0.9 * 1.2 = 1.08x
+```
+
+### Knockback with Velocity Config
+
+```java
+import com.hypixel.hytale.server.core.modules.splitvelocity.VelocityConfig;
+
+VelocityConfig config = new VelocityConfig();
+// these are the default values shown for reference
+config.groundResistance = 0.82f;
+config.airResistance = 0.96f;
+config.threshold = 1.0f;
+
+knockback.setVelocityConfig(config);
+```
+
+### Checking Knockback State
+
+```java
+KnockbackComponent knockback = accessor.getComponent(entityRef, KnockbackComponent.getComponentType());
+if (knockback != null) {
+    float timer = knockback.getTimer();
+    float duration = knockback.getDuration();
+    float progress = duration > 0 ? timer / duration : 1.0f;
+}
+```
+
+## Knockback Resistance
+
+Knockback resistance in Hytale comes from multiple sources, all using the modifier system on `KnockbackComponent`:
+
+### Armor Knockback Resistance
+
+Armor items can define per-damage-cause knockback resistance values via `ItemArmor.getKnockbackResistances()`. The `ArmorKnockbackReduction` system in `DamageSystems` sums up resistance from all equipped armor and adds it as a modifier:
+
+```java
+// internal system logic (simplified)
+float knockbackResistanceModifier = 0.0f;
+for (ItemStack armorPiece : armorContainer) {
+    Map<DamageCause, Float> resistances = armorPiece.getItem().getArmor().getKnockbackResistances();
+    knockbackResistanceModifier += resistances.get(damageCause);
+}
+knockbackComponent.addModifier(Math.max(1.0f - knockbackResistanceModifier, 0.0f));
+```
+
+### Wielding Knockback Reduction
+
+When an entity is wielding (e.g., blocking with a shield), the `WieldingKnockbackReduction` system applies knockback modifiers from the wielding interaction config. This supports both omni-directional and angled modifiers.
+
+### Entity Effect Multipliers
+
+Active entity effects can define a `knockbackMultiplier` via `ApplicationEffects`. These are multiplicatively combined across all active effects.
+
+## Integration with Physics
+
+The knockback system bridges into the physics velocity system through `Velocity.addInstruction()`:
+
+<Steps>
+1. **Knockback triggered** -- `KnockbackComponent` is added to the entity via `commandBuffer.putComponent()`
+2. **Modifiers applied** -- `applyModifiers()` scales velocity by all stacked multipliers
+3. **Velocity instruction created** -- `velocity.addInstruction(knockbackVelocity, config, type)` feeds into the physics system
+4. **Timer advanced** -- `incrementTimer(dt)` tracks elapsed time
+5. **Component removed** -- When `timer > duration`, the component is removed via `commandBuffer.tryRemoveComponent()`
+</Steps>
+
+## Related
+
+- [Effects System](/plugin-development/entities/effects/) - Status effects
+- [Physics System](/plugin-development/physics/overview/) - Velocity and movement
+- [Entity System](/plugin-development/entities/overview/) - Entity management

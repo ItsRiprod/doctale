@@ -1,0 +1,253 @@
+---
+title: "Interaction System"
+description: "Overview of the Hytale interaction system for handling player interactions with blocks, entities, and items"
+sidebarTitle: Overview
+---
+
+{/* [VERIFIED: 2026-02-13] - Added missing InteractionContext methods */}
+
+The interaction system handles all player interactions with blocks, entities, and items through a chain-based execution model with server-client synchronization.
+
+## What is the Interaction System?
+
+The interaction system is the framework that powers all player actions in Hytale - from swinging a sword to placing blocks to drinking potions. When a player presses a button, the system:
+
+1. **Resolves** which interaction to run based on held item, target, and input type
+2. **Executes** a chain of operations (animations, hit detection, damage, effects)
+3. **Synchronizes** state between client and server for smooth gameplay
+
+<Aside type="tip">
+Most custom interactions can be created using JSON asset files without writing Java code. Only use Java when you need completely new behavior.
+</Aside>
+
+## System Architecture
+
+```mermaid
+flowchart LR
+    subgraph Input["Player Input"]
+        MouseClick
+        KeyPress
+    end
+
+    subgraph Manager["InteractionManager"]
+        Resolve["Resolves Root<br/>Interaction"]
+    end
+
+    subgraph Chain["InteractionChain"]
+        Track["Tracks State<br/>Per-Entity"]
+    end
+
+    subgraph Ops["Operations"]
+        PlaceBlock
+        DamageEntity
+        ApplyEffect
+        More["..."]
+    end
+
+    Input --> Manager
+    Manager --> Chain
+    Chain --> Ops
+```
+
+### Core Flow
+
+<Steps>
+1. **Input Detection** - Player clicks or presses an action key
+2. **Root Resolution** - System finds the RootInteraction for the held item and interaction type
+3. **Chain Creation** - An InteractionChain is created to track execution state
+4. **Operation Execution** - Operations in the chain execute sequentially (or in parallel for forks)
+5. **Client-Server Sync** - Results are synchronized between client and server
+6. **Completion** - Chain completes, cooldowns are applied
+</Steps>
+
+## Package Locations
+
+| Package | Purpose |
+|---------|---------|
+| `com.hypixel.hytale.server.core.modules.interaction` | Main module, InteractionModule plugin |
+| `com.hypixel.hytale.server.core.entity` | InteractionManager, InteractionChain, InteractionContext |
+| `com.hypixel.hytale.server.core.modules.interaction.interaction.config` | Interaction base classes and configs |
+| `com.hypixel.hytale.server.core.modules.interaction.interaction.operation` | Operation interface and builders |
+| `com.hypixel.hytale.protocol` | InteractionType enum, sync data, packets |
+
+## Interaction Lifecycle Overview
+
+Every interaction follows a consistent lifecycle managed by the framework:
+
+### Start Phase
+When an interaction begins:
+- `InteractionChain` is created with initial state
+- `InteractionContext` is populated with held item, target info, metadata
+- `firstRun = true` flag is set for the first tick
+
+### Tick Phase
+Each frame while the interaction runs:
+- `tick()` (final) handles framework validation and state management
+- `tick0()` (abstract) is called for your custom logic
+- `simulateTick0()` runs on client for prediction
+- `InteractionState` is updated (NotFinished, Finished, Failed, Skip, ItemChanged)
+
+### End Phase
+When the interaction completes:
+- Cooldowns are applied via `CooldownHandler`
+- Next operations in the chain execute
+- Forked chains continue independently
+- Completion callbacks fire
+
+<Aside type="caution">
+The `tick()` method is **final** - you must implement `tick0()` for custom behavior. See [Interaction Lifecycle](/plugin-development/interactions/interaction-lifecycle/) for details.
+</Aside>
+
+## Core Components
+
+### InteractionManager
+
+Per-entity component managing all interaction chains for that entity:
+
+```java
+public class InteractionManager implements Component<EntityStore> {
+    // Max interaction reach distance
+    public static final double MAX_REACH = 8.0;
+
+    // Start an interaction chain
+    public boolean tryStartChain(
+        Ref<EntityStore> ref,
+        CommandBuffer<EntityStore> commandBuffer,
+        InteractionType type,
+        InteractionContext context,
+        RootInteraction rootInteraction
+    );
+
+    // Process mouse/keyboard input
+    public void doMouseInteraction(
+        Ref<EntityStore> ref,
+        MouseInteraction mouseInteraction,
+        ComponentAccessor<EntityStore> componentAccessor,
+        CommandBuffer<EntityStore> commandBuffer
+    );
+
+    // Tick all active chains
+    public void tick();
+}
+```
+
+### InteractionChain
+
+Represents the execution state of a running interaction:
+
+```java
+public class InteractionChain {
+    public InteractionState getServerState();
+    public InteractionState getClientState();
+    public InteractionType getType();
+    public RootInteraction getRootInteraction();
+    public InteractionContext getContext();
+    public int getOperationCounter();
+
+    // Fork a new chain from this one
+    public InteractionChain fork(
+        InteractionContext forkedContext,
+        RootInteraction forkedRootInteraction
+    );
+}
+```
+
+### InteractionContext
+
+Execution context passed to all operations:
+
+```java
+public class InteractionContext {
+    public Ref<EntityStore> getEntity();
+    public Ref<EntityStore> getOwningEntity();
+    public ItemStack getHeldItem();
+    public byte getHeldItemSlot();
+    public DynamicMetaStore<InteractionContext> getMetaStore();
+    public DynamicMetaStore<Interaction> getInstanceStore();
+    public InteractionChain getChain();
+    public InteractionSyncData getState();
+    @Nullable
+    public InteractionSyncData getClientState();
+
+    public InteractionChain fork(
+        InteractionContext context,
+        RootInteraction rootInteraction,
+        boolean predicted
+    );
+
+    public void jump(Label label);
+    public Label getLabel(int index);
+}
+```
+
+## Quick Example
+
+Here's how interactions flow for a simple sword swing:
+
+**1. Item Definition** references a RootInteraction:
+```json
+{
+  "Interactions": {
+    "Primary": "Root_Weapon_Sword_Primary"
+  }
+}
+```
+
+**2. RootInteraction** defines the entry point:
+```json
+{
+  "RequireNewClick": true,
+  "Cooldown": { "Cooldown": 0.25 },
+  "Interactions": ["Weapon_Sword_Swing"]
+}
+```
+
+**3. Interaction Chain** executes operations:
+```
+Weapon_Sword_Swing (Simple - animation)
+    ↓
+Weapon_Sword_Selector (Selector - hit detection)
+    ↓
+Weapon_Sword_Damage (DamageEntity - apply damage)
+```
+
+## Learning Path
+
+<CardGrid>
+  <LinkCard
+    title="Interaction Types"
+    description="All 25 InteractionType values and their triggers"
+    href="/plugin-development/interactions/interaction-types/"
+  />
+  <LinkCard
+    title="Asset-Based Interactions"
+    description="Create interactions with JSON (no Java required)"
+    href="/plugin-development/interactions/asset-interactions/"
+  />
+  <LinkCard
+    title="Interaction Lifecycle"
+    description="Understanding tick0(), simulateTick0(), and state management"
+    href="/plugin-development/interactions/interaction-lifecycle/"
+  />
+  <LinkCard
+    title="Client-Server Sync"
+    description="How interactions synchronize between client and server"
+    href="/plugin-development/interactions/client-server-sync/"
+  />
+</CardGrid>
+
+### By Skill Level
+
+**Beginners:** Start with [Asset-Based Interactions](/plugin-development/interactions/asset-interactions/) to create custom weapon attacks and abilities using JSON files.
+
+**Intermediate:** Learn [Control Flow Patterns](/plugin-development/interactions/control-flow-interactions/) for combos, charging, and parallel effects.
+
+**Advanced:** Dive into [Java Operations](/plugin-development/interactions/java-operations/) for completely custom interaction types.
+
+## Related
+
+- [Interaction Types](/plugin-development/interactions/interaction-types/) - Complete InteractionType reference
+- [Asset-Based Interactions](/plugin-development/interactions/asset-interactions/) - JSON interaction definitions
+- [Charging Mechanics](/plugin-development/interactions/charging-interactions/) - Hold-to-charge patterns
+- [Block Tracking](/plugin-development/interactions/block-tracking/) - Track block placements
+- [Entity System](/plugin-development/entities/overview/) - Entity management

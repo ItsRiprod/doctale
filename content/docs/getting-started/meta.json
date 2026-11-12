@@ -1,0 +1,10 @@
+{
+  "title": "Getting Started",
+  "pages": [
+    "setup",
+    "extracting-the-server",
+    "first-plugin",
+    "plugin-lifecycle",
+    "plugin-manifest"
+  ]
+}

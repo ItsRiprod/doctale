@@ -1,0 +1,87 @@
+@import 'tailwindcss';
+/* Fumadocs reads shadcn/ui variables; every site theme is a pulled shadcn registry item (app/themes). */
+@import 'fumadocs-ui/css/shadcn.css';
+@import 'fumadocs-ui/css/preset.css';
+
+/* Site themes: pulled shadcn registry items (npm run theme:sync), scoped by [data-theme] on <html>.
+   `data-theme` must sit on <html>, the same element as `.dark`, because shadcn.css resolves --color-fd-* there. */
+@import './themes/index.css';
+/* Code colours per site theme (generated from app/themes/code-themes.json). */
+@import './themes/code.css';
+
+/* Fonts (next/font variables from app/layout.tsx) and theme tokens Fumadocs doesn't map (chart colours). */
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+}
+
+/* Keep Tailwind's class scanner out of the huge extracted-server dumps and legacy Astro sources. */
+@source not '../hyaleServer-extracted-v1';
+@source not '../hytaleServer-extracted-v2';
+@source not '../hytaleServer-extracted-v3';
+@source not '../hytaleServer-prerelease-extracted-v4';
+@source not '../legacy';
+@source not '../reports';
+
+/* ---- Legacy Starlight widgets (WS-B) ---- */
+/* <Steps> wraps a markdown <ol>; render it with Fumadocs' step styles. */
+.legacy-steps > ol {
+  @apply fd-steps;
+  list-style: none;
+  margin-inline: 0;
+}
+.legacy-steps > ol > li {
+  @apply fd-step;
+  padding-inline-start: 0;
+}
+.legacy-steps > ol > li::marker {
+  content: none;
+}
+
+/* ---- Code (WS-C) ---- */
+/* `wrap` fence meta */
+.code-wrap code,
+.code-wrap .line {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ---- Mermaid (WS-C) ---- */
+.fd-mermaid {
+  cursor: zoom-in;
+}
+.fd-mermaid:fullscreen {
+  cursor: zoom-out;
+  background: var(--color-fd-background);
+  align-items: center;
+  padding: 2rem;
+}
+.fd-mermaid:fullscreen svg {
+  max-width: 100% !important;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+/* Scrollbars follow the active theme (native ones stay light on dark themes otherwise). */
+* {
+  scrollbar-color: color-mix(in oklab, var(--color-fd-muted-foreground) 45%, transparent) transparent;
+}
+pre,
+.fd-scroll-container {
+  scrollbar-width: thin;
+}
+
+html > body[data-scroll-locked] {
+  margin-right: 0px !important;
+  --removed-body-scroll-bar-size: 0px !important;
+}

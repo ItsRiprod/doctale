@@ -1,0 +1,256 @@
+---
+title: "Interaction Types"
+description: "Complete reference for all 25 InteractionType values in the Hytale interaction system"
+---
+
+{/* [VERIFIED: 2026-01-25] - From InteractionType.java */}
+
+The `InteractionType` enum defines all possible ways a player can trigger an interaction. Each type maps to specific player input or game events.
+
+## Package Location
+
+`com.hypixel.hytale.protocol.InteractionType`
+
+## Complete InteractionType Reference
+
+| Value | Name | Trigger | Description |
+|-------|------|---------|-------------|
+| 0 | `Primary` | Left click | Main attack or action |
+| 1 | `Secondary` | Right click | Alternate attack or block |
+| 2 | `Ability1` | Ability key 1 | First ability slot |
+| 3 | `Ability2` | Ability key 2 | Second ability slot |
+| 4 | `Ability3` | Ability key 3 | Third ability slot |
+| 5 | `Use` | Use key | Interact with blocks/entities |
+| 6 | `Pick` | Pick key | Pick block (like creative mode) |
+| 7 | `Pickup` | Automatic | Pick up item from ground |
+| 8 | `CollisionEnter` | Physics | Entity enters collision with another |
+| 9 | `CollisionLeave` | Physics | Entity leaves collision |
+| 10 | `Collision` | Physics | Ongoing collision tick |
+| 11 | `EntityStatEffect` | Effect system | Status effect applied to entity |
+| 12 | `SwapTo` | Inventory | Item swapped into active slot |
+| 13 | `SwapFrom` | Inventory | Item swapped out of active slot |
+| 14 | `Death` | Death event | Entity dies |
+| 15 | `Wielding` | Holding item | Active while holding item (blocking) |
+| 16 | `ProjectileSpawn` | Projectile | Projectile is created |
+| 17 | `ProjectileHit` | Projectile | Projectile hits target |
+| 18 | `ProjectileMiss` | Projectile | Projectile misses/expires |
+| 19 | `ProjectileBounce` | Projectile | Projectile bounces off surface |
+| 20 | `Held` | Passive | Passive effect while item in main hand |
+| 21 | `HeldOffhand` | Passive | Passive effect while item in offhand |
+| 22 | `Equipped` | Passive | Passive effect while armor equipped |
+| 23 | `Dodge` | Dodge key | Dodge/roll action |
+| 24 | `GameModeSwap` | Game mode change | Player switches game mode |
+
+## Type Categories
+
+### Player Input Types
+
+These types are triggered by direct player input:
+
+<Tabs>
+<TabItem label="Combat">
+```java
+InteractionType.Primary    // Left click - attack
+InteractionType.Secondary  // Right click - alt attack/block
+InteractionType.Ability1   // First ability
+InteractionType.Ability2   // Second ability
+InteractionType.Ability3   // Third ability
+InteractionType.Dodge      // Dodge/roll
+```
+</TabItem>
+<TabItem label="Utility">
+```java
+InteractionType.Use        // Interact (doors, chests, NPCs)
+InteractionType.Pick       // Pick block
+InteractionType.Pickup     // Pick up item
+```
+</TabItem>
+</Tabs>
+
+### Passive Types
+
+These types run continuously while conditions are met:
+
+```java
+InteractionType.Held        // Main hand passive (e.g., torch glow)
+InteractionType.HeldOffhand // Offhand passive (e.g., shield ready)
+InteractionType.Equipped    // Armor passive (e.g., set bonuses)
+InteractionType.Wielding    // Active holding (e.g., blocking stance)
+```
+
+<Aside type="note">
+`Wielding` differs from `Held` - it's for active holding states like maintaining a block with a shield, while `Held` is for passive effects just from having the item equipped.
+</Aside>
+
+### Event Types
+
+These types are triggered by game events, not player input:
+
+```java
+// Collision events
+InteractionType.CollisionEnter  // First frame of collision
+InteractionType.CollisionLeave  // Frame collision ends
+InteractionType.Collision       // Each frame during collision
+
+// Projectile events
+InteractionType.ProjectileSpawn  // When projectile is created
+InteractionType.ProjectileHit    // When projectile hits target
+InteractionType.ProjectileMiss   // When projectile expires
+InteractionType.ProjectileBounce // When projectile bounces
+
+// State change events
+InteractionType.SwapTo          // Item becomes active
+InteractionType.SwapFrom        // Item becomes inactive
+InteractionType.Death           // Entity death
+InteractionType.EntityStatEffect // Effect applied
+InteractionType.GameModeSwap    // Game mode changed
+```
+
+## How Types Map to Items
+
+Items define which interaction types they support in their `Interactions` field:
+
+```json title="Weapon_Sword_Example.json"
+{
+  "Interactions": {
+    "Primary": "Root_Weapon_Sword_Primary",
+    "Secondary": "Root_Weapon_Sword_Guard",
+    "Ability1": "Root_Weapon_Sword_Signature"
+  }
+}
+```
+
+When the player presses the corresponding input, the system looks up the RootInteraction for that type.
+
+## UnarmedInteractions Fallback
+
+When a player has no item equipped (or the item doesn't define an interaction for a type), the system falls back to `UnarmedInteractions`:
+
+```java
+// From InteractionContext.getRootInteractionId()
+Item heldItem = context.getOriginalItemType();
+if (heldItem == null) {
+    UnarmedInteractions unarmed = UnarmedInteractions.getAssetMap().getAsset("Empty");
+    return unarmed.getInteractions().get(type);
+}
+return heldItem.getInteractions().get(type);
+```
+
+### UnarmedInteractions Asset
+
+```json title="UnarmedInteractions_Empty.json"
+{
+  "Id": "Empty",
+  "Interactions": {
+    "Primary": "Root_Unarmed_Primary",
+    "Secondary": "Root_Unarmed_Secondary",
+    "Use": "Root_Use_Block"
+  }
+}
+```
+
+## Usage in Java
+
+### Getting Interaction Type
+
+```java
+import com.hypixel.hytale.protocol.InteractionType;
+
+// From enum value
+InteractionType type = InteractionType.Primary;
+
+// From integer value
+InteractionType type = InteractionType.fromValue(0); // Primary
+
+// All values
+InteractionType[] all = InteractionType.VALUES;
+```
+
+### Creating Context for Type
+
+```java
+import com.hypixel.hytale.server.core.entity.InteractionContext;
+
+// Standard creation - determines slot based on type
+InteractionContext context = InteractionContext.forInteraction(
+    manager,
+    entityRef,
+    InteractionType.Primary,
+    componentAccessor
+);
+
+// For equipped interactions - must specify slot
+InteractionContext armorContext = InteractionContext.forInteraction(
+    manager,
+    entityRef,
+    InteractionType.Equipped,
+    slotIndex,  // 0-3 for armor slots
+    componentAccessor
+);
+```
+
+<Aside type="caution">
+Using `InteractionType.Equipped` requires specifying a slot index. The system throws `IllegalArgumentException` if you don't.
+</Aside>
+
+### Slot Resolution by Type
+
+Different types resolve to different inventory slots:
+
+```java
+// From InteractionContext.forInteraction()
+switch (type) {
+    case Equipped:
+        return entityInventory.getArmor().getItemStack(equipSlot);
+    case HeldOffhand:
+        return entityInventory.getUtilityItem();
+    case Primary:
+    case Secondary:
+    case Ability1:
+    case Ability2:
+    case Ability3:
+        // Complex priority resolution between main hand and offhand
+        // See InteractionContext.java for full logic
+    default:
+        return entityInventory.getItemInHand();
+}
+```
+
+## Priority Resolution
+
+When both main hand and offhand have interactions for the same type, priority determines which runs:
+
+```java
+// From item config
+int prioPrimary = mainHandItem.getInteractionConfig()
+    .getPriorityFor(type, PrioritySlot.MainHand);
+int prioSecondary = offhandItem.getInteractionConfig()
+    .getPriorityFor(type, PrioritySlot.OffHand);
+
+// Higher priority wins
+if (prioPrimary < prioSecondary) {
+    // Use offhand
+} else {
+    // Use main hand
+}
+```
+
+### Priority Configuration
+
+```json title="Item interaction priority"
+{
+  "InteractionConfig": {
+    "Priority": {
+      "Primary": { "MainHand": 10, "OffHand": 5 },
+      "Secondary": { "MainHand": 5, "OffHand": 10 }
+    }
+  }
+}
+```
+
+## Related
+
+- [Interaction System Overview](/plugin-development/interactions/overview/) - System architecture
+- [Asset-Based Interactions](/plugin-development/interactions/asset-interactions/) - JSON interaction definitions
+- [Interaction Lifecycle](/plugin-development/interactions/interaction-lifecycle/) - Execution flow
+- [Items Overview](/asset-development/items/overview/) - Item interaction configuration

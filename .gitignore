@@ -1,3 +1,15 @@
 /node_modules
 /dist
 /Assets
+
+# Tailwind Plus Catalyst kit (paid, never commit raw)
+catalyst-ui-kit.zip
+/catalyst-ui-kit/
+
+# Next.js
+/.next
+/out
+next-env.d.ts
+*.tsbuildinfo
+/.source
+/.wrangler

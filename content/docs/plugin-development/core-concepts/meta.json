@@ -1,0 +1,9 @@
+{
+  "title": "Core Concepts",
+  "pages": [
+    "event-system",
+    "ecs-overview",
+    "commands",
+    "registries"
+  ]
+}

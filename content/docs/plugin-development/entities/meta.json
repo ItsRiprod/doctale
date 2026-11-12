@@ -1,0 +1,12 @@
+{
+  "title": "Entities",
+  "pages": [
+    "overview",
+    "targeting",
+    "effects",
+    "groups",
+    "inventory",
+    "knockback",
+    "permissions"
+  ]
+}

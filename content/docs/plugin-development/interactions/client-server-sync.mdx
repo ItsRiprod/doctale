@@ -1,0 +1,396 @@
+---
+title: "Client-Server Synchronization"
+description: "How interactions synchronize between client and server in Hytale"
+sidebarTitle: Client-Server Sync
+---
+
+{/* [VERIFIED: 2026-01-25] - From InteractionChain.java and protocol analysis */}
+
+The interaction system uses a dual-path execution model where the client predicts interactions locally while the server remains authoritative. This page explains how synchronization works.
+
+## Dual-Path Execution Model
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Server
+
+    Client->>Client: simulateTick0()
+    Note right of Client: Local prediction
+
+    Client-->>Server: Input data
+
+    Server->>Server: tick0()
+    Note left of Server: Authoritative
+
+    Server-->>Client: InteractionSyncData
+    Note over Client,Server: state, progress, etc.
+
+    Client->>Client: reconcile state
+```
+
+### Why Dual Execution?
+
+- **Responsiveness**: Players see immediate feedback (animations, sounds)
+- **Authority**: Server validates all game-changing actions
+- **Correction**: Client state is corrected if prediction was wrong
+
+## WaitForDataFrom Enum
+
+Every interaction declares which side is authoritative:
+
+```java
+package com.hypixel.hytale.protocol;
+
+public enum WaitForDataFrom {
+    None,    // No synchronization needed
+    Client,  // Server waits for client data
+    Server   // Client waits for server data
+}
+```
+
+| Value | Use Case | Example |
+|-------|----------|---------|
+| `None` | Self-contained logic | SerialInteraction, ConditionInteraction |
+| `Client` | Client determines outcome | ChargingInteraction (release timing), ChainingInteraction (combo index) |
+| `Server` | Server determines outcome | DamageEntityInteraction (hit validation), PlaceBlockInteraction |
+
+### Implementation in Interaction
+
+```java
+public class ChargingInteraction extends Interaction {
+    @Override
+    public WaitForDataFrom getWaitForDataFrom() {
+        return WaitForDataFrom.Client;
+        // Server waits for client to report charge value
+    }
+}
+
+public class DamageEntityInteraction extends Interaction {
+    @Override
+    public WaitForDataFrom getWaitForDataFrom() {
+        return WaitForDataFrom.Server;
+        // Client waits for server to validate hit
+    }
+}
+```
+
+<Aside type="tip">
+Use `WaitForDataFrom.Client` when the client has information the server needs (like exact timing of button release). Use `WaitForDataFrom.Server` when the server must validate the result (like damage calculations).
+</Aside>
+
+## InteractionSyncData Structure
+
+Data synchronized between client and server:
+
+```java
+package com.hypixel.hytale.protocol;
+
+public class InteractionSyncData {
+    // Current interaction state
+    public InteractionState state;
+
+    // Progress through the interaction (0.0 to 1.0 or time in seconds)
+    public float progress;
+
+    // For charging interactions - how long charged
+    public float chargeValue;
+
+    // For chaining interactions - which combo step
+    public int chainingIndex;
+
+    // For parallel forks - count per interaction type
+    public Map<InteractionType, Integer> forkCounts;
+
+    // Which root interaction was entered (for nested chains)
+    public int enteredRootInteraction;
+
+    // Operation counter at this state
+    public int operationCounter;
+
+    // Root interaction ID
+    public int rootInteraction;
+
+    // Flag index for conditional branches
+    public int flagIndex;
+}
+```
+
+### Sync Data Flow
+
+<Tabs>
+<TabItem label="Client → Server">
+```java
+// ChargingInteraction example
+// Client sends charge value when player releases button
+
+// In simulateTick0() (client)
+if (playerReleasedButton) {
+    context.getState().chargeValue = currentChargeTime;
+    context.getState().state = InteractionState.Finished;
+}
+
+// In tick0() (server)
+InteractionSyncData clientData = context.getClientState();
+float chargeValue = clientData.chargeValue;
+// Server uses client's charge value to determine tier
+```
+</TabItem>
+<TabItem label="Server → Client">
+```java
+// DamageEntityInteraction example
+// Server validates hit and sends result
+
+// In tick0() (server)
+if (validHit) {
+    applyDamage(target, damage);
+    context.getState().state = InteractionState.Finished;
+} else {
+    context.getState().state = InteractionState.Failed;
+}
+
+// Client receives this state and updates visuals
+```
+</TabItem>
+</Tabs>
+
+## Accessing Sync Data
+
+### From InteractionContext
+
+```java
+@Override
+protected void tick0(..., InteractionContext context, ...) {
+    // Get this interaction's state (to write to)
+    InteractionSyncData state = context.getState();
+
+    // Get client-sent state (read only, may be null)
+    InteractionSyncData clientState = context.getClientState();
+
+    // Get server state (for reference)
+    InteractionSyncData serverState = context.getServerState();
+}
+```
+
+### Checking Client State
+
+```java
+@Override
+protected void tick0(..., InteractionContext context, ...) {
+    InteractionSyncData clientData = context.getClientState();
+
+    // Always null-check client state
+    if (clientData == null) {
+        context.getState().state = InteractionState.NotFinished;
+        return; // Wait for client data
+    }
+
+    // Use client data
+    if (clientData.state == InteractionState.Finished) {
+        // Client reported completion
+    }
+}
+```
+
+## Network Packet Flow
+
+### PlayInteractionFor Packet
+
+Sent to nearby players to show interaction effects:
+
+```java
+// From Interaction.handle()
+PlayInteractionFor packet = new PlayInteractionFor(
+    entityNetworkId,     // Who is performing
+    chainId,             // Chain identifier
+    forkedChainId,       // Fork identifier (if forked)
+    operationIndex,      // Which operation in chain
+    assetId,             // Interaction asset ID
+    itemId,              // Item being used
+    interactionType,     // Primary/Secondary/etc
+    cancel               // Whether to cancel
+);
+
+// Sent to all players within viewDistance
+for (Ref<EntityStore> playerRef : nearbyPlayers) {
+    if (!chain.requiresClient() || !playerRef.equals(owningEntityRef)) {
+        playerPlayerRefComponent.getPacketHandler().writeNoCache(packet);
+    }
+}
+```
+
+### SyncInteractionChain Packet
+
+Synchronizes chain state:
+
+```java
+// For fork synchronization
+void syncFork(
+    Ref<EntityStore> ref,
+    InteractionManager manager,
+    SyncInteractionChain packet
+) {
+    ForkedChainId baseId = packet.forkedId;
+    // Navigate to correct fork
+    while (baseId.forkedId != null) {
+        baseId = baseId.forkedId;
+    }
+
+    InteractionChain fork = this.findForkedChain(baseId, packet.data);
+    if (fork != null) {
+        manager.sync(ref, fork, packet);
+    }
+}
+```
+
+## Desync Detection and Recovery
+
+### Flagging Desync
+
+```java
+// From InteractionChain.java
+public void flagDesync() {
+    this.desynced = true;
+    // Also flag all forked chains
+    this.forkedChains.forEach((k, c) -> c.flagDesync());
+}
+
+public boolean isDesynced() {
+    return this.desynced;
+}
+```
+
+### Causes of Desync
+
+1. **Network Latency** - Client action before server response
+2. **State Prediction Miss** - Client predicted wrong outcome
+3. **Invalid Client Data** - Tampered or corrupted packets
+4. **Race Conditions** - Multiple interactions on same entity
+
+### Recovery Mechanisms
+
+```java
+// Clear sync data on desync
+void clearInteractionSyncData(int operationIndex) {
+    // Remove temp sync data from this point forward
+    for (int end = tempSyncData.size() - 1; end >= tempIdx && end >= 0; end--) {
+        tempSyncData.remove(end);
+    }
+
+    // Clear client state from affected entries
+    for (int i = Math.max(idx, 0); i < interactions.size(); i++) {
+        interactions.get(i).setClientState(null);
+    }
+}
+```
+
+## needsRemoteSync() Determination
+
+Interactions declare if they need network sync:
+
+```java
+public abstract boolean needsRemoteSync();
+
+// Examples from source:
+
+// SerialInteraction - No sync needed (just orchestration)
+@Override
+public boolean needsRemoteSync() {
+    return false;
+}
+
+// ChargingInteraction - Needs sync (charge timing)
+@Override
+public boolean needsRemoteSync() {
+    return true;
+}
+
+// ParallelInteraction - Needs sync (fork coordination)
+@Override
+public boolean needsRemoteSync() {
+    return true;
+}
+```
+
+<Aside type="note">
+Control flow interactions like `Serial` don't need sync because they just orchestrate other interactions. Interactions that have client-dependent data like `Charging` must sync.
+</Aside>
+
+## View Distance
+
+Interactions have a configurable view distance for network packets:
+
+```java
+// From Interaction.java
+protected double viewDistance = 96.0;
+
+// Used when sending PlayInteractionFor
+SpatialResource<Ref<EntityStore>, EntityStore> playerSpatialResource =
+    commandBuffer.getResource(EntityModule.get().getPlayerSpatialResourceType());
+
+ObjectList<Ref<EntityStore>> results = SpatialResource.getThreadLocalReferenceList();
+playerSpatialResource.getSpatialStructure().collect(position, this.viewDistance, results);
+```
+
+Configure in JSON:
+```json
+{
+  "Type": "Simple",
+  "ViewDistance": 64.0,
+  "Effects": { ... }
+}
+```
+
+## Best Practices
+
+### 1. Always Null-Check Client State
+
+```java
+InteractionSyncData clientData = context.getClientState();
+if (clientData == null) {
+    // Wait for data
+    context.getState().state = InteractionState.NotFinished;
+    return;
+}
+```
+
+### 2. Validate Client Data
+
+```java
+// Don't trust client values blindly
+float chargeValue = clientData.chargeValue;
+chargeValue = Math.max(0, Math.min(chargeValue, maxChargeTime));
+```
+
+### 3. Use Appropriate WaitForDataFrom
+
+```java
+// Timing-sensitive → Client
+// Result-sensitive → Server
+// No data needed → None
+```
+
+### 4. Consider Latency
+
+```java
+// Allow small timing differences
+if (Math.abs(serverTime - clientTime) < 0.1f) {
+    // Accept client timing
+}
+```
+
+### 5. Minimize Sync Frequency
+
+```java
+// Only sync when state changes
+if (previousState != currentState) {
+    sendSync();
+}
+```
+
+## Related
+
+- [Interaction Lifecycle](/plugin-development/interactions/interaction-lifecycle/) - tick0/simulateTick0 pattern
+- [Charging Mechanics](/plugin-development/interactions/charging-interactions/) - Client-driven example
+- [Networking Overview](/plugin-development/networking/overview/) - General networking
+- [Packet Types](/plugin-development/networking/packet-types/) - Packet reference

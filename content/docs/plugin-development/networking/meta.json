@@ -1,0 +1,9 @@
+{
+  "title": "Networking",
+  "pages": [
+    "overview",
+    "packet-types",
+    "packet-handlers",
+    "client-sync"
+  ]
+}

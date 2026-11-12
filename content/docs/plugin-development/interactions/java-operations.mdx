@@ -1,0 +1,521 @@
+---
+title: "Java Operations"
+description: "Create custom interaction types in Java when JSON-based interactions aren't sufficient"
+---
+
+{/* [VERIFIED: 2026-02-13] - Updated with tick0 pattern */}
+
+For creating entirely new interaction types, you need to extend the `Interaction` class and implement `tick0()`. This is an advanced topic for plugin developers who need custom behavior beyond what the asset-based system provides.
+
+<Aside type="note">
+Most custom interactions can be created using [asset-based JSON definitions](/plugin-development/interactions/asset-interactions/). Only use Java when you need completely new behavior.
+</Aside>
+
+## Package Locations
+
+| Package | Purpose |
+|---------|---------|
+| `com.hypixel.hytale.server.core.modules.interaction.interaction.config` | Interaction base classes |
+| `com.hypixel.hytale.server.core.modules.interaction.interaction.operation` | Operation interface and builders |
+| `com.hypixel.hytale.server.core.modules.interaction.suppliers` | UI page suppliers |
+
+## Operation Interface
+
+The core interface all interactions implement:
+
+```java
+package com.hypixel.hytale.server.core.modules.interaction.interaction.operation;
+
+public interface Operation {
+    // Server-side tick execution (FINAL in Interaction - do not override)
+    void tick(
+        Ref<EntityStore> ref,
+        LivingEntity entity,
+        boolean firstRun,
+        float time,
+        InteractionType type,
+        InteractionContext context,
+        CooldownHandler cooldownHandler
+    );
+
+    // Client-side predictive simulation (FINAL in Interaction)
+    void simulateTick(
+        Ref<EntityStore> ref,
+        LivingEntity entity,
+        boolean firstRun,
+        float time,
+        InteractionType type,
+        InteractionContext context,
+        CooldownHandler cooldownHandler
+    );
+
+    // Post-tick handling (for packets, cleanup)
+    default void handle(
+        Ref<EntityStore> ref,
+        boolean firstRun,
+        float time,
+        InteractionType type,
+        InteractionContext context
+    ) {}
+
+    // Where sync data comes from
+    WaitForDataFrom getWaitForDataFrom();
+
+    default InteractionRules getRules() { return null; }
+
+    default Int2ObjectMap<IntSet> getTags() { return Int2ObjectMaps.emptyMap(); }
+
+    default Operation getInnerOperation() {
+        Operation op = this;
+        while (op instanceof NestedOperation) {
+            op = ((NestedOperation) op).inner();
+        }
+        return op;
+    }
+
+    interface NestedOperation {
+        Operation inner();
+    }
+}
+```
+
+## The tick() vs tick0() Pattern
+
+<Aside type="caution">
+The `tick()` method in `Interaction` is **final**. You must implement `tick0()` instead.
+</Aside>
+
+```java
+// From Interaction.java - tick() is FINAL
+@Override
+public final void tick(
+    Ref<EntityStore> ref,
+    LivingEntity entity,
+    boolean firstRun,
+    float time,
+    InteractionType type,
+    InteractionContext context,
+    CooldownHandler cooldownHandler
+) {
+    // Framework handles validation, item checks, etc.
+    if (!this.tickInternal(entity, time, type, context)) {
+        // YOUR CODE RUNS HERE
+        this.tick0(firstRun, time, type, context, cooldownHandler);
+    }
+    // Framework handles state transitions
+}
+
+// YOU IMPLEMENT THIS
+protected abstract void tick0(
+    boolean firstRun,
+    float time,
+    InteractionType type,
+    InteractionContext context,
+    CooldownHandler cooldownHandler
+);
+```
+
+The same pattern applies for `simulateTick()` → `simulateTick0()`.
+
+### Why This Pattern?
+
+The framework wraps your logic to provide:
+- Item change detection
+- Animation duration handling
+- State transitions
+- Click queuing
+- Time shifting for chained interactions
+
+See [Interaction Lifecycle](/plugin-development/interactions/interaction-lifecycle/) for full details.
+
+## Creating a Custom Interaction
+
+### Step 1: Extend Interaction Class
+
+```java
+package com.example.myplugin.interaction;
+
+import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.KeyedCodec;
+import com.hypixel.hytale.protocol.InteractionState;
+import com.hypixel.hytale.protocol.InteractionType;
+import com.hypixel.hytale.protocol.WaitForDataFrom;
+import com.hypixel.hytale.server.core.entity.InteractionContext;
+import com.hypixel.hytale.server.core.meta.DynamicMetaStore;
+import com.hypixel.hytale.server.core.meta.MetaKey;
+import com.hypixel.hytale.server.core.modules.interaction.interaction.CooldownHandler;
+import com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction;
+
+public class PulseEffectInteraction extends Interaction {
+
+    // Configuration fields from JSON
+    protected float pulseInterval = 0.5f;
+    protected String effectId;
+    protected int maxPulses = 3;
+
+    // Instance tracking (per-use)
+    private static final MetaKey<Integer> PULSE_COUNT =
+        Interaction.META_REGISTRY.registerMetaObject(i -> 0);
+
+    // Codec for JSON deserialization
+    public static final BuilderCodec<PulseEffectInteraction> CODEC =
+        BuilderCodec.builder(
+            PulseEffectInteraction.class,
+            PulseEffectInteraction::new,
+            Interaction.ABSTRACT_CODEC
+        )
+        .documentation("Applies an effect at regular intervals")
+        .<Float>appendInherited(
+            new KeyedCodec<>("PulseInterval", Codec.FLOAT),
+            (i, v) -> i.pulseInterval = v,
+            i -> i.pulseInterval,
+            (i, p) -> i.pulseInterval = p.pulseInterval
+        )
+        .add()
+        .<String>appendInherited(
+            new KeyedCodec<>("EffectId", Codec.STRING),
+            (i, v) -> i.effectId = v,
+            i -> i.effectId,
+            (i, p) -> i.effectId = p.effectId
+        )
+        .add()
+        .<Integer>appendInherited(
+            new KeyedCodec<>("MaxPulses", Codec.INTEGER),
+            (i, v) -> i.maxPulses = v,
+            i -> i.maxPulses,
+            (i, p) -> i.maxPulses = p.maxPulses
+        )
+        .add()
+        .build();
+
+    @Override
+    protected void tick0(
+        boolean firstRun,
+        float time,
+        InteractionType type,
+        InteractionContext context,
+        CooldownHandler cooldownHandler
+    ) {
+        InteractionSyncData state = context.getState();
+        DynamicMetaStore<Interaction> store = context.getInstanceStore();
+
+        if (firstRun) {
+            // Initialize pulse counter
+            store.putMetaObject(PULSE_COUNT, 0);
+            applyPulse(context);
+            store.putMetaObject(PULSE_COUNT, 1);
+        }
+
+        int pulseCount = store.getMetaObject(PULSE_COUNT);
+        int expectedPulses = (int)(time / pulseInterval);
+
+        // Apply pulses as time passes
+        while (pulseCount < expectedPulses && pulseCount < maxPulses) {
+            applyPulse(context);
+            pulseCount++;
+            store.putMetaObject(PULSE_COUNT, pulseCount);
+        }
+
+        // Check if complete
+        if (pulseCount >= maxPulses) {
+            state.state = InteractionState.Finished;
+        } else {
+            state.state = InteractionState.NotFinished;
+        }
+    }
+
+    @Override
+    protected void simulateTick0(
+        boolean firstRun,
+        float time,
+        InteractionType type,
+        InteractionContext context,
+        CooldownHandler cooldownHandler
+    ) {
+        // Client prediction - just update progress
+        int expectedPulses = (int)(time / pulseInterval);
+        if (expectedPulses >= maxPulses) {
+            context.getState().state = InteractionState.Finished;
+        } else {
+            context.getState().state = InteractionState.NotFinished;
+        }
+    }
+
+    @Override
+    public WaitForDataFrom getWaitForDataFrom() {
+        return WaitForDataFrom.None; // Server-authoritative
+    }
+
+    // inherited from Interaction, not Operation
+    @Override
+    public boolean needsRemoteSync() {
+        return true;
+    }
+
+    private void applyPulse(InteractionContext context) {
+        // Apply effect logic here
+    }
+
+    @Override
+    protected com.hypixel.hytale.protocol.Interaction generatePacket() {
+        return new com.hypixel.hytale.protocol.SimpleInteraction();
+    }
+}
+```
+
+### Step 2: Register the Interaction
+
+```java
+import com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction;
+
+@Override
+protected void setup() {
+    // Register with the interaction codec
+    Interaction.CODEC.register(
+        "PulseEffect",  // This becomes the JSON "Type" value
+        PulseEffectInteraction.class,
+        PulseEffectInteraction.CODEC
+    );
+}
+```
+
+### Step 3: Use in JSON Assets
+
+```json title="MyPlugin_Pulse_Effect.json"
+{
+  "Type": "PulseEffect",
+  "PulseInterval": 0.3,
+  "EffectId": "Regeneration_Tick",
+  "MaxPulses": 5,
+  "Effects": {
+    "WorldParticles": [{ "SystemId": "Heal_Pulse" }]
+  }
+}
+```
+
+## The handle() Method
+
+Called after `tick()` for post-tick logic like sending packets:
+
+```java
+@Override
+public void handle(
+    Ref<EntityStore> ref,
+    boolean firstRun,
+    float time,
+    InteractionType type,
+    InteractionContext context
+) {
+    InteractionSyncData state = context.getState();
+
+    if (state.state == InteractionState.Finished && firstRun) {
+        // Send completion packet to nearby players
+        sendPlayInteract(context.getEntity(), context, context.getChain(), true);
+    }
+}
+```
+
+## OperationsBuilder and Compilation
+
+Interactions are compiled into an operation list at load time:
+
+```java
+@Override
+public void compile(OperationsBuilder builder) {
+    // Add this interaction as an operation
+    builder.addOperation(this);
+
+    // For branching (like Chaining), create labels
+    Label[] labels = new Label[branches.length];
+    for (int i = 0; i < labels.length; i++) {
+        labels[i] = builder.createUnresolvedLabel();
+    }
+    builder.addOperation(this, labels);
+
+    // Compile branches
+    Label end = builder.createUnresolvedLabel();
+    for (int i = 0; i < branches.length; i++) {
+        builder.resolveLabel(labels[i]);
+        Interaction.getInteractionOrUnknown(branches[i]).compile(builder);
+        builder.jump(end);
+    }
+    builder.resolveLabel(end);
+}
+```
+
+### Label System
+
+Labels enable jumping between operations:
+
+```java
+// In compile()
+Label loopStart = builder.createUnresolvedLabel();
+builder.resolveLabel(loopStart);
+builder.addOperation(this);
+builder.jump(loopStart); // Loop back
+
+// In tick0()
+context.jump(context.getLabel(targetIndex));
+```
+
+## The walk() Method
+
+Collects data from the interaction tree (for analysis, debugging):
+
+```java
+@Override
+public boolean walk(Collector collector, InteractionContext context) {
+    // Walk child interactions
+    for (int i = 0; i < children.length; i++) {
+        if (InteractionManager.walkInteraction(
+            collector,
+            context,
+            MyInteractionTag.of(i),
+            children[i]
+        )) {
+            return true; // Collector found what it needed
+        }
+    }
+    return false;
+}
+```
+
+Common uses:
+- Finding all damage values in a chain
+- Collecting animation IDs
+- Generating documentation
+
+## Custom UI Page Suppliers
+
+Create custom UI pages triggered by interactions:
+
+```java
+public class MyPageSupplier implements OpenCustomUIInteraction.CustomPageSupplier {
+
+    protected String title;
+
+    public static final BuilderCodec<MyPageSupplier> CODEC =
+        BuilderCodec.builder(MyPageSupplier.class, MyPageSupplier::new)
+            .append(
+                new KeyedCodec<>("Title", Codec.STRING),
+                (s, v) -> s.title = v,
+                s -> s.title
+            )
+            .add()
+            .build();
+
+    @Override
+    public CustomUIPage tryCreate(
+        Ref<EntityStore> ref,
+        ComponentAccessor<EntityStore> componentAccessor,
+        PlayerRef playerRef,
+        InteractionContext context
+    ) {
+        Player player = componentAccessor.getComponent(ref, Player.getComponentType());
+        if (player == null) return null;
+
+        return new MyCustomPage(playerRef, player.getInventory(), title);
+    }
+}
+
+// Register in setup()
+OpenCustomUIInteraction.PAGE_CODEC.register(
+    "MyCustomUI",
+    MyPageSupplier.class,
+    MyPageSupplier.CODEC
+);
+```
+
+## Interaction Rules
+
+Control how interactions interact with each other:
+
+```java
+public class InteractionRules {
+    Set<String> canInterrupt;   // What this can interrupt
+    Set<String> interruptedBy;  // What can interrupt this
+    Set<String> blocks;         // What this blocks from starting
+    Set<String> blockedBy;      // What blocks this from starting
+}
+
+// In your interaction
+@Override
+public InteractionRules getRules() {
+    InteractionRules rules = new InteractionRules();
+    rules.canInterrupt = Set.of("basic_attack");
+    rules.interruptedBy = Set.of("stun", "knockback");
+    return rules;
+}
+```
+
+## Common Patterns
+
+### Time-Based Completion
+
+```java
+@Override
+protected void tick0(...) {
+    if (time >= runTime) {
+        context.getState().state = InteractionState.Finished;
+    } else {
+        context.getState().state = InteractionState.NotFinished;
+        context.getState().progress = time / runTime;
+    }
+}
+```
+
+### Condition Check
+
+```java
+@Override
+protected void tick0(...) {
+    if (!checkCondition(context)) {
+        context.getState().state = InteractionState.Failed;
+        return;
+    }
+    context.getState().state = InteractionState.Finished;
+}
+```
+
+### Fork to Parallel Chain
+
+```java
+@Override
+protected void tick0(...) {
+    if (firstRun) {
+        InteractionChain fork = context.fork(
+            context.duplicate(),
+            RootInteraction.getRootInteractionOrUnknown(forkId),
+            true // predicted
+        );
+    }
+    context.getState().state = InteractionState.Finished;
+}
+```
+
+### Read Target Entity
+
+```java
+@Override
+protected void tick0(...) {
+    Ref<EntityStore> target = context.getMetaStore()
+        .getMetaObject(Interaction.TARGET_ENTITY);
+
+    if (target == null || !target.isValid()) {
+        context.getState().state = InteractionState.Failed;
+        return;
+    }
+
+    // Use target
+    applyEffect(target);
+    context.getState().state = InteractionState.Finished;
+}
+```
+
+## Related
+
+- [Asset-Based Interactions](/plugin-development/interactions/asset-interactions/) - JSON-based interactions
+- [Interaction Lifecycle](/plugin-development/interactions/interaction-lifecycle/) - tick0 pattern details
+- [Control Flow Patterns](/plugin-development/interactions/control-flow-interactions/) - Serial, Parallel, etc.
+- [Serialization](/plugin-development/serialization/overview/) - Codec system
