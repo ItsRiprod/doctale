@@ -25,16 +25,18 @@ export function ThemePicker({ className }: { className?: string }) {
   const active = themes.find((t) => t.id === current);
 
   return (
-    <div className={['flex items-center gap-1.5', className].filter(Boolean).join(' ')}>
+    // min-w-0 lets the picker shrink inside the narrow sidebar footer instead of spilling past it.
+    <div className={['flex min-w-0 items-center gap-1.5', className].filter(Boolean).join(' ')}>
       <Dropdown>
         <DropdownButton
           plain
           aria-label={`Site theme: ${active?.label ?? current}`}
-          title="Site theme"
-          className="px-2! py-1! text-xs! font-medium!"
+          title={`Site theme: ${active?.label ?? current}`}
+          // items-center (Catalyst defaults to items-baseline, which pushes a truncated label off-centre).
+          className="min-w-0 items-center! px-2! py-1! text-xs/4! font-medium!"
         >
           <PaletteIcon data-slot="icon" />
-          <span className="max-w-28 truncate">{active?.label ?? current}</span>
+          <span className="min-w-0 max-w-28 truncate">{active?.label ?? current}</span>
         </DropdownButton>
         <DropdownMenu anchor="top end" className="z-50 max-h-[min(28rem,70vh)] min-w-56 overflow-y-auto">
           {themes.map((t) => (
@@ -46,7 +48,7 @@ export function ThemePicker({ className }: { className?: string }) {
           ))}
         </DropdownMenu>
       </Dropdown>
-      <ThemeSwitch mode="light-dark-system" />
+      <ThemeSwitch mode="light-dark-system" className="shrink-0" />
     </div>
   );
 }
