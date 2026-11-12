@@ -1,0 +1,16 @@
+{
+  "pages": [
+    "---Getting Started---",
+    "...getting-started",
+    "---Asset Development---",
+    "...asset-development",
+    "---Plugin Development---",
+    "...plugin-development",
+    "---Tutorials---",
+    "...tutorials",
+    "---Changelog---",
+    "...changelog",
+    "---Appendix---",
+    "...appendix"
+  ]
+}

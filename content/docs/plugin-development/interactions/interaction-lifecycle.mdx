@@ -1,0 +1,439 @@
+---
+title: "Interaction Lifecycle"
+description: "Understanding the tick0/simulateTick0 pattern, InteractionState, and context metadata in Hytale interactions"
+---
+
+{/* [VERIFIED: 2026-01-25] - From Interaction.java analysis */}
+
+This page explains how interactions execute, the critical `tick0()` pattern, and how to manage interaction state.
+
+## The tick() vs tick0() Pattern
+
+The most important concept to understand: **`tick()` is final** - you cannot override it. Instead, you must implement `tick0()` for your custom logic.
+
+```java
+// From Interaction.java - tick() is FINAL
+@Override
+public final void tick(
+    Ref<EntityStore> ref,
+    LivingEntity entity,
+    boolean firstRun,
+    float time,
+    InteractionType type,
+    InteractionContext context,
+    CooldownHandler cooldownHandler
+) {
+    int previousCounter = context.getOperationCounter();
+    int previousDepth = context.getChain().getCallDepth();
+
+    // Framework validation - checks item changes, etc.
+    if (!this.tickInternal(entity, time, type, context)) {
+        // YOUR CODE RUNS HERE via tick0()
+        this.tick0(firstRun, time, type, context, cooldownHandler);
+    }
+
+    // Framework handles state transitions
+    InteractionSyncData data = context.getState();
+    this.trySkipChain(ref, time, context, data);
+
+    switch (data.state) {
+        case Failed:
+        case Finished:
+        case Skip:
+            // Handle time shifting and operation counter
+            // ...
+    }
+}
+
+// YOU IMPLEMENT THIS
+protected abstract void tick0(
+    boolean firstRun,
+    float time,
+    InteractionType type,
+    InteractionContext context,
+    CooldownHandler cooldownHandler
+);
+```
+
+<Aside type="caution">
+Never try to override `tick()` - it's marked `final` for a reason. The framework handles critical validation, state management, and synchronization. Your logic goes in `tick0()`.
+</Aside>
+
+### Why This Pattern?
+
+The framework wraps your logic to provide:
+
+1. **Item Change Detection** - Cancels interaction if held item changes (unless `cancelOnItemChange = false`)
+2. **Animation Duration Handling** - Extends interaction if `WaitForAnimationToFinish` is set
+3. **State Transitions** - Manages `InteractionState` transitions
+4. **Skip-on-Click** - Handles click queuing and chain skipping
+5. **Time Shifting** - Handles leftover time for chained interactions
+
+## Server vs Client Execution
+
+Interactions run on both server and client with different methods:
+
+| Method | Runs On | Purpose |
+|--------|---------|---------|
+| `tick0()` | Server | Authoritative game logic |
+| `simulateTick0()` | Client | Visual prediction |
+| `handle()` | Server (post-tick) | Send packets, cleanup |
+
+```java
+// Client-side prediction
+protected abstract void simulateTick0(
+    boolean firstRun,
+    float time,
+    InteractionType type,
+    InteractionContext context,
+    CooldownHandler cooldownHandler
+);
+```
+
+<Aside type="note">
+The client runs `simulateTick0()` to predict animations and effects for responsive gameplay. The server's `tick0()` is authoritative - if results differ, the client state is corrected.
+</Aside>
+
+## InteractionState Enum
+
+Every interaction tick results in one of these states:
+
+| State | Value | Description |
+|-------|-------|-------------|
+| `NotFinished` | 0 | Interaction still running |
+| `Finished` | 1 | Completed successfully |
+| `Failed` | 2 | Failed (e.g., condition not met) |
+| `Skip` | 3 | Skipped via click queuing |
+| `ItemChanged` | 4 | Cancelled due to item swap |
+
+### Setting State in tick0()
+
+```java
+@Override
+protected void tick0(
+    boolean firstRun,
+    float time,
+    InteractionType type,
+    InteractionContext context,
+    CooldownHandler cooldownHandler
+) {
+    InteractionSyncData state = context.getState();
+
+    // Check completion condition
+    if (time >= this.runTime) {
+        state.state = InteractionState.Finished;
+    } else if (someFailureCondition) {
+        state.state = InteractionState.Failed;
+    } else {
+        state.state = InteractionState.NotFinished;
+    }
+
+    // Update progress for UI
+    state.progress = time;
+}
+```
+
+### State Checking Utility
+
+```java
+// From Interaction.java
+public static boolean failed(InteractionState state) {
+    return switch (state) {
+        case Failed, Skip, ItemChanged -> true;
+        case Finished, NotFinished -> false;
+    };
+}
+```
+
+## The firstRun Parameter
+
+The `firstRun` parameter is `true` only on the first tick of an interaction:
+
+```java
+@Override
+protected void tick0(
+    boolean firstRun,
+    float time,
+    InteractionType type,
+    InteractionContext context,
+    CooldownHandler cooldownHandler
+) {
+    if (firstRun) {
+        // One-time initialization
+        applyInitialEffect();
+        playStartSound();
+    }
+
+    // Every-tick logic
+    updateProgress(time);
+}
+```
+
+<Aside type="tip">
+Use `firstRun` for spawning particles, playing sounds, or any effect that should only happen once at the start of the interaction.
+</Aside>
+
+## InteractionContext Metadata
+
+Context stores interaction-specific data via `MetaKey`:
+
+### Standard Meta Keys
+
+```java
+// From Interaction.java
+public static final MetaKey<Ref<EntityStore>> TARGET_ENTITY;
+public static final MetaKey<Vector4d> HIT_LOCATION;
+public static final MetaKey<String> HIT_DETAIL;
+public static final MetaKey<BlockPosition> TARGET_BLOCK;
+public static final MetaKey<BlockPosition> TARGET_BLOCK_RAW;
+public static final MetaKey<Integer> TARGET_SLOT;
+public static final MetaKey<Damage> DAMAGE;
+public static final MetaKey<Float> TIME_SHIFT;
+```
+
+### Reading Metadata
+
+```java
+@Override
+protected void tick0(..., InteractionContext context, ...) {
+    DynamicMetaStore<InteractionContext> metaStore = context.getMetaStore();
+
+    // Get target entity
+    Ref<EntityStore> target = metaStore.getMetaObject(Interaction.TARGET_ENTITY);
+    if (target != null && target.isValid()) {
+        // Apply damage to target
+    }
+
+    // Get hit location
+    Vector4d hitLocation = metaStore.getMetaObject(Interaction.HIT_LOCATION);
+    if (hitLocation != null) {
+        // Spawn particles at hit location
+    }
+
+    // Get target block
+    BlockPosition targetBlock = metaStore.getMetaObject(Interaction.TARGET_BLOCK);
+    if (targetBlock != null) {
+        // Interact with block
+    }
+}
+```
+
+### Writing Metadata
+
+```java
+// Set target for downstream interactions
+context.getMetaStore().putMetaObject(Interaction.TARGET_ENTITY, enemyRef);
+context.getMetaStore().putMetaObject(Interaction.HIT_LOCATION, hitPos);
+```
+
+## Instance Store (Per-Interaction Storage)
+
+For data that persists across ticks of the same interaction instance:
+
+```java
+// Define a custom MetaKey
+public static final MetaKey<Integer> COMBO_COUNT =
+    Interaction.META_REGISTRY.registerMetaObject(i -> 0);
+
+@Override
+protected void tick0(..., InteractionContext context, ...) {
+    DynamicMetaStore<Interaction> instanceStore = context.getInstanceStore();
+
+    if (firstRun) {
+        // Initialize
+        instanceStore.putMetaObject(COMBO_COUNT, 0);
+    }
+
+    // Increment
+    int count = instanceStore.getMetaObject(COMBO_COUNT);
+    instanceStore.putMetaObject(COMBO_COUNT, count + 1);
+}
+```
+
+<Aside type="note">
+Use `context.getInstanceStore()` for data that needs to persist across ticks of the same interaction. Use `context.getMetaStore()` for data passed between interactions.
+</Aside>
+
+## CooldownHandler Integration
+
+The `CooldownHandler` manages interaction cooldowns:
+
+```java
+@Override
+protected void tick0(
+    boolean firstRun,
+    float time,
+    InteractionType type,
+    InteractionContext context,
+    CooldownHandler cooldownHandler
+) {
+    // Check if on cooldown
+    CooldownHandler.Cooldown cd = cooldownHandler.getCooldown("my_ability");
+    if (cd != null && !cd.isReady()) {
+        context.getState().state = InteractionState.Failed;
+        return;
+    }
+
+    // Apply cooldown on success
+    if (firstRun) {
+        cooldownHandler.startCooldown("my_ability", 2.0f);
+    }
+}
+```
+
+## Chain Execution Flow
+
+Understanding how interactions chain together:
+
+```mermaid
+sequenceDiagram
+    participant Root as RootInteraction
+    participant Swing as Swing_Animation
+    participant Hit as Hit_Detection
+    participant Damage as Apply_Damage
+
+    Note over Root: Chain: [Swing_Animation, Hit_Detection, Apply_Damage]
+
+    Root->>Swing: Frame 1: tick0()
+    Swing-->>Root: state = NotFinished
+
+    Root->>Swing: Frame 2: tick0()
+    Swing-->>Root: state = NotFinished
+
+    Root->>Swing: Frame 3: tick0()
+    Swing-->>Root: state = Finished
+
+    Note over Root: operationCounter++
+
+    Root->>Hit: Frame 4: tick0()
+    Hit-->>Root: state = Finished (hit found)
+
+    Note over Root: operationCounter++
+
+    Root->>Damage: Frame 5: tick0()
+    Damage-->>Root: state = Finished
+
+    Note over Root: Chain complete
+```
+
+### Operation Counter
+
+```java
+// From InteractionChain
+public int getOperationCounter();
+public void setOperationCounter(int operationCounter);
+
+// The counter advances when state becomes Finished/Failed/Skip
+// This determines which interaction in the chain runs next
+```
+
+## The handle() Method
+
+Called after `tick()` for post-tick logic like sending packets:
+
+```java
+@Override
+public void handle(
+    Ref<EntityStore> ref,
+    boolean firstRun,
+    float time,
+    InteractionType type,
+    InteractionContext context
+) {
+    InteractionSyncData serverData = context.getState();
+    InteractionChain chain = context.getChain();
+
+    if (serverData.state != InteractionState.NotFinished) {
+        // Interaction completed/failed - notify clients
+        if (firstRun && serverData.state == InteractionState.Finished) {
+            this.sendPlayInteract(entity, context, chain, false);
+        }
+        this.sendPlayInteract(entity, context, chain, true);
+    } else {
+        if (firstRun) {
+            this.sendPlayInteract(entity, context, chain, false);
+        }
+    }
+}
+```
+
+## Complete Example
+
+Here's a complete custom interaction implementation:
+
+```java
+public class ChargedBlastInteraction extends Interaction {
+
+    private float chargeTime = 2.0f;
+    private float baseDamage = 20.0f;
+
+    @Override
+    protected void tick0(
+        boolean firstRun,
+        float time,
+        InteractionType type,
+        InteractionContext context,
+        CooldownHandler cooldownHandler
+    ) {
+        InteractionSyncData state = context.getState();
+
+        if (firstRun) {
+            // Play charge-up sound
+            playSound(context, "charge_start");
+        }
+
+        if (time >= chargeTime) {
+            // Fully charged - execute blast
+            Ref<EntityStore> target = context.getMetaStore()
+                .getMetaObject(Interaction.TARGET_ENTITY);
+
+            if (target != null && target.isValid()) {
+                float damage = baseDamage * (time / chargeTime);
+                applyDamage(context, target, damage);
+                state.state = InteractionState.Finished;
+            } else {
+                state.state = InteractionState.Failed;
+            }
+        } else {
+            state.state = InteractionState.NotFinished;
+            state.progress = time / chargeTime; // For UI progress bar
+        }
+    }
+
+    @Override
+    protected void simulateTick0(
+        boolean firstRun,
+        float time,
+        InteractionType type,
+        InteractionContext context,
+        CooldownHandler cooldownHandler
+    ) {
+        // Client-side prediction for visuals
+        InteractionSyncData state = context.getState();
+        state.progress = Math.min(time / chargeTime, 1.0f);
+
+        if (time >= chargeTime) {
+            state.state = InteractionState.Finished;
+        } else {
+            state.state = InteractionState.NotFinished;
+        }
+    }
+
+    @Override
+    public WaitForDataFrom getWaitForDataFrom() {
+        return WaitForDataFrom.Server; // Server determines hit result
+    }
+
+    @Override
+    public boolean needsRemoteSync() {
+        return true;
+    }
+}
+```
+
+## Related
+
+- [Interaction System Overview](/plugin-development/interactions/overview/) - System architecture
+- [Client-Server Sync](/plugin-development/interactions/client-server-sync/) - Synchronization details
+- [Java Operations](/plugin-development/interactions/java-operations/) - Custom operations
+- [Charging Mechanics](/plugin-development/interactions/charging-interactions/) - Charge patterns

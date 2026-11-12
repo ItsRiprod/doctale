@@ -6,11 +6,15 @@ import { metaSchema, pageSchema } from 'fumadocs-core/source/schema';
 import { rehypeCodeDefaultOptions } from 'fumadocs-core/mdx-plugins/rehype-code';
 import { remarkMdxMermaid } from 'fumadocs-core/mdx-plugins/remark-mdx-mermaid';
 import { transformerMetaHighlight } from '@shikijs/transformers';
+import { z } from 'zod';
+
+// `sidebarTitle`: shorter label for the sidebar when it differs from the page title (ported from Starlight sidebar labels).
+const docSchema = pageSchema.extend({ sidebarTitle: z.string().optional() });
 
 const docs = defineDocs({
   dir: 'content/docs',
   docs: {
-    schema: pageSchema,
+    schema: docSchema,
     postprocess: {
       includeProcessedMarkdown: true,
     },
@@ -30,6 +34,13 @@ const docs = defineDocs({
           ...(rehypeCodeDefaultOptions.transformers ?? []),
           // Starlight/Expressive Code style `{19-22,27}` line ranges.
           transformerMetaHighlight(),
+          // Expressive Code `wrap` meta: soft-wrap long lines (styled by `.code-wrap` in app/global.css).
+          {
+            name: 'doctale:meta-wrap',
+            pre(node) {
+              if (/(^|\s)wrap(\s|$)/.test(this.options.meta?.__raw ?? '')) this.addClassToHast(node, 'code-wrap');
+            },
+          },
         ],
       },
     }),
@@ -44,6 +55,18 @@ export const source = loader({
   baseUrl: docsRoute,
   source: docs.toFumadocsSource(),
   plugins: [],
+  pageTree: {
+    transformers: [
+      {
+        file(node, filePath) {
+          if (!filePath) return node;
+          const file = this.storage.read(filePath);
+          const sidebarTitle = file?.format === 'page' ? (file.data as { sidebarTitle?: string }).sidebarTitle : undefined;
+          return sidebarTitle ? { ...node, name: sidebarTitle } : node;
+        },
+      },
+    ],
+  },
 });
 
 export const docsLlms = llms(source, {

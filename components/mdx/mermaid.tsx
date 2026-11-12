@@ -25,5 +25,16 @@ export function Mermaid({ chart }: { chart: string }) {
     };
   }, [chart, id, resolvedTheme]);
 
-  return <div className="fd-mermaid not-prose my-4 flex justify-center" dangerouslySetInnerHTML={{ __html: svg }} />;
+  // Click toggles fullscreen (ported from the Astro site's global click handler).
+  return (
+    <div
+      className="fd-mermaid not-prose my-4 flex min-h-24 justify-center"
+      title="Click to view fullscreen"
+      onClick={(e) => {
+        if (document.fullscreenElement) void document.exitFullscreen();
+        else void e.currentTarget.requestFullscreen().catch(() => {});
+      }}
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  );
 }

@@ -6,8 +6,8 @@ export default function HomePage() {
       <h1 className="text-2xl font-bold mb-4">Hello World</h1>
       <p>
         You can open{' '}
-        <Link href="/test/" className="font-medium underline">
-          /test/
+        <Link href="/getting-started/setup/" className="font-medium underline">
+          Getting Started
         </Link>{' '}
         and see the documentation.
       </p>

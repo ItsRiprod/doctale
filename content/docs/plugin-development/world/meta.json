@@ -1,0 +1,9 @@
+{
+  "title": "World",
+  "pages": [
+    "overview",
+    "connected-blocks",
+    "lighting",
+    "dynamic-lighting"
+  ]
+}

@@ -1,0 +1,598 @@
+---
+title: "Channeling Staff Tutorial"
+description: "Build a magical staff with multi-tier charging, quick-cast fork, and visual feedback"
+sidebarTitle: Channeling Staff
+---
+
+{/* [VERIFIED: 2026-02-17] */}
+
+
+![Final Channeling Staff weapon in-game](/images/tutorials/examples/staff.png)
+
+In this tutorial, you'll create a magical channeling staff that demonstrates complex interaction patterns including multi-tier charging, forking, damage cancellation, and visual feedback.
+
+## What We're Building
+
+<CardGrid>
+<Badge text="Multi-Tier Charging" variant="success" />
+<Badge text="Fork Actions" variant="success" />
+<Badge text="Damage Cancellation" variant="caution" />
+<Badge text="Visual Feedback" variant="success" />
+</CardGrid>
+
+**Final Result:**
+- A magical staff with 3 charge tiers (0.5s, 1.5s, 3.0s)
+- Secondary "quick cast" fork while channeling
+- Visual/audio feedback at each tier
+- Damage cancellation if hit while channeling
+- Progress bar during charge
+
+## Prerequisites
+
+Before starting, you should understand:
+- [Asset-Based Interactions](/plugin-development/interactions/asset-interactions/) - JSON interaction basics
+- [Charging Mechanics](/plugin-development/interactions/charging-interactions/) - Charging system
+- Basic plugin structure with asset folders
+
+## File Structure
+
+<FileTree>
+- my-plugin/
+  - manifest.json
+  - assets/
+    - Server/
+      - Item/
+        - Items/
+          - Weapon/
+            - Staff/
+              - Weapon_Staff_Channeling.json
+        - Interactions/
+          - Staff/
+            - Staff_Channeling_Primary.json
+            - Staff_Channeling_Tier1.json
+            - Staff_Channeling_Tier2.json
+            - Staff_Channeling_Tier3.json
+            - Staff_Channeling_QuickCast.json
+            - Staff_Channeling_Failed.json
+        - RootInteractions/
+          - Staff/
+            - Root_Staff_Channeling_Primary.json
+            - Root_Staff_Channeling_QuickCast.json
+</FileTree>
+
+---
+
+## Part 1: Create the RootInteraction
+
+The RootInteraction is the entry point that items reference.
+
+<Steps>
+1. Create the folder structure for your staff interactions
+
+2. Create the root interaction file
+</Steps>
+
+```json title="Root_Staff_Channeling_Primary.json"
+{
+  "RequireNewClick": true,
+  "ClickQueuingTimeout": 0.3,
+  "Cooldown": {
+    "Cooldown": 0.5,
+    "Id": "Staff_Channeling"
+  },
+  "Interactions": [
+    "Staff_Channeling_Primary"
+  ]
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `RequireNewClick` | Must click again, not hold |
+| `ClickQueuingTimeout` | Window to queue next click |
+| `Id` | Cooldown identifier shared across staff abilities |
+
+---
+
+## Part 2: Build the Charging Interaction
+
+This is the core of our staff - the charging mechanic with three tiers.
+
+```json title="Staff_Channeling_Primary.json"
+{
+  "Type": "Charging",
+  "DisplayProgress": true,
+  "FailOnDamage": true,
+  "MouseSensitivityAdjustmentTarget": 0.5,
+  "MouseSensitivityAdjustmentDuration": 0.3,
+  "Effects": {
+    "ItemAnimationId": "Channel",
+    "WorldSoundEventId": "SFX_Staff_Charge_Loop"
+  },
+  "Delay": {
+    "MinDelay": 0.1,
+    "MaxDelay": 0.4,
+    "MinHealth": 0.2,
+    "MaxHealth": 0.8
+  },
+  "Next": {
+    "0.5": "Staff_Channeling_Tier1",
+    "1.5": "Staff_Channeling_Tier2",
+    "3.0": "Staff_Channeling_Tier3"
+  },
+  "Forks": {
+    "Secondary": "Root_Staff_Channeling_QuickCast"
+  },
+  "Failed": "Staff_Channeling_Failed"
+}
+```
+
+### Understanding the Configuration
+
+<Tabs>
+<TabItem label="Charge Tiers">
+The `Next` field maps charge duration to interactions:
+
+| Duration | Tier | Effect |
+|----------|------|--------|
+| 0.5s | Tier 1 | Quick spark projectile |
+| 1.5s | Tier 2 | AOE burst damage |
+| 3.0s | Tier 3 | Powerful beam with knockback |
+
+When released, the system picks the highest tier reached.
+</TabItem>
+<TabItem label="Damage Cancellation">
+`FailOnDamage: true` cancels the charge if hit.
+
+The `Delay` config adjusts cancellation timing based on health:
+- Below 20% health (`MinHealth`): no delay is applied at all
+- Above 80% health (`MaxHealth`): delay is capped at `MaxDelay` (0.4s)
+- Between 20%-80%: delay scales upward from `MinDelay` (0.1s) at 20% HP to `MaxDelay` (0.4s) at 80% HP — higher health means more delay protection
+
+Low-health players lose delay protection entirely, making them more vulnerable to charge interruption.
+</TabItem>
+<TabItem label="Fork">
+`Forks.Secondary` allows right-click while charging to trigger a quick-cast spell without losing the charge state.
+</TabItem>
+</Tabs>
+
+---
+
+## Part 3: Implement Tier Effects
+
+Each tier has its own interaction chain for unique effects.
+
+<Tabs>
+<TabItem label="Tier 1 (Spark)">
+Quick projectile attack for instant release:
+
+```json title="Staff_Channeling_Tier1.json"
+{
+  "Type": "Serial",
+  "Interactions": [
+    {
+      "Type": "Simple",
+      "RunTime": 0.15,
+      "Effects": {
+        "ItemAnimationId": "Cast_Quick",
+        "WorldSoundEventId": "SFX_Staff_Cast_Light",
+        "WorldParticles": [
+          { "SystemId": "Magic_Spark_Cast" }
+        ]
+      }
+    },
+    {
+      "Type": "LaunchProjectile",
+      "ProjectileId": "Projectile_Magic_Spark"
+    }
+  ]
+}
+```
+
+<Aside type="caution">
+`LaunchProjectile` is deprecated and marked for removal. Speed and damage are configured on the projectile asset itself, not on this interaction.
+</Aside>
+
+</TabItem>
+<TabItem label="Tier 2 (Burst)">
+AOE damage around the caster:
+
+```json title="Staff_Channeling_Tier2.json"
+{
+  "Type": "Serial",
+  "Interactions": [
+    {
+      "Type": "Simple",
+      "RunTime": 0.2,
+      "Effects": {
+        "ItemAnimationId": "Cast_Medium",
+        "WorldSoundEventId": "SFX_Staff_Cast_Medium",
+        "WorldParticles": [
+          { "SystemId": "Magic_Burst_Buildup" }
+        ],
+        "CameraEffect": "Magic_Pulse"
+      }
+    },
+    {
+      "Type": "Selector",
+      "RunTime": 0.1,
+      "Effects": {
+        "WorldParticles": [
+          { "SystemId": "Magic_Burst_Explode" }
+        ],
+        "CameraEffect": "Magic_Burst_Impact"
+      },
+      "Selector": {
+        "Id": "Horizontal",
+        "Direction": "ToRight",
+        "StartDistance": 0.0,
+        "EndDistance": 5.0,
+        "Length": 360
+      },
+      "HitEntity": {
+        "Interactions": [
+          {
+            "Type": "DamageEntity",
+            "DamageCalculator": {
+              "Class": "Signature",
+              "BaseDamage": { "Magic": 25 }
+            },
+            "DamageEffects": {
+              "Knockback": {
+                "Type": "Directional",
+                "RelativeX": 0,
+                "VelocityY": 2,
+                "RelativeZ": 0,
+                "Force": 5.0
+              },
+              "WorldParticles": [
+                { "SystemId": "Magic_Hit" }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+</TabItem>
+<TabItem label="Tier 3 (Beam)">
+Powerful forward beam with knockback:
+
+```json title="Staff_Channeling_Tier3.json"
+{
+  "Type": "Serial",
+  "Interactions": [
+    {
+      "Type": "Simple",
+      "RunTime": 0.3,
+      "Effects": {
+        "ItemAnimationId": "Cast_Powerful",
+        "WorldSoundEventId": "SFX_Staff_Cast_Heavy",
+        "WorldParticles": [
+          { "SystemId": "Magic_Beam_Charge" }
+        ],
+        "CameraEffect": "Magic_Power_Buildup"
+      }
+    },
+    {
+      "Type": "Selector",
+      "RunTime": 0.2,
+      "Effects": {
+        "WorldParticles": [
+          { "SystemId": "Magic_Beam_Fire" }
+        ],
+        "CameraEffect": "Magic_Beam_Fire"
+      },
+      "Selector": {
+        "Id": "Stab",
+        "StartDistance": 0.5,
+        "EndDistance": 12.0,
+        "ExtendTop": 1.0,
+        "ExtendBottom": 0.5
+      },
+      "HitEntity": {
+        "Interactions": [
+          {
+            "Type": "DamageEntity",
+            "DamageCalculator": {
+              "Class": "Signature",
+              "BaseDamage": { "Magic": 50 }
+            },
+            "DamageEffects": {
+              "Knockback": {
+                "Type": "Directional",
+                "RelativeX": 0,
+                "VelocityY": 3,
+                "RelativeZ": -10,
+                "Force": 15.0,
+                "VelocityType": "Set"
+              },
+              "WorldParticles": [
+                { "SystemId": "Magic_Beam_Impact" }
+              ],
+              "CameraEffect": "Magic_Beam_Hit"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "Type": "Simple",
+      "RunTime": 0.5,
+      "Effects": {
+        "ItemAnimationId": "Cast_Recovery"
+      }
+    }
+  ]
+}
+```
+</TabItem>
+</Tabs>
+
+---
+
+## Part 4: Add the Quick Cast Fork
+
+Create a secondary spell that can be cast while channeling:
+
+<Steps>
+1. Create the RootInteraction for the quick cast
+
+2. Create the quick cast interaction
+</Steps>
+
+```json title="Root_Staff_Channeling_QuickCast.json"
+{
+  "RequireNewClick": true,
+  "Cooldown": {
+    "Cooldown": 1.0,
+    "Id": "Staff_QuickCast"
+  },
+  "Interactions": [
+    "Staff_Channeling_QuickCast"
+  ]
+}
+```
+
+```json title="Staff_Channeling_QuickCast.json"
+{
+  "Type": "Serial",
+  "Interactions": [
+    {
+      "Type": "Simple",
+      "RunTime": 0.1,
+      "Effects": {
+        "ItemAnimationId": "QuickCast",
+        "WorldSoundEventId": "SFX_Staff_QuickCast",
+        "WorldParticles": [
+          { "SystemId": "Magic_Shield_Flash" }
+        ]
+      }
+    },
+    {
+      "Type": "ApplyEffect",
+      "EffectId": "Magic_Shield",
+      "Entity": "User"
+    }
+  ]
+}
+```
+
+<Aside type="tip">
+The quick cast runs in a parallel fork chain, so it doesn't interrupt the main charging. The player can apply a quick shield while still building up their charged attack.
+</Aside>
+
+---
+
+## Part 5: Create the Failed Interaction
+
+When charge is interrupted by damage:
+
+```json title="Staff_Channeling_Failed.json"
+{
+  "Type": "Serial",
+  "Interactions": [
+    {
+      "Type": "Simple",
+      "RunTime": 0.3,
+      "Effects": {
+        "ItemAnimationId": "Channel_Fail",
+        "WorldSoundEventId": "SFX_Staff_Fizzle",
+        "WorldParticles": [
+          { "SystemId": "Magic_Fizzle" }
+        ],
+        "CameraEffect": "Stagger_Light"
+      }
+    },
+    {
+      "Type": "ApplyEffect",
+      "EffectId": "Stagger_Brief",
+      "Entity": "User"
+    }
+  ]
+}
+```
+
+---
+
+## Part 6: Create the Item Definition
+
+Now tie it all together with the item:
+
+```json title="Weapon_Staff_Channeling.json"
+{
+  "Parent": "Template_Weapon_Staff",
+  "TranslationProperties": {
+    "Name": "myplugin.items.staff_channeling.name",
+    "Lore": "myplugin.items.staff_channeling.lore"
+  },
+  "Model": "MyPlugin/Weapons/Staff_Channeling.blockymodel",
+  "Texture": "MyPlugin/Weapons/Staff_Channeling_Texture.png",
+  "Icon": "MyPlugin/Icons/Staff_Channeling.png",
+  "Quality": "Rare",
+  "ItemLevel": 25,
+  "MaxDurability": 150,
+  "DurabilityLossOnHit": 0.1,
+  "Interactions": {
+    "Primary": "Root_Staff_Channeling_Primary"
+  },
+  "ItemSoundSetId": "ISS_Weapons_Staff"
+}
+```
+
+<Aside type="note">
+This assumes you have a `Template_Weapon_Staff` parent template. If not, you may need to define all base properties directly.
+</Aside>
+
+---
+
+## Part 7: Testing & Verification
+
+<Steps>
+1. Build your plugin and install it on a test server
+
+2. Give yourself the staff with `/give Weapon_Staff_Channeling`
+
+3. Test each tier by holding and releasing at different times
+
+4. Test the quick cast by right-clicking while charging
+
+5. Test damage cancellation by having another player hit you while charging
+</Steps>
+
+### Test Checklist
+
+- [ ] Tier 1 (0.5s release) fires spark projectile
+- [ ] Tier 2 (1.5s release) creates AOE burst
+- [ ] Tier 3 (3.0s release) fires powerful beam
+- [ ] Quick cast (right-click during charge) applies shield
+- [ ] Getting hit cancels charge and plays fizzle effect
+- [ ] Progress bar shows during charge
+- [ ] All sounds and particles trigger correctly
+
+<Aside type="caution" title="Common Issues">
+**Charge doesn't start:** Check that `Root_Staff_Channeling_Primary.json` is in the correct folder and has valid JSON syntax.
+
+**Tiers don't trigger:** Verify the threshold values in `Next` match the expected charge times.
+
+**Fork doesn't work:** Ensure `Root_Staff_Channeling_QuickCast.json` exists and is referenced correctly in `Forks.Secondary`.
+</Aside>
+
+---
+
+## Complete File Reference
+
+<Tabs>
+<TabItem label="RootInteractions">
+```json title="Root_Staff_Channeling_Primary.json"
+{
+  "RequireNewClick": true,
+  "ClickQueuingTimeout": 0.3,
+  "Cooldown": {
+    "Cooldown": 0.5,
+    "Id": "Staff_Channeling"
+  },
+  "Interactions": ["Staff_Channeling_Primary"]
+}
+```
+
+```json title="Root_Staff_Channeling_QuickCast.json"
+{
+  "RequireNewClick": true,
+  "Cooldown": {
+    "Cooldown": 1.0,
+    "Id": "Staff_QuickCast"
+  },
+  "Interactions": ["Staff_Channeling_QuickCast"]
+}
+```
+</TabItem>
+<TabItem label="Charging">
+```json title="Staff_Channeling_Primary.json"
+{
+  "Type": "Charging",
+  "DisplayProgress": true,
+  "FailOnDamage": true,
+  "MouseSensitivityAdjustmentTarget": 0.5,
+  "MouseSensitivityAdjustmentDuration": 0.3,
+  "Effects": {
+    "ItemAnimationId": "Channel",
+    "WorldSoundEventId": "SFX_Staff_Charge_Loop"
+  },
+  "Delay": {
+    "MinDelay": 0.1,
+    "MaxDelay": 0.4,
+    "MinHealth": 0.2,
+    "MaxHealth": 0.8
+  },
+  "Next": {
+    "0.5": "Staff_Channeling_Tier1",
+    "1.5": "Staff_Channeling_Tier2",
+    "3.0": "Staff_Channeling_Tier3"
+  },
+  "Forks": {
+    "Secondary": "Root_Staff_Channeling_QuickCast"
+  },
+  "Failed": "Staff_Channeling_Failed"
+}
+```
+</TabItem>
+<TabItem label="Item">
+```json title="Weapon_Staff_Channeling.json"
+{
+  "Parent": "Template_Weapon_Staff",
+  "TranslationProperties": {
+    "Name": "myplugin.items.staff_channeling.name",
+    "Lore": "myplugin.items.staff_channeling.lore"
+  },
+  "Model": "MyPlugin/Weapons/Staff_Channeling.blockymodel",
+  "Texture": "MyPlugin/Weapons/Staff_Channeling_Texture.png",
+  "Icon": "MyPlugin/Icons/Staff_Channeling.png",
+  "Quality": "Rare",
+  "ItemLevel": 25,
+  "MaxDurability": 150,
+  "DurabilityLossOnHit": 0.1,
+  "Interactions": {
+    "Primary": "Root_Staff_Channeling_Primary"
+  },
+  "ItemSoundSetId": "ISS_Weapons_Staff"
+}
+```
+</TabItem>
+</Tabs>
+
+---
+
+## Next Steps & Challenges
+
+<CardGrid>
+<LinkCard
+  title="Add More Tiers"
+  description="Try adding a 4th tier at 5.0s for an ultimate attack"
+  href="/plugin-development/interactions/charging-interactions/"
+/>
+<LinkCard
+  title="Combo Integration"
+  description="Add ChainingInteraction for staff melee combos"
+  href="/plugin-development/interactions/control-flow-interactions/"
+/>
+<LinkCard
+  title="Status Effects"
+  description="Make tier effects apply debuffs to enemies"
+  href="/plugin-development/entities/effects/"
+/>
+<LinkCard
+  title="Java Enhancement"
+  description="Add custom damage scaling based on charge time"
+  href="/plugin-development/interactions/java-operations/"
+/>
+</CardGrid>
+
+## Related
+
+- [Charging Mechanics](/plugin-development/interactions/charging-interactions/) - Detailed charging reference
+- [Asset-Based Interactions](/plugin-development/interactions/asset-interactions/) - JSON interaction guide
+- [Control Flow Patterns](/plugin-development/interactions/control-flow-interactions/) - Serial, Parallel, etc.
+- [Custom Weapon Tutorial](/tutorials/examples/custom-weapon/) - Simpler weapon example

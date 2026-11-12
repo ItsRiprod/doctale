@@ -1,0 +1,263 @@
+---
+title: "Dynamic Lighting"
+description: "Attach moving lights to entities with temporary or persistent dynamic light components for effects and objects."
+---
+
+{/* [VERIFIED: 2026-02-13] */}
+
+
+Dynamic lighting allows entities to emit light that moves with them. The system supports both temporary runtime lights and persistent lights that survive entity respawn.
+
+## Package Location
+
+- Components: `com.hypixel.hytale.server.core.modules.entity.component`
+- Systems: `com.hypixel.hytale.server.core.modules.entity.dynamiclight`
+
+## Overview
+
+Dynamic lights are ECS components attached to entities. Two component types exist:
+
+| Component | Persistence | Use Case |
+|-----------|-------------|----------|
+| `DynamicLight` | Runtime only | Temporary effects (spell glow, fire) |
+| `PersistentDynamicLight` | Saved with entity | Permanent lights (lantern entity) |
+
+## Components
+
+### DynamicLight
+
+Runtime light component for entities:
+
+```java
+package com.hypixel.hytale.server.core.modules.entity.component;
+
+public class DynamicLight implements Component<EntityStore> {
+    public DynamicLight();
+    public DynamicLight(ColorLight colorLight);
+
+    public ColorLight getColorLight();
+    public void setColorLight(ColorLight colorLight);
+    public boolean consumeNetworkOutdated();
+
+    public static ComponentType<EntityStore, DynamicLight> getComponentType();
+}
+```
+
+### PersistentDynamicLight
+
+Serializable light component that persists with entity data:
+
+```java
+package com.hypixel.hytale.server.core.modules.entity.component;
+
+public class PersistentDynamicLight implements Component<EntityStore> {
+    public static final BuilderCodec<PersistentDynamicLight> CODEC;
+
+    public PersistentDynamicLight(ColorLight colorLight);
+
+    public ColorLight getColorLight();
+    public void setColorLight(ColorLight colorLight);
+
+    public static ComponentType<EntityStore, PersistentDynamicLight> getComponentType();
+}
+```
+
+### ColorLight
+
+Light color and radius definition:
+
+```java
+package com.hypixel.hytale.protocol;
+
+public class ColorLight {
+    public byte radius;
+    public byte red;
+    public byte green;
+    public byte blue;
+
+    public ColorLight();
+    public ColorLight(byte radius, byte red, byte green, byte blue);
+    public ColorLight(ColorLight other);
+
+    public ColorLight clone();
+}
+```
+
+## ECS Systems
+
+### DynamicLightSystems
+
+Contains systems for managing dynamic lights:
+
+```java
+package com.hypixel.hytale.server.core.modules.entity.dynamiclight;
+
+public class DynamicLightSystems {
+    // creates DynamicLight from PersistentDynamicLight when entity is added
+    public static class Setup extends HolderSystem<EntityStore> {
+        // query: has PersistentDynamicLight AND NOT DynamicLight
+        // onEntityAdd: creates DynamicLight from persistent light
+    }
+
+    // notifies clients when a DynamicLight component is removed
+    public static class EntityTrackerRemove
+        extends RefChangeSystem<EntityStore, DynamicLight> {
+        // onComponentRemoved: sends ComponentUpdateType.DynamicLight to trackers
+    }
+}
+```
+
+## Usage Examples
+
+### Adding Dynamic Light to Entity
+
+```java
+import com.hypixel.hytale.server.core.modules.entity.component.DynamicLight;
+import com.hypixel.hytale.protocol.ColorLight;
+
+// create light (radius 8, warm orange glow)
+ColorLight torchLight = new ColorLight((byte) 8, (byte) 15, (byte) 10, (byte) 5);
+
+// add dynamic light component to entity
+DynamicLight light = new DynamicLight(torchLight);
+store.addComponent(entityRef, DynamicLight.getComponentType(), light);
+```
+
+### Adding Persistent Light to Entity
+
+```java
+import com.hypixel.hytale.server.core.modules.entity.component.PersistentDynamicLight;
+import com.hypixel.hytale.protocol.ColorLight;
+
+// create persistent light (survives respawn/reload)
+ColorLight lanternLight = new ColorLight((byte) 12, (byte) 15, (byte) 15, (byte) 12);
+PersistentDynamicLight persistentLight = new PersistentDynamicLight(lanternLight);
+
+// add to entity — DynamicLight will be auto-created by the Setup system
+store.addComponent(entityRef, PersistentDynamicLight.getComponentType(), persistentLight);
+```
+
+### Updating Light Color
+
+```java
+import com.hypixel.hytale.server.core.modules.entity.component.DynamicLight;
+import com.hypixel.hytale.protocol.ColorLight;
+
+// get existing light component
+DynamicLight light = store.getComponent(entityRef, DynamicLight.getComponentType());
+
+// update to new color (flickering effect)
+ColorLight flickerLight = new ColorLight(
+    light.getColorLight().radius,
+    (byte) random.nextInt(12, 16),
+    (byte) random.nextInt(8, 12),
+    (byte) random.nextInt(3, 7)
+);
+light.setColorLight(flickerLight);
+```
+
+### Removing Dynamic Light
+
+```java
+import com.hypixel.hytale.server.core.modules.entity.component.DynamicLight;
+
+// remove light component — EntityTrackerRemove system will notify clients
+store.removeComponent(entityRef, DynamicLight.getComponentType());
+```
+
+### Querying Entities with Lights
+
+```java
+import com.hypixel.hytale.server.core.modules.entity.component.DynamicLight;
+import com.hypixel.hytale.component.query.Query;
+
+// query for entities with dynamic lights
+Query<EntityStore> lightQuery = Query.builder(EntityStore.class)
+    .with(DynamicLight.getComponentType())
+    .build();
+
+for (ArchetypeChunk<EntityStore> chunk : store.query(lightQuery)) {
+    DynamicLight[] lights = chunk.getComponentArray(DynamicLight.getComponentType());
+    for (int i = 0; i < chunk.getEntityCount(); i++) {
+        ColorLight color = lights[i].getColorLight();
+    }
+}
+```
+
+## Light Values
+
+`ColorLight` has no built-in presets. You define your own values using the `byte` fields directly.
+
+<Aside type="tip">
+  The `radius` field controls how far the light reaches in blocks. The `red`, `green`, and `blue` fields control color intensity. All fields are bytes.
+</Aside>
+
+Here are some illustrative examples to get you started:
+
+<Aside type="caution">
+  These are **not** real presets from the game. They're just example configurations to show how the values work.
+</Aside>
+
+| Example | Radius | R | G | B | Description |
+|---------|--------|---|---|---|-------------|
+| Warm torch | 8 | 15 | 10 | 5 | Orange glow |
+| Bright lantern | 12 | 15 | 15 | 12 | Warm white |
+| Red glow | 7 | 15 | 0 | 0 | Pure red |
+| Cool blue | 10 | 5 | 12 | 15 | Blue-cyan |
+
+```java
+// illustrative — define your own presets
+ColorLight warmTorch = new ColorLight((byte) 8, (byte) 15, (byte) 10, (byte) 5);
+ColorLight brightLantern = new ColorLight((byte) 12, (byte) 15, (byte) 15, (byte) 12);
+```
+
+## Network Synchronization
+
+Dynamic lights are automatically synchronized to clients:
+
+1. **On Add**: Light component sent with entity spawn
+2. **On Update**: `setColorLight()` marks network dirty
+3. **On Remove**: `EntityTrackerRemove` system notifies trackers
+4. **Update Type**: `ComponentUpdateType.DynamicLight`
+
+## Integration with Chunk Lighting
+
+Dynamic entity lights work alongside chunk-based lighting:
+
+- **Chunk Light**: Static, calculated once, stored in `ChunkLightData`
+- **Dynamic Light**: Real-time, follows entity, rendered client-side
+
+The client combines both light sources for final illumination.
+
+## Persistent Light Serialization
+
+`PersistentDynamicLight` is saved with entity data:
+
+```json
+{
+  "Components": {
+    "Light": {
+      "Radius": 8,
+      "Red": 15,
+      "Green": 10,
+      "Blue": 5
+    }
+  }
+}
+```
+
+The codec is defined on `PersistentDynamicLight.CODEC` and uses `ProtocolCodecs.COLOR_LIGHT` via `BuilderCodec` with the key `"Light"`.
+
+## Best Practices
+
+1. **Use Persistent for permanent lights**: Lanterns, glowing items, etc.
+2. **Use Runtime for effects**: Spell glows, fire, temporary buffs
+3. **Limit light count**: Many dynamic lights can impact performance
+4. **Reasonable radius**: Keep radius under 15 for best results
+5. **Update frequency**: Don't update every tick unless needed (flickering)
+
+## Related
+
+- [Light Propagation](/plugin-development/world/lighting/) - Chunk-based lighting
+- [Entity System](/plugin-development/entities/overview/) - Entity management
+- [ECS Overview](/plugin-development/core-concepts/ecs-overview/) - Component architecture

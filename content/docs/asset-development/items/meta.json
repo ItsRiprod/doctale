@@ -1,0 +1,13 @@
+{
+  "title": "Items",
+  "pages": [
+    "overview",
+    "weapons",
+    "tools",
+    "consumables",
+    "armor",
+    "combat",
+    "recipes",
+    "durability"
+  ]
+}

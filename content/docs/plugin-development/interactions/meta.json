@@ -1,0 +1,15 @@
+{
+  "title": "Interactions",
+  "pages": [
+    "overview",
+    "interaction-types",
+    "asset-interactions",
+    "interaction-lifecycle",
+    "client-server-sync",
+    "control-flow-interactions",
+    "charging-interactions",
+    "charging-deep-dive",
+    "java-operations",
+    "block-tracking"
+  ]
+}

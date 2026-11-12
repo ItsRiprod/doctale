@@ -1,0 +1,186 @@
+---
+title: "Block Components"
+description: "Store per-block instance data using Component<ChunkStore> for blocks with persistent state like inventories or crafting benches."
+sidebarTitle: Block States
+---
+
+<Aside type="danger" title="Removed in Update 4">
+The `BlockState` system (`BlockState`, `BlockStateRegistry`, `BlockStateModule`, and all related interfaces like `TickableBlockState`, `DestroyableBlockState`, `SendableBlockState`) was fully removed in Update 4. All per-block instance data now uses `Component<ChunkStore>` registered via the chunk store registry. If you were using `getBlockStateRegistry().registerBlockState(...)`, switch to `getChunkStoreRegistry().registerComponent(...)`.
+</Aside>
+
+Block components store per-block instance data for blocks that need persistent state (e.g., chests with inventory, crafting benches with tier levels). They are standard ECS components registered on the `ChunkStore`.
+
+## Package Location
+
+- Block components: `com.hypixel.hytale.server.core.modules.block.components`
+- BlockModule: `com.hypixel.hytale.server.core.modules.block.BlockModule`
+- BlockEntity: `com.hypixel.hytale.server.core.modules.block.BlockEntity`
+- BlockReplaceEvent: `com.hypixel.hytale.server.core.modules.block.BlockReplaceEvent`
+
+## Defining a Block Component
+
+Block components implement `Component<ChunkStore>` and are registered via the chunk store registry.
+
+```java title="CustomBlockComponent.java"
+import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.KeyedCodec;
+import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.component.Component;
+import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
+
+public class CustomBlockComponent implements Component<ChunkStore> {
+    public static final BuilderCodec<CustomBlockComponent> CODEC =
+        BuilderCodec.builder(CustomBlockComponent.class, CustomBlockComponent::new)
+            .append(new KeyedCodec<>("IsOpen", Codec.BOOLEAN),
+                    (c, v) -> c.isOpen = v, c -> c.isOpen)
+            .add()
+            .append(new KeyedCodec<>("Capacity", Codec.SHORT),
+                    (c, v) -> c.capacity = v, c -> c.capacity)
+            .add()
+            .build();
+
+    private boolean isOpen = false;
+    private short capacity = 20;
+
+    public boolean isOpen() { return isOpen; }
+    public void setOpen(boolean open) { this.isOpen = open; }
+    public short getCapacity() { return capacity; }
+
+    @Override
+    public Component<ChunkStore> clone() {
+        CustomBlockComponent copy = new CustomBlockComponent();
+        copy.isOpen = this.isOpen;
+        copy.capacity = this.capacity;
+        return copy;
+    }
+}
+```
+
+## Registering Block Components
+
+Register block components during plugin setup using the chunk store registry:
+
+```java title="Registering a block component"
+@Override
+protected void setup() {
+    ComponentType<ChunkStore, CustomBlockComponent> componentType =
+        getChunkStoreRegistry().registerComponent(
+            CustomBlockComponent.class,
+            "myplugin:custom_block",
+            CustomBlockComponent.CODEC
+        );
+}
+```
+
+## Built-in Block Components
+
+### ItemContainerBlock
+
+Block component for blocks that contain item inventories (chests, containers). Replaces the former `ItemContainerBlockState` and `ItemContainerState`.
+
+```java title="ItemContainerBlock"
+package com.hypixel.hytale.server.core.modules.block.components;
+
+public class ItemContainerBlock implements Component<ChunkStore> {
+    public static ComponentType<ChunkStore, ItemContainerBlock> getComponentType();
+
+    public SimpleItemContainer getItemContainer();
+    public short getCapacity();
+    @Nullable public String getDroplist();
+    public void setDroplist(@Nullable String droplist);
+    public Map<UUID, ContainerBlockWindow> getWindows();
+
+    public static final BuilderCodec<ItemContainerBlock> CODEC;
+}
+```
+
+## Accessing Block Components
+
+Use `BlockModule.getComponent()` to read block components from world positions:
+
+```java title="Reading a block component"
+ItemContainerBlock container = BlockModule.getComponent(
+    ItemContainerBlock.getComponentType(), world, x, y, z
+);
+
+if (container != null) {
+    SimpleItemContainer items = container.getItemContainer();
+}
+```
+
+You can also access block components via chunk store entity references:
+
+```java title="Via chunk store entity reference"
+BlockComponentChunk componentChunk = accessor.getComponent(
+    chunkRef, BlockComponentChunk.getComponentType()
+);
+
+if (componentChunk != null) {
+    int index = ChunkUtil.indexBlockInColumn(x, y, z);
+    Ref<ChunkStore> entityRef = componentChunk.getEntityReference(index);
+    if (entityRef != null) {
+        ItemContainerBlock container = accessor.getComponent(
+            entityRef, ItemContainerBlock.getComponentType()
+        );
+    }
+}
+```
+
+## BlockEntity Utility
+
+`BlockEntity` provides a static utility method for setting block entities on chunks. It handles filler block replacement events, cross-chunk entity references, and `BlockReplaceEvent` dispatch.
+
+```java title="BlockEntity.setBlockEntity"
+BlockEntity.setBlockEntity(
+    accessor, chunkRef, componentChunk,
+    x, y, z, blockType, rotation, holder
+);
+```
+
+Pass `null` for the holder to remove an existing block entity.
+
+## BlockReplaceEvent
+
+`BlockReplaceEvent` is an ECS event dispatched when a block entity is being replaced. It provides the chunk reference, the position of the block being replaced, and the new entity holder.
+
+```java title="BlockReplaceEvent methods"
+public class BlockReplaceEvent extends EcsEvent {
+    public Ref<ChunkStore> getChunkRef();
+    public int getSelfX();
+    public int getSelfY();
+    public int getSelfZ();
+    public Holder<ChunkStore> getNewEntity();
+}
+```
+
+## Migration from BlockState
+
+| v3 (Removed) | v4 (Replacement) |
+|---|---|
+| `BlockState` base class | `Component<ChunkStore>` |
+| `BlockStateRegistry.registerBlockState(...)` | `getChunkStoreRegistry().registerComponent(...)` |
+| `BlockStateModule` | `BlockModule` |
+| `chunk.getState(x, y, z)` | `BlockModule.getComponent(type, world, x, y, z)` |
+| `BlockState.ensureState(chunk, x, y, z)` | Use `BlockEntity.setBlockEntity(...)` |
+| `ItemContainerBlockState` | `ItemContainerBlock` |
+| `TickableBlockState` | `EntityTickingSystem<ChunkStore>` |
+| `DestroyableBlockState` | `RefSystem<ChunkStore>` with remove handling |
+| `SendableBlockState` | Custom packet logic in systems |
+| `BlockState.markNeedsSave()` | Handled automatically by the component system |
+
+## Best Practices
+
+1. **Use `Component<ChunkStore>`**: Implement the standard ECS component interface
+2. **Register with codec**: Provide a `BuilderCodec` for persistence
+3. **Use systems for behavior**: Lifecycle logic belongs in `RefSystem<ChunkStore>` or `EntityTickingSystem<ChunkStore>`, not in the component
+4. **Handle replacement events**: Listen for `BlockReplaceEvent` if your component needs to transfer data when blocks are replaced
+5. **Access via BlockModule**: Use `BlockModule.getComponent(...)` for positional lookups
+
+## Related
+
+- [Block Types](/plugin-development/blocks/block-types/) - BlockType properties
+- [Block Events](/plugin-development/blocks/block-events/) - Block event handling
+- [ECS Overview](/plugin-development/core-concepts/ecs-overview/) - Entity Component System
+- [Serialization](/plugin-development/serialization/overview/) - Data persistence
+
+{/* [VERIFIED: 2026-03-21] */}

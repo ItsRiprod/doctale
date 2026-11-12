@@ -1,0 +1,278 @@
+---
+title: "Development Environment Setup"
+description: "Set up Java 25 and the official plugin template for creating Hytale server plugins."
+sidebarTitle: Setup
+---
+
+{/* [VERIFIED: 2026-03-21] */}
+
+
+## Requirements
+
+**Java 25** is required. [JetBrains Runtime](https://github.com/JetBrains/JetBrainsRuntime) is recommended for DCEVM hot-swap support, but any Java 25 JDK works for compilation.
+
+Recommended distributions:
+- [JetBrains Runtime](https://github.com/JetBrains/JetBrainsRuntime) (preferred — enables hot-reload)
+- [Eclipse Temurin](https://adoptium.net/) (Adoptium)
+- [Amazon Corretto](https://aws.amazon.com/corretto/)
+
+```bash
+java -version
+# Expected: openjdk version "25.x.x" or similar
+```
+
+An IDE with Java support is strongly recommended. [IntelliJ IDEA](https://www.jetbrains.com/idea/) Community Edition works well. You do not need to install Gradle — the template bundles its own wrapper.
+
+## Getting Started with the Template
+
+The fastest way to start is the [official plugin template](https://github.com/HytaleModding/plugin-template). It uses the [ScaffoldIt](https://scaffoldit.dev) Gradle plugin (`version "0.2.+"`) which handles dependency resolution, manifest generation, and dev server setup automatically.
+
+<Steps>
+1. Clone the template:
+   ```bash
+   git clone https://github.com/HytaleModding/plugin-template.git MyPlugin
+   cd MyPlugin
+   ```
+
+2. Build it to verify everything works:
+   ```bash
+   ./gradlew build
+   ```
+   On Windows, use `gradlew.bat build` instead. This should succeed on the first attempt with zero configuration.
+
+3. Customize your plugin identity in `settings.gradle.kts`:
+   ```kotlin
+   hytale {
+       usePatchline("release")
+       useVersion("latest")
+
+       manifest {
+           Group = "com.yourname"
+           Name = "MyPlugin"
+           Main = "com.yourname.myplugin.MyPlugin"
+       }
+   }
+   ```
+
+4. Rename the Java package under `src/main/java/` to match your `Main` class path, and update the code accordingly.
+
+5. Update `src/main/resources/manifest.json` with your plugin details, or run `./gradlew generateManifest` to regenerate it from your settings.
+</Steps>
+
+<Aside type="note">
+You may see `JetBrains JDK not found, falling back to default JDK 25. DCEVM hot-swap won't be available.` — this is informational only. Compilation works fine without JetBrains Runtime; you just won't get live code hot-swap during development.
+</Aside>
+
+For the official setup walkthrough, see also the [HytaleModding setup guide](https://hytalemodding.dev/en/docs/guides/plugin/setting-up-env#setting-up-your-workspace).
+
+## Project Structure
+
+After cloning, the template looks like this:
+
+<FileTree>
+- MyPlugin/
+  - assets/ _(optional — for plugins with asset packs)_
+  - build.gradle.kts
+  - settings.gradle.kts
+  - gradle.properties
+  - gradlew
+  - gradlew.bat
+  - src/
+    - main/
+      - java/
+        - dev/
+          - hytalemodding/
+            - ExamplePlugin.java
+            - commands/
+              - ExampleCommand.java
+            - events/
+              - ExampleEvent.java
+      - resources/
+        - manifest.json
+  - gradle/
+    - wrapper/
+      - gradle-wrapper.jar
+      - gradle-wrapper.properties
+</FileTree>
+
+The `build.gradle.kts` is intentionally minimal — the ScaffoldIt plugin configures repositories, dependencies, and Java toolchain automatically through the `hytale {}` block in `settings.gradle.kts`.
+
+## How the Build System Works
+
+The template uses the `dev.scaffoldit` Gradle plugin (applied in `settings.gradle.kts`, not `build.gradle.kts`). It automatically:
+
+- Adds the Hytale Maven repository (`https://maven.hytale.com/release`)
+- Adds the server dependency (`com.hypixel.hytale:Server:+`)
+- Configures the Java 25 toolchain
+- Generates plugin manifests
+- Sets up dev server tasks
+
+You do not need to manually configure repositories or dependencies.
+
+### Hytale Server Path (Optional)
+
+Setting `hytale.home_path` in `gradle.properties` is only needed for Assets.zip resolution (used by `setupServer` / `devServer` tasks). It is **not required for compilation**.
+
+<Tabs>
+  <TabItem label="Linux">
+    ```properties
+    hytale.home_path=/home/<username>/.var/app/com.hypixel.HytaleLauncher/data/Hytale
+    ```
+  </TabItem>
+  <TabItem label="Windows">
+    ```properties
+    hytale.home_path=C:\\Users\\<username>\\AppData\\Local\\Hypixel\\HytaleLauncher\\data\\Hytale
+    ```
+  </TabItem>
+  <TabItem label="macOS">
+    ```properties
+    hytale.home_path=/Users/<username>/Library/Application Support/Hypixel/HytaleLauncher/data/Hytale
+    ```
+  </TabItem>
+</Tabs>
+
+### Available Gradle Tasks
+
+| Task | Description |
+|---|---|
+| `build` | Compiles and packages your plugin |
+| `runServer` | Starts the local development server |
+| `devServer` | Alias for `runServer` |
+| `setupServer` | Creates the devserver directory |
+| `generateManifest` | Regenerates manifest.json from settings |
+| `openIdea` | Opens the project in IntelliJ IDEA |
+
+## Running Your Plugin
+
+<Steps>
+1. Set your `hytale.home_path` in `gradle.properties` (see above)
+2. Run `./gradlew setupServer` to create the local dev server
+3. Run `./gradlew runServer` to start it (add `-Ddebug` to enable remote debugging with hot-swap support)
+4. Your plugin is loaded automatically from `build/libs/`
+</Steps>
+
+Alternatively, copy the built JAR from `build/libs/` to any Hytale server's `plugins/` directory.
+
+<Aside type="note" title="New in Update 4">
+The server now includes `start.sh` and `start.bat` launcher scripts that handle staged updates, automatic restart on exit code 8, and custom JVM options via a `jvm.options` file. You can extract these scripts with the `/update setup` command. When using the launcher scripts, the server runs from inside the `Server/` directory with `--backup` enabled by default (30-minute frequency).
+</Aside>
+
+### Server Launcher Scripts
+
+For production or standalone testing, you can use the official launcher scripts instead of `./gradlew runServer`. These scripts provide:
+
+- **Staged updates**: Automatically applies files from `updater/staging/` before starting
+- **Auto-restart**: Restarts the server when it exits with code 8 (update signal)
+- **Custom JVM options**: Create a `jvm.options` file alongside the script with one argument per line
+- **Crash detection**: Warns if the server crashes within 30 seconds of an update
+
+```properties title="jvm.options"
+-Xms2G
+-Xmx4G
+-XX:+UseG1GC
+```
+
+## Manual Setup (Without the Template)
+
+If you prefer not to use the ScaffoldIt template, you can set up a plain Gradle or Maven project manually.
+
+<Tabs>
+  <TabItem label="Gradle">
+```groovy title="build.gradle"
+plugins {
+    id 'java'
+}
+
+group = 'com.example'
+version = '1.0.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        name = "hytale"
+        url = uri("https://maven.hytale.com/release")
+    }
+}
+
+dependencies {
+    compileOnly("com.hypixel.hytale:Server:+")
+}
+```
+  </TabItem>
+  <TabItem label="Maven">
+```xml title="pom.xml"
+<project>
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.example</groupId>
+    <artifactId>my-plugin</artifactId>
+    <version>1.0.0</version>
+
+    <properties>
+        <maven.compiler.source>25</maven.compiler.source>
+        <maven.compiler.target>25</maven.compiler.target>
+    </properties>
+
+    <repositories>
+        <repository>
+            <id>hytale</id>
+            <url>https://maven.hytale.com/release</url>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.hypixel.hytale</groupId>
+            <artifactId>Server</artifactId>
+            <version>LATEST</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+</project>
+```
+  </TabItem>
+</Tabs>
+
+The server dependency is **compile-only/provided** — do not bundle it with your plugin. ScaffoldIt uses `implementation` internally because it handles packaging automatically, but in a manual setup you should use `compileOnly` (Gradle) or `provided` (Maven) since the server is available at runtime.
+
+<Aside type="note" title="New in Update 3">
+The server now bundles JOML 1.10.8 and RocksDB 10.4.2 as runtime dependencies. These are available without including them in your plugin. See the [Update 3 changelog](/changelog/update-2-to-3/) for details.
+</Aside>
+
+<Aside type="caution" title="Changed in Update 4">
+The custom math types `Mat4f`, `Vec2f`, `Vec3f`, `Vec4f`, and `Quatf` from `com.hypixel.hytale.math` have been removed. Use the JOML equivalents instead: `org.joml.Matrix4f`, `org.joml.Vector2f`, `org.joml.Vector3f`, `org.joml.Vector4f`, and `org.joml.Quaternionf`. The read-only interface variants (`Matrix4fc`, `Vector3fc`, etc.) are used where immutability is desired. Note that Hytale's own `com.hypixel.hytale.math.vector.Vector3d`, `Vector3f`, `Vector3i`, and `Vector2i` are **not** removed — only the top-level math types were replaced.
+</Aside>
+
+## IDE Configuration
+
+### IntelliJ IDEA
+
+<Steps>
+1. File → Open → select your project directory
+2. IntelliJ will detect Gradle automatically and import the project
+3. If using the template, run `./gradlew openIdea` for pre-configured project files
+</Steps>
+
+### VS Code
+
+Install the [Java Extension Pack](https://marketplace.visualstudio.com/items?itemName=vscjava.vscode-java-pack). Open the project folder — the extension will detect Gradle and configure the classpath.
+
+## Troubleshooting
+
+**"Class not found" errors** — Verify the `Main` field in `manifest.json` matches your class's fully qualified name.
+
+**Plugin doesn't load** — Check for JSON syntax errors in `manifest.json`. Verify it's at the root of your JAR, not in a subdirectory. Check server logs.
+
+**Hot-reload doesn't work** — You need JetBrains Runtime, not a regular JDK. Standard JDKs compile fine but don't support DCEVM hot-swap.
+
+## Next Steps
+
+- [Extracting the Server](/getting-started/extracting-the-server/) — Decompile the server source for reference
+- [First Plugin Tutorial](/getting-started/first-plugin/) — Complete walkthrough
+- [Plugin Manifest](/getting-started/plugin-manifest/) — Full manifest schema
+- [Plugin Lifecycle](/getting-started/plugin-lifecycle/) — Understanding lifecycle hooks

@@ -1,0 +1,22 @@
+{
+  "title": "Plugin Development",
+  "pages": [
+    "core-concepts",
+    "registries",
+    "world",
+    "entities",
+    "blocks",
+    "ecs",
+    "events",
+    "networking",
+    "physics",
+    "interactions",
+    "inventory",
+    "npc",
+    "permissions",
+    "serialization",
+    "math",
+    "server",
+    "worldgen"
+  ]
+}

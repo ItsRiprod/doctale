@@ -1,0 +1,455 @@
+---
+title: "Networking System Overview"
+description: "Handle client-server communication with packets, watchers, and filters through the Netty-based networking system."
+sidebarTitle: Overview
+---
+
+{/* [VERIFIED: 2026-03-21] */}
+
+The Networking System handles all client-server communication through a packet-based protocol built on Netty. Plugins can send packets, watch packet flow, and filter packets for modification.
+
+## Package Location
+
+- Protocol: `com.hypixel.hytale.protocol`
+- Packets: `com.hypixel.hytale.protocol.packets`
+- Server I/O: `com.hypixel.hytale.server.core.io`
+- Packet Adapters: `com.hypixel.hytale.server.core.io.adapter`
+
+## Architecture
+
+```mermaid
+flowchart TB
+    subgraph Network["Networking Architecture"]
+        Client["Client"]
+        Transport["Transport<br/>(TCP/QUIC)"]
+        Handler["PacketHandler"]
+
+        subgraph Pipeline["Adapter Pipeline"]
+            Inbound["Inbound<br/>Adapters"]
+            Outbound["Outbound<br/>Adapters"]
+        end
+
+        Logic["Game Logic / Plugins"]
+    end
+
+    Client <--> Transport <--> Handler
+    Handler --> Pipeline
+    Pipeline --> Logic
+```
+
+## Core Classes
+
+| Class | Description |
+|-------|-------------|
+| `Packet` | Base interface for all network packets |
+| `ToClientPacket` | Marker interface for server-to-client packets |
+| `ToServerPacket` | Marker interface for client-to-server packets |
+| `NetworkChannel` | Enum defining packet routing channels |
+| `PacketRegistry` | Central registry of packet types |
+| `PacketHandler` | Abstract handler for packet processing |
+| `PacketIO` | Packet serialization/deserialization |
+| `PacketAdapters` | Plugin packet interception system |
+
+<Aside type="note" title="New in Update 3">
+`ToClientPacket`, `ToServerPacket`, and `NetworkChannel` were added in Update 3. Every packet class now implements one or both direction interfaces, and declares a `NetworkChannel` for routing. See the Packet Direction System and Network Channel System sections below. For a full overview of networking changes, see the [Update 3 changelog](/changelog/update-2-to-3/).
+</Aside>
+
+## Packet Interface
+
+All packets implement the `Packet` interface:
+
+```java
+package com.hypixel.hytale.protocol;
+
+public interface Packet {
+    int getId();
+    void serialize(@Nonnull ByteBuf buf);
+    int computeSize();
+    NetworkChannel getChannel();
+}
+```
+
+<Aside type="note" title="New in Update 3">
+The `getChannel()` method was added to the `Packet` interface in Update 3. All implementations must return a `NetworkChannel` value. Refer to the [Update 3 changelog](/changelog/update-2-to-3/) for the complete list of interface changes.
+</Aside>
+
+## Packet Direction System
+
+<Aside type="note" title="New in Update 3">
+Update 3 introduces a formal packet direction system. Two marker interfaces split packets by direction:
+- `ToClientPacket extends Packet` -- packets sent from server to client
+- `ToServerPacket extends Packet` -- packets sent from client to server
+- Bidirectional packets implement both interfaces
+
+Server-side APIs such as `IPacketReceiver.sendPacket()`, `PacketGenerator`, and `PlayerUtil.sendPacket()` now accept `ToClientPacket` instead of `Packet`. See the [Update 3 changelog](/changelog/update-2-to-3/) for all direction system details.
+</Aside>
+
+## Network Channel System
+
+<Aside type="note" title="New in Update 3">
+A new `NetworkChannel` enum routes packets across separate QUIC streams:
+- `Default(0)` -- most packets
+- `Chunks(1)` -- chunk/block/fluid data (`SetChunk`, `ServerSetBlock`, `UnloadChunk`, etc.)
+- `WorldMap(2)` -- world map packets (`ClearWorldMap`, `UpdateWorldMap`)
+
+The `PacketRegistry` was restructured from a single `BY_ID` map to separate `TO_SERVER_BY_ID` and `TO_CLIENT_BY_ID` maps. `getById()` was split into `getToServerPacketById()` and `getToClientPacketById()`. The Netty pipeline (`PacketEncoder`/`PacketDecoder`) now validates that a packet's channel matches the stream channel. Full channel system details are in the [Update 3 changelog](/changelog/update-2-to-3/).
+</Aside>
+
+<Aside type="note" title="New in Update 4">
+A fourth network channel `Voice(3)` was added for dedicated voice chat routing. Voice packets (`VoiceData`, `RelayedVoiceData`) use this channel on a separate QUIC stream. The `VoiceConfig` packet is sent on the `Default` channel.
+</Aside>
+
+### Packet Constants
+
+Each packet class defines:
+
+```java
+public class ExamplePacket implements Packet {
+    public static final int PACKET_ID = 123;
+    public static final boolean IS_COMPRESSED = false;
+    public static final int MAX_SIZE = 256;
+
+    // Fields...
+
+    @Override
+    public int getId() {
+        return PACKET_ID;
+    }
+
+    @Override
+    public void serialize(@Nonnull ByteBuf buf) {
+        // Write fields to buffer
+    }
+
+    public static ExamplePacket deserialize(@Nonnull ByteBuf buf, int offset) {
+        // Read fields from buffer
+    }
+
+    @Override
+    public int computeSize() {
+        return MAX_SIZE;
+    }
+}
+```
+
+## Packet Categories
+
+The protocol defines ~280 packet types across 20 categories:
+
+| Category | Package | Description |
+|----------|---------|-------------|
+| `connection` | `packets.connection` | Connect, ClientDisconnect, ServerDisconnect, Ping, Pong |
+| `auth` | `packets.auth` | Authentication tokens and passwords |
+| `player` | `packets.player` | Movement, teleport, inventory actions |
+| `entities` | `packets.entities` | Spawn, despawn, animation, knockback |
+| `world` | `packets.world` | Chunks, blocks, sounds, weather |
+| `interface_` | `packets.interface_` | Chat, notifications, UI state |
+| `inventory` | `packets.inventory` | Item drops, stack moves, container ops |
+| `assets` | `packets.assets` | Item/block/particle/effect updates |
+| `interaction` | `packets.interaction` | Mount, interaction triggers |
+| `setup` | `packets.setup` | Initial asset and feature setup |
+| `window` | `packets.window` | Dialog and window management |
+| `camera` | `packets.camera` | Camera shake, fly mode |
+| `buildertools` | `packets.buildertools` | World editing tools |
+| `machinima` | `packets.machinima` | Cinematic scene control |
+| `asseteditor` | `packets.asseteditor` | Asset editor operations |
+| `worldmap` | `packets.worldmap` | Map markers |
+| `serveraccess` | `packets.serveraccess` | Access control |
+| `voice` | `packets.voice` | Voice chat data and configuration |
+| `stream` | `packets.stream` | Auxiliary QUIC stream management |
+
+## PacketHandler
+
+`PacketHandler` is the abstract base class for handling packets:
+
+```java
+package com.hypixel.hytale.server.core.io;
+
+public abstract class PacketHandler implements IPacketReceiver {
+    public void write(@Nonnull ToClientPacket packet);
+    public void writeNoCache(@Nonnull ToClientPacket packet);
+    public void write(@Nonnull ToClientPacket... packets);
+    public void write(@Nonnull ToClientPacket[] packets, @Nonnull ToClientPacket finalPacket);
+    public void writePacket(@Nonnull ToClientPacket packet, boolean cache);
+
+    public void sendPing();
+    public void handlePong(@Nonnull Pong packet);
+    public void tickPing(float dt);
+
+    public final void registered(@Nullable PacketHandler oldHandler);
+    public final void unregistered(@Nullable PacketHandler newHandler);
+
+    public void disconnect(@Nonnull Message message);
+    public void disconnect(@Nonnull FormattedMessage message);
+
+    public abstract void accept(@Nonnull ToServerPacket packet);
+}
+```
+
+<Aside type="caution" title="Changed in Update 3">
+`PacketHandler` now supports multiple QUIC streams via a `channels[]` array instead of a single `channel` field. When using QUIC transport, separate streams are created for `Default`, `Chunks`, and `WorldMap` channels. The `IPacketReceiver.sendPacket()` method now accepts `ToClientPacket` instead of `Packet`. The [Update 3 changelog](/changelog/update-2-to-3/) covers all handler changes.
+</Aside>
+
+<Aside type="caution" title="Changed in Update 4">
+`PacketHandler.disconnect(String)` was replaced by `disconnect(Message)` and `disconnect(FormattedMessage)`. The handler now uses `ServerDisconnect` instead of the removed `Disconnect` packet. Auxiliary QUIC stream channels are managed via `getChannel(StreamType)`, `setChannel(StreamType, Channel)`, and `compareAndSetChannel(StreamType, Channel, Channel)`.
+</Aside>
+
+### Handler Types
+
+| Handler | Description |
+|---------|-------------|
+| `GenericPacketHandler` | Generic connection handler |
+| `GenericConnectionPacketHandler` | Connection-specific handler |
+| `InitialPacketHandler` | Initial connection phase |
+| `GamePacketHandler` | In-game player packets |
+| `SubPacketHandler` | Custom sub-handlers |
+
+## Packet Adapters
+
+Plugins can intercept packets using the adapter system:
+
+```java
+package com.hypixel.hytale.server.core.io.adapter;
+
+public class PacketAdapters {
+    // Watch/filter inbound packets (client → server)
+    public static PacketFilter registerInbound(@Nonnull PacketWatcher watcher);
+    public static PacketFilter registerInbound(@Nonnull PlayerPacketWatcher watcher);
+    public static PacketFilter registerInbound(@Nonnull PlayerPacketFilter filter);
+
+    // Watch/filter outbound packets (server → client)
+    public static PacketFilter registerOutbound(@Nonnull PacketWatcher watcher);
+    public static PacketFilter registerOutbound(@Nonnull PlayerPacketWatcher watcher);
+    public static PacketFilter registerOutbound(@Nonnull PlayerPacketFilter filter);
+
+    // Deregister adapters
+    public static void deregisterInbound(PacketFilter predicate);
+    public static void deregisterOutbound(PacketFilter predicate);
+}
+```
+
+### Adapter Interfaces
+
+```java
+// Watch any packet (receives the PacketHandler, not the player)
+@FunctionalInterface
+public interface PacketWatcher extends BiConsumer<PacketHandler, Packet> {
+    void accept(PacketHandler handler, Packet packet);
+}
+
+// Watch player-specific packets
+public interface PlayerPacketWatcher extends BiConsumer<PlayerRef, Packet> {
+    void accept(PlayerRef player, Packet packet);
+}
+
+// Filter player packets (return true to block, false to allow)
+public interface PlayerPacketFilter extends BiPredicate<PlayerRef, Packet> {
+    boolean test(PlayerRef player, Packet packet);
+}
+
+// Low-level filter (operates on PacketHandler directly)
+public interface PacketFilter extends BiPredicate<PacketHandler, Packet> {
+    boolean test(PacketHandler handler, Packet packet);
+}
+```
+
+<Aside type="caution">
+The `PlayerPacketFilter` return value is inverted from what you might expect -- returning `true` **blocks** the packet, and `false` **allows** it. This matches the internal `PacketFilter` convention where `true` means "handled/consumed".
+</Aside>
+
+### Watching Packets
+
+```java
+import com.hypixel.hytale.protocol.Packet;
+import com.hypixel.hytale.protocol.packets.interface_.ChatMessage;
+import com.hypixel.hytale.server.core.io.adapter.PacketAdapters;
+import com.hypixel.hytale.server.core.io.adapter.PacketFilter;
+import com.hypixel.hytale.server.core.io.adapter.PlayerPacketWatcher;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
+
+public class MyPlugin extends JavaPlugin {
+    private PacketFilter chatWatcher;
+
+    @Override
+    protected void setup() {
+        // Watch chat messages
+        chatWatcher = PacketAdapters.registerInbound(
+            (PlayerPacketWatcher) (player, packet) -> {
+                if (packet instanceof ChatMessage chat) {
+                    getLogger().info(player.getUsername() + " sent: " + chat.message);
+                }
+            }
+        );
+    }
+
+    @Override
+    protected void shutdown() {
+        // Clean up adapter
+        PacketAdapters.deregisterInbound(chatWatcher);
+    }
+}
+```
+
+### Filtering Packets
+
+```java
+import com.hypixel.hytale.protocol.packets.interface_.ChatMessage;
+import com.hypixel.hytale.server.core.io.adapter.PacketAdapters;
+import com.hypixel.hytale.server.core.io.adapter.PlayerPacketFilter;
+
+PacketFilter filter = PacketAdapters.registerInbound(
+    (PlayerPacketFilter) (player, packet) -> {
+        if (packet instanceof ChatMessage chat) {
+            if (chat.message.contains("banned_word")) {
+                return true; // true = block/consume the packet
+            }
+        }
+        return false; // false = allow the packet through
+    }
+);
+```
+
+## Sending Packets
+
+Send packets to players through their packet handler:
+
+```java
+import com.hypixel.hytale.protocol.packets.interface_.ChatMessage;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
+
+public void sendMessage(PlayerRef player, String message) {
+    ChatMessage packet = new ChatMessage();
+    packet.message = message;
+
+    // Send to player
+    player.getPacketHandler().write(packet);
+}
+
+// Send multiple packets
+public void sendMultiple(PlayerRef player, Packet... packets) {
+    player.getPacketHandler().write(packets);
+}
+```
+
+## Auxiliary Streams
+
+<Aside type="note" title="New in Update 4">
+Update 4 introduces auxiliary QUIC streams managed by `StreamManager` in `com.hypixel.hytale.server.core.io.stream`. Clients request new streams via `StreamOpen` (ID 460), and the server responds with `StreamOpenResponse` (ID 461). The voice chat system uses this to open a dedicated `Voice` stream. Handlers are registered via `StreamManager.registerHandler(StreamType, factory)`. Each connection supports up to 4 auxiliary streams.
+</Aside>
+
+## PacketIO Utilities
+
+<Aside type="note" title="New in Update 4">
+`PacketIO` now includes read/write methods for JOML math types: `readVector2f`, `readVector3f`, `readVector4f`, `readQuaternionf`, `readMatrix4f` and their corresponding write methods. All use little-endian byte order. This reflects the migration from custom `com.hypixel.hytale.math` types (Mat4f, Vec2f, etc.) to JOML equivalents.
+</Aside>
+
+## Wire Protocol
+
+### Packet Frame Format
+
+```
+┌─────────────────────────────────────────────┐
+│  4 bytes  │  4 bytes  │  N bytes            │
+│  Length   │  Packet   │  Payload            │
+│  (LE)     │  ID (LE)  │  (compressed/raw)   │
+└─────────────────────────────────────────────┘
+```
+
+### Compression
+
+- Uses Zstd (Zstandard) compression
+- Compression level configurable via `hytale.protocol.compressionLevel`
+- Individual packets opt-in/out via `IS_COMPRESSED` constant
+- Max uncompressed payload: 1,677,721,600 bytes
+
+## Transport Layer
+
+The networking system supports multiple transports:
+
+```java
+package com.hypixel.hytale.server.core.io.transport;
+
+public interface Transport {
+    TransportType getType();
+    ChannelFuture bind(InetSocketAddress address) throws InterruptedException;
+    void shutdown();
+}
+```
+
+### Transport Types
+
+| Transport | Class | Description |
+|-----------|-------|-------------|
+| TCP | `TCPTransport` | Standard TCP connections |
+| QUIC | `QUICTransport` | QUIC protocol support |
+
+## Ping Monitoring
+
+Three ping metrics are tracked per connection:
+
+| Type | Description |
+|------|-------------|
+| `Raw` | Raw network latency |
+| `Direct` | Direct tick-based ping |
+| `Tick` | Game tick synchronized ping |
+
+Metrics include min, max, average, and 99th percentile over 1s, 1m, and 5m windows.
+
+## Common Packets
+
+### Connection
+
+| Packet | Direction | Description |
+|--------|-----------|-------------|
+| `Connect` | C→S | Initial connection request |
+| `ClientDisconnect` | C→S | Client-initiated disconnect with `ClientDisconnectReason` enum |
+| `ServerDisconnect` | S→C | Server-initiated disconnect with `FormattedMessage` reason |
+| `Ping` | S→C | Latency measurement request |
+| `Pong` | C→S | Latency measurement response |
+
+<Aside type="caution" title="Changed in Update 4">
+The bidirectional `Disconnect` packet was split into `ClientDisconnect` (ID 1, C→S) and `ServerDisconnect` (ID 2, S→C). Client disconnect reasons changed from a variable-length `String` to a fixed-size `ClientDisconnectReason` enum. Server disconnect reasons changed from a plain `String` to a rich `FormattedMessage`. This caused `Ping` to shift from ID 2 to 3 and `Pong` from ID 3 to 4.
+</Aside>
+
+### Player
+
+| Packet | Direction | Description |
+|--------|-----------|-------------|
+| `PlayerMovement` | C→S | Player position/rotation update |
+| `PlayerTeleport` | S→C | Server-initiated teleport |
+| `PlayerInventory` | S→C | Inventory state sync |
+
+### World
+
+| Packet | Direction | Description |
+|--------|-----------|-------------|
+| `SetChunk` | S→C | Chunk data |
+| `ServerSetBlock` | S→C | Block change |
+| `SoundEvent` | S→C | Sound playback |
+
+### Interface
+
+| Packet | Direction | Description |
+|--------|-----------|-------------|
+| `ChatMessage` | Both | Chat message |
+| `Notification` | S→C | UI notification |
+
+## Best Practices
+
+1. **Clean up adapters**: Always deregister packet adapters in `shutdown()`
+2. **Check packet types**: Use `instanceof` to identify packet types
+3. **Minimize filtering**: Filters run on every packet; keep them efficient
+4. **Use appropriate transport**: TCP for reliability, QUIC for performance
+5. **Respect packet limits**: Don't exceed `MAX_SIZE` for packets
+
+## Limitations
+
+- Cannot create new packet types at runtime
+- Packet serialization format is fixed per type
+- No direct access to Netty channels
+
+## Related
+
+- [Event System](/plugin-development/core-concepts/event-system/) - Server events
+- [Entity System](/plugin-development/entities/overview/) - Entity packets
+- [World System](/plugin-development/world/overview/) - World packets

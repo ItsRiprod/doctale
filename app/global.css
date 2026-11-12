@@ -22,6 +22,46 @@
   color: var(--shiki-catppuccin-mocha);
 }
 
+/* ---- Legacy Starlight widgets (WS-B) ---- */
+/* <Steps> wraps a markdown <ol>; render it with Fumadocs' step styles. */
+.legacy-steps > ol {
+  @apply fd-steps;
+  list-style: none;
+  margin-inline: 0;
+}
+.legacy-steps > ol > li {
+  @apply fd-step;
+  padding-inline-start: 0;
+}
+.legacy-steps > ol > li::marker {
+  content: none;
+}
+
+/* ---- Code (WS-C) ---- */
+/* `wrap` fence meta */
+.code-wrap code,
+.code-wrap .line {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ---- Mermaid (WS-C) ---- */
+.fd-mermaid {
+  cursor: zoom-in;
+}
+.fd-mermaid:fullscreen {
+  cursor: zoom-out;
+  background: var(--color-fd-background);
+  align-items: center;
+  padding: 2rem;
+}
+.fd-mermaid:fullscreen svg {
+  max-width: 100% !important;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+}
+
 html {
   scrollbar-gutter: stable;
 }

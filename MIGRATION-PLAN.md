@@ -1,6 +1,6 @@
 # Doctale → Fumadocs migration: orchestration plan
 
-Status: **Phase 0 done (2026-11-11), Phase 1 ready to dispatch** · Target branch: `fumadocs` · Written 2026-11-11
+Status: **Phase 0 done. WS-D done, WS-B mostly done, WS-C partly done (2026-11-11). Remaining: WS-A, WS-E, the rest of WS-B/C (see §9)** · Target branch: `fumadocs` · Written 2026-11-11
 
 ## Goal
 
@@ -308,3 +308,42 @@ Node 26.13, npm 12.2.
 - Tailwind is told to skip `hy*Server-extracted-*`, `legacy/` and `reports/` (`@source not`), and so is `tsconfig` (`exclude`).
 - Phase 0 placeholders to be replaced: `app/themes/*.css` (spike pull of modern-minimal + catppuccin, WS-A), the theme script in
   `app/layout.tsx` (WS-A), the spike Shiki rule in `app/global.css` (WS-C), `content/docs/test.mdx` (WS-D deletes it), and the legacy stubs (WS-B).
+
+## 9. Progress: content migration + widgets (2026-11-11, lead, inline)
+
+**WS-D: done.** `node scripts/codemod/migrate.mjs` (`--check` = report only). It's idempotent, regenerates from `legacy/astro`, and leaves
+content-only pages (`_kitchen-sink.mdx`) alone.
+- 99 pages ported (root `index.mdx` skipped), 32 `meta.json` generated from the Starlight sidebar (`read-sidebar.mjs` bracket-matches the
+  array literal, so no Astro import is needed). Top-level groups become `---Separator---` + `...folder`, and nested groups become collapsible folders.
+- `sidebarTitle` frontmatter (added to the schema in `lib/source.ts`, applied by a page-tree transformer) keeps the 64 short sidebar labels
+  that differ from page titles.
+- 49 duplicate body `# H1`s that matched the title were dropped (the layout already renders the title).
+- 1 bare `{Set}` placeholder escaped. Outside code, MDX evaluated it as the JS `Set` constructor (it was broken on the old site too).
+- `hexcode-flow` is built but not in the sidebar, the same as before.
+- **URL parity:** all 100 old URLs exist in `out/`. Internal link check: only 2 broken links, both **already broken on the live site**
+  (`/plugin-development/ecs/overview/`, `/plugin-development/events/overview/`). They're left for the content rewrite.
+
+**WS-B: legacy adapters done** (`components/mdx/legacy.tsx`):
+- `Aside` → `Callout` (note→info, tip→idea, caution→warn, danger→error, title passthrough).
+- `Tabs`/`TabItem` → Fumadocs `Tabs items` / `Tab value` (labels read from children). `syncKey` is accepted but ignored: this Fumadocs
+  version has no `groupId`/`persist`, and no page uses it.
+- `Steps` → wraps the markdown `<ol>`, styled with Fumadocs' `fd-steps`/`fd-step` utilities (`app/global.css`).
+- `FileTree` → parses the markdown list into `Files`/`Folder`/`File` (all folders open). Supports trailing `/`, nested lists, comments after the
+  name, and `**highlight**`.
+- `Card` (Lucide icons for Starlight icon names; also accepts native `href`/`description`), `CardGrid` → `Cards`, `LinkCard` → linked `Card`.
+- `Badge` → Catalyst `Badge` (fixed palette colours for now).
+- `content/docs/_kitchen-sink.mdx` (served at `/_kitchen-sink/`, not in the sidebar) shows every widget and the nested cases.
+- Coverage check on `out/`: Steps 13/13 pages, Tabs 19/19, FileTree 33/33, images 6/6. No placeholder stubs remain.
+- **Still to do:** Badge/Catalyst colours on theme tokens (WS-A). Also decide whether the kitchen sink should be excluded from search/llms.txt.
+
+**WS-C: partly done:**
+- Done: `wrap` meta transformer (`.code-wrap`; no current page uses it), `img` → `ImageZoom` with alt-text caption, Mermaid click-to-fullscreen.
+- **Mermaid verified:** all 43 diagrams on 30 pages render an SVG with no Mermaid syntax errors and clean consoles (headless Firefox via WebDriver BiDi).
+- **Still to do:** Mermaid colours from the active site theme (it uses mermaid's default/dark themes now), and the per-theme Shiki pairs generated from the theme index.
+
+**WS-E finding:** the static Orama index for the full content is **11.7 MB raw (1.8 MB gzip, 1.0 MB brotli)**, about 11.7k entries, and it's fetched on
+first search. Options: check that Cloudflare serves it compressed (set `content-type: application/json` in `_headers`), try
+`flexsearch-static`, or index headings + descriptions only.
+
+**QA tooling:** headless-Firefox WebDriver BiDi driver (node, no deps) used for the sweeps above. Firefox's `--screenshot` fires before
+client components hydrate, so use BiDi for anything client-rendered. Committed as `scripts/qa/bidi.mjs`. The WS-E link checker goes next to it.

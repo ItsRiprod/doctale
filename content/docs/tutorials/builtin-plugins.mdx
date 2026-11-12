@@ -1,0 +1,560 @@
+---
+title: "Built-in Plugins Reference"
+description: "Learn from Hytale's built-in plugin packages that demonstrate modding patterns and provide core gameplay features."
+sidebarTitle: Built-in Plugins
+---
+
+{/* [VERIFIED: 2026-03-21] */}
+
+
+Hytale ships with 32 built-in plugin packages that demonstrate modding patterns and provide core gameplay features. Some packages (notably `adventure/`) contain multiple independent plugin classes — the actual plugin count is over 45. This reference documents each plugin, its components, and how to learn from them.
+
+## Package Location
+
+`com.hypixel.hytale.builtin`
+
+## Complete Plugin List
+
+All 32 built-in plugin packages organized by category:
+
+### Core Gameplay
+| Plugin | Directory | Description |
+|--------|-----------|-------------|
+| WeatherPlugin | `weather/` | Dynamic weather systems |
+| CraftingPlugin | `crafting/` | Crafting benches and recipes |
+| TeleportPlugin | `teleport/` | Teleportation and warps |
+| PortalsPlugin | `portals/` | Inter-world portals |
+| BedsPlugin | `beds/` | Spawn points and sleeping |
+| InstancesPlugin | `instances/` | Instanced dungeons/areas |
+
+### Movement & Combat
+| Plugin | Directory | Description |
+|--------|-----------|-------------|
+| MountPlugin | `mounts/` | Mounts and riding |
+| MantlingPlugin | `mantling/` | Ledge climbing |
+| SprintForcePlugin | `sprintforce/` | Sprint mechanics |
+| CrouchSlidePlugin | `crouchslide/` | Crouch sliding |
+| SafetyRollPlugin | `safetyroll/` | Fall damage reduction |
+| ParkourPlugin | `parkour/` | Parkour mechanics |
+| DeployablesPlugin | `deployables/` | Deployable items |
+
+### World Systems
+| Plugin | Directory | Description |
+|--------|-----------|-------------|
+| FluidPlugin | `fluid/` | Fluid simulation |
+| BlockPhysicsPlugin | `blockphysics/` | Block physics |
+| BlockTickPlugin | `blocktick/` | Block updates/growth |
+| WorldGenPlugin | `worldgen/` | World generation hooks |
+| HytaleGenerator | `hytalegenerator/` | Default world generator |
+| BlockSpawnerPlugin | `blockspawner/` | Block-based spawners |
+| AmbiencePlugin | `ambience/` | Ambient sounds/effects |
+| LANDiscoveryPlugin | `landiscovery/` | LAN game discovery |
+
+### Adventure Mode
+
+<Aside type="tip">
+The `adventure/` directory doesn't contain a single plugin — it's a package of **15 independent sub-plugins** covering shops, reputation, objectives, memories, farming, and more. See the [Adventure Mode Plugins](#adventure-mode-plugins) section below for the full breakdown.
+</Aside>
+
+### Tools & Editors
+| Plugin | Directory | Description |
+|--------|-----------|-------------|
+| NPCEditorPlugin | `npceditor/` | NPC editing commands |
+| BuilderToolsPlugin | `buildertools/` | World building tools |
+| AssetEditorPlugin | `asseteditor/` | Asset editing utilities |
+| MacroCommandPlugin | `commandmacro/` | Command macros |
+| CreativeHubPlugin | `creativehub/` | Creative mode hub |
+
+### AI & NPCs
+| Plugin | Directory | Description |
+|--------|-----------|-------------|
+| NPCCombatActionEvaluatorPlugin | `npccombatactionevaluator/` | NPC combat AI |
+| PathPlugin | `path/` | Pathfinding utilities |
+
+### Misc
+| Plugin | Directory | Description |
+|--------|-----------|-------------|
+| ModelPlugin | `model/` | Model utilities |
+| TagSetPlugin | `tagset/` | Tag set management |
+| RandomTickPlugin | `randomtick/` | Random block ticking (grass spread, block changes) |
+
+<Aside type="note" title="New in Update 4">
+Two new core modules have been added in Update 4: **VoiceModule** (proximity voice chat) and **EmoteAsset** (emote system). VoiceModule is a `JavaPlugin` in `server/core/modules/voice/` rather than a builtin plugin. EmoteAsset is registered via `CosmeticsModule` in `server/core/cosmetics/`.
+</Aside>
+
+<Aside type="note" title="New in Update 3">
+`RandomTickPlugin` was added in Update 3. It provides Minecraft-style random block ticking with built-in `ChangeIntoBlockProcedure` and `SpreadToProcedure` procedures. See [Block Ticking](/plugin-development/blocks/block-ticking/) for details. All Update 3 additions are listed in the [changelog](/changelog/update-2-to-3/).
+</Aside>
+
+---
+
+## WeatherPlugin
+
+**Location**: `builtin/weather/`
+
+Manages dynamic weather systems per world.
+
+### Components
+
+| Component | Store | Description |
+|-----------|-------|-------------|
+| `WeatherTracker` | EntityStore | Tracks weather per player |
+| `WeatherResource` | EntityStore | World weather state |
+
+### Systems
+
+```java
+WeatherSystem.WorldAddedSystem    // Initialize weather for new worlds
+WeatherSystem.PlayerAddedSystem   // Send weather to joining players
+WeatherSystem.TickingSystem       // Update weather over time
+WeatherSystem.InvalidateWeatherAfterTeleport  // Sync after teleport
+```
+
+### Commands
+
+- `/weather <type>` - Change weather
+
+<Aside type="note" title="New in Update 4">
+Weather randomization is now deterministic. The weather seed is computed from `worldSeed + environment.getWeatherSeedKey().hashCode() + dateTime.hashCode()` using `FastRandom` instead of `ThreadLocalRandom`. Environments can share weather forecasts by using the same `weatherSeedKey`.
+</Aside>
+
+### Key Patterns
+
+```java
+// Register resource
+weatherResourceType = EntityStore.REGISTRY.registerResource(
+    WeatherResource.class, WeatherResource::new);
+
+// Register component
+weatherTrackerComponentType = EntityStore.REGISTRY.registerComponent(
+    WeatherTracker.class, WeatherTracker::new);
+
+// Register systems
+entityStoreRegistry.registerSystem(new WeatherSystem.TickingSystem());
+```
+
+---
+
+## CraftingPlugin
+
+**Location**: `builtin/crafting/`
+
+Complete crafting system with benches, recipes, and UI.
+
+### Components
+
+| Component | Store | Description |
+|-----------|-------|-------------|
+| `CraftingManager` | EntityStore | Player crafting state |
+| `BenchBlock` | ChunkStore | Crafting bench block component |
+| `ProcessingBenchBlock` | ChunkStore | Processing bench block component |
+
+<Aside type="caution" title="Changed in Update 4">
+`BenchState` and `ProcessingBenchState` (which extended `BlockState`) have been replaced by `BenchBlock` and `ProcessingBenchBlock` (`Component<ChunkStore>`). Register them via `getChunkStoreRegistry().registerComponent()` instead of `blockStateRegistry.registerBlockState()`. Lifecycle logic previously in the state classes is now in `BenchSystems` (inner classes `OnAddOrRemoved`, `ProcessingBenchTick`, `ProcessingBenchLifecycle`). `CraftRecipeEvent.Pre` and `CraftRecipeEvent.Post` events are now dispatched during crafting, allowing plugins to cancel or modify recipe results.
+</Aside>
+
+### Block Components
+
+```java
+// Register block component for crafting benches
+getChunkStoreRegistry().registerComponent(
+    BenchBlock.class, BenchBlock::new);
+```
+
+### Interactions
+
+```java
+OpenBenchPageInteraction        // Open crafting UI
+OpenProcessingBenchInteraction  // Open processing UI
+LearnRecipeInteraction          // Learn new recipe
+```
+
+### Recipe System
+
+```java
+// Get recipes for a bench
+List<CraftingRecipe> recipes = CraftingPlugin.getBenchRecipes(bench);
+
+// Learn a recipe
+CraftingPlugin.learnRecipe(ref, recipeId, componentAccessor);
+
+// Check if item is valid material
+CraftingPlugin.isValidCraftingMaterialForBench(bench, itemStack);
+```
+
+### Commands
+
+- `/recipe learn <id>` - Learn recipe
+- `/recipe forget <id>` - Forget recipe
+
+---
+
+## TeleportPlugin
+
+**Location**: `builtin/teleport/`
+
+Teleportation commands and warp points.
+
+### Components
+
+| Component | Store | Description |
+|-----------|-------|-------------|
+| `TeleportHistory` | EntityStore | Player teleport history |
+| `WarpComponent` | EntityStore | Warp point marker |
+
+### Warps
+
+```java
+// Get all warps
+Map<String, Warp> warps = TeleportPlugin.get().getWarps();
+
+// Warps persist in warps.json in universe folder
+```
+
+### Map Markers
+
+```java
+// Warps show on world map
+WarpMarkerProvider.INSTANCE  // Provides warp markers
+```
+
+### Commands
+
+- `/tp <player>` - Teleport to player
+- `/tp <x> <y> <z>` - Teleport to coordinates
+- `/warp <name>` - Go to warp
+- `/warp set <name>` - Create warp
+- `/spawn` - Go to spawn
+
+---
+
+## PortalsPlugin
+
+**Location**: `builtin/portals/`
+
+Inter-world portal system with void events.
+
+### Components
+
+| Component | Store | Description |
+|-----------|-------|-------------|
+| `PortalWorld` | EntityStore (Resource) | Portal world data |
+| `PortalDevice` | ChunkStore | Portal device block |
+| `VoidEvent` | EntityStore | Void event state |
+| `VoidSpawner` | EntityStore | Void portal spawner |
+
+### Interactions
+
+```java
+EnterPortalInteraction   // Enter a portal
+ReturnPortalInteraction  // Return from portal
+```
+
+### Gameplay Config
+
+```java
+// Register plugin config
+getCodecRegistry(GameplayConfig.PLUGIN_CODEC)
+    .register(PortalGameplayConfig.class, "Portal", PortalGameplayConfig.CODEC);
+```
+
+### Systems
+
+```java
+PortalTrackerSystems.TrackerSystem
+PortalInvalidDestinationSystem
+CloseWorldWhenBreakingDeviceSystems
+VoidEventStagesSystem
+```
+
+---
+
+## MountPlugin
+
+**Location**: `builtin/mounts/`
+
+Mounting and riding entities.
+
+### Key Features
+
+- Mount/dismount mechanics
+- Riding controls
+- Mount AI integration
+
+### Components
+
+| Component | Store | Description |
+|-----------|-------|-------------|
+| `NPCMountComponent` | EntityStore | NPC mount state and configuration |
+| `MountedComponent` | EntityStore | Entity currently being mounted |
+| `MountedByComponent` | EntityStore | Entity being ridden |
+| `BlockMountComponent` | ChunkStore | Block-based seating |
+| `MinecartComponent` | EntityStore | Minecart mount behavior |
+
+---
+
+## FluidPlugin
+
+**Location**: `builtin/fluid/`
+
+Fluid simulation and water physics.
+
+### Key Features
+
+- Water flow simulation
+- Fluid level tracking
+- Swimming mechanics
+
+### Registrations
+
+FluidPlugin registers three `FluidTicker` codecs and six `FluidSystems` that operate on core chunk components (`FluidSection`, `ChunkSection`, `BlockChunk`, `ChunkColumn`, `WorldChunk`).
+
+| FluidTicker Codec | Class | Description |
+|-------------------|-------|-------------|
+| `Default` | `DefaultFluidTicker` | Standard fluid spreading |
+| `Fire` | `FireFluidTicker` | Fire fluid behavior |
+| `Finite` | `FiniteFluidTicker` | Finite fluid volumes |
+
+<Aside type="note" title="New in Update 4">
+`DisabledFluidResource` is a new `Resource<ChunkStore>` that caches disabled fluid IDs from `WorldConfig.getDisabledFluidTickers()`. This allows per-world control over which fluids tick. When a fluid ID is in the disabled set, its tick is skipped entirely.
+</Aside>
+
+---
+
+## BlockTickPlugin
+
+**Location**: `builtin/blocktick/`
+
+Deterministic block update and tick system.
+
+### Systems
+
+```java
+ChunkBlockTickSystem       // Process block ticks
+MergeWaitingBlocksSystem   // Merge pending updates
+```
+
+### Tick Procedures
+
+```java
+BasicChanceBlockGrowthProcedure      // Simple growth
+SplitChanceBlockGrowthProcedure      // Variable growth rates
+```
+
+<Aside type="note" title="New in Update 3">
+For random (non-deterministic) block ticking, see `RandomTickPlugin` which was added in Update 3. `BlockTickPlugin` handles deterministic per-block ticking via `TickProcedure`, while `RandomTickPlugin` handles random selection of blocks per chunk section. For a complete list of what changed, check the [Update 3 changelog](/changelog/update-2-to-3/).
+</Aside>
+
+---
+
+## BedsPlugin
+
+**Location**: `builtin/beds/`
+
+Bed interactions and spawn points.
+
+### Key Features
+
+- Sleep mechanics
+- Individual spawn points
+- Respawn handling
+- Multiplayer sleep notifications
+
+<Aside type="note" title="New in Update 3">
+A `SleepNotificationSystem` was added for multiplayer sleep coordination. On small servers (4 or fewer players), all awake players are notified when someone tries to sleep. On larger servers, notifications trigger when the sleeper ratio reaches 50%. Sleep sound configuration support was also added. See the [Update 3 changelog](/changelog/update-2-to-3/) for all builtin plugin changes.
+</Aside>
+
+---
+
+## Adventure Mode Plugins
+
+The `adventure/` package contains 15 independent plugins that together form Hytale's adventure mode. Each is its own `JavaPlugin`.
+
+| Plugin | Directory | Description |
+|--------|-----------|-------------|
+| CameraPlugin | `adventure/camera/` | Camera control and cinematic systems |
+| FarmingPlugin | `adventure/farming/` | Crop farming mechanics |
+| MemoriesPlugin | `adventure/memories/` | NPC memory of player interactions |
+| NPCObjectivesPlugin | `adventure/npcobjectives/` | NPC-driven objective assignments |
+| NPCReputationPlugin | `adventure/npcreputation/` | NPC-specific reputation effects |
+| NPCShopPlugin | `adventure/npcshop/` | NPC-specific shop bindings |
+| ObjectivePlugin | `adventure/objectives/` | Quest and objective tracking |
+| ObjectiveReputationPlugin | `adventure/objectivereputation/` | Reputation rewards from objectives |
+| ObjectiveShopPlugin | `adventure/objectiveshop/` | Shop unlocks tied to objectives |
+| ReputationPlugin | `adventure/reputation/` | Faction/NPC reputation tracking |
+| ShopPlugin | `adventure/shop/` | Shop system with items and currencies |
+| ShopReputationPlugin | `adventure/shopreputation/` | Shop pricing based on reputation |
+| StashPlugin | `adventure/stash/` | Player stash/storage system |
+| TeleporterPlugin | `adventure/teleporter/` | In-world teleporter devices (with clear-out and portal state systems) |
+| WorldLocationConditionPlugin | `adventure/worldlocationcondition/` | Location-based conditions |
+
+---
+
+## VoiceModule (Core)
+
+**Location**: `server/core/modules/voice/`
+
+<Aside type="note" title="New in Update 4">
+VoiceModule is a core server module, not a builtin plugin. It is documented here because it is a significant new system modders may interact with.
+</Aside>
+
+Proximity voice chat system with spatial audio routing.
+
+### Configuration
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `voiceEnabled` | true | Enable/disable voice chat |
+| `maxHearingDistance` | 32 | Maximum distance to hear other players |
+| `fullVolumeDistance` | 4 | Distance at which voice is at full volume |
+| `deadPlayersCanHear` | — | Whether dead players can still hear voice |
+| `mutedPlayers` | empty | Set of muted player UUIDs |
+
+### Key Details
+
+- Uses dedicated QUIC streams via `StreamManager.registerHandler(StreamType.Voice, ...)`
+- Maximum 12 simultaneous speakers per listener
+- Speaker positions quantized to 0.5 block resolution
+- Rate limited to 60 packets/second with burst capacity of 25
+- 4 dedicated executor threads
+
+### Commands
+
+- `/voice enabled <true|false>` - Toggle voice chat
+- `/voice maxdistance <distance>` - Set max hearing distance
+- `/voice mute <player>` - Mute a player
+- `/voice unmute <player>` - Unmute a player
+- `/voice status` - Show voice chat status
+
+---
+
+## EmoteAsset (Core)
+
+**Location**: `server/core/cosmetics/EmoteAsset.java`
+
+<Aside type="note" title="New in Update 4">
+Emotes are registered as assets via `CosmeticsModule` using `IndexedLookupTableAssetMap` and support network serialization to `ProtocolEmote`.
+</Aside>
+
+### Asset Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Emote identifier |
+| `name` | string | Display name |
+| `animationPath` | string | Path to animation asset |
+| `iconPath` | string | Path to icon asset |
+| `isLooping` | boolean | Whether the emote loops |
+
+---
+
+## Common Patterns
+
+### Plugin Singleton Pattern
+
+```java
+public class MyPlugin extends JavaPlugin {
+    private static MyPlugin instance;
+
+    public static MyPlugin get() {
+        return instance;
+    }
+
+    public MyPlugin(JavaPluginInit init) {
+        super(init);
+        instance = this;
+    }
+}
+```
+
+### Component Registration Pattern
+
+```java
+@Override
+protected void setup() {
+    // Register component
+    myComponentType = EntityStore.REGISTRY.registerComponent(
+        MyComponent.class, MyComponent::new);
+
+    // Register system
+    getEntityStoreRegistry().registerSystem(new MySystem());
+}
+```
+
+### Event Registration Pattern
+
+```java
+@Override
+protected void setup() {
+    // Register event listener
+    getEventRegistry().register(LoadedAssetsEvent.class, Item.class,
+        this::onItemLoad);
+
+    // Register global listener
+    getEventRegistry().registerGlobal(AddWorldEvent.class,
+        event -> initializeWorld(event.getWorld()));
+}
+```
+
+### Command Registration Pattern
+
+```java
+@Override
+protected void setup() {
+    // Via CommandRegistry
+    getCommandRegistry().registerCommand(new MyCommand());
+
+    // Via CommandManager (system commands)
+    CommandManager.get().registerSystemCommand(new MySystemCommand());
+}
+```
+
+### Codec Registration Pattern
+
+```java
+@Override
+protected void setup() {
+    // Register interaction type
+    getCodecRegistry(Interaction.CODEC)
+        .register("MyInteraction", MyInteraction.class, MyInteraction.CODEC);
+
+    // Register block component
+    getChunkStoreRegistry().registerComponent(
+        MyBlockComponent.class, MyBlockComponent::new);
+}
+```
+
+### World Event Pattern
+
+```java
+@Override
+protected void setup() {
+    getEventRegistry().registerGlobal(AddWorldEvent.class, event -> {
+        World world = event.getWorld();
+        // Initialize per-world state
+        world.getWorldMapManager().addMarkerProvider("markers", myProvider);
+    });
+}
+```
+
+<Aside type="caution" title="Changed in Update 3">
+The `MarkerProvider` interface changed from returning `List<MapMarker>` to `void provide(World, Player, MarkersCollector)`. Marker providers now use `MarkersCollector` to add markers with distance-based filtering. `PlayerIconMarkerProvider` was replaced by `OtherPlayersMarkerProvider`, and `PerWorldDataMarkerProvider` was split into `PersonalMarkersProvider` and `SharedMarkersProvider`. A new user-created map marker system (`UserMapMarker`, `UserMapMarkersStore`) was also added. The [Update 3 changelog](/changelog/update-2-to-3/) documents all marker system changes.
+</Aside>
+
+---
+
+## Learning From Built-in Plugins
+
+1. **Study structure**: Each plugin demonstrates proper organization
+2. **Examine codecs**: See how serialization is handled
+3. **Follow ECS patterns**: Learn component/system design
+4. **Understand lifecycle**: See how setup/start/shutdown work
+5. **Review commands**: Study command implementation
+6. **Analyze interactions**: Learn block/entity interaction patterns
+
+## Related
+
+- [Plugin Lifecycle](/getting-started/plugin-lifecycle/) - Plugin basics
+- [Event System](/plugin-development/core-concepts/event-system/) - Events
+- [Commands](/plugin-development/core-concepts/commands/) - Command system
+- [ECS Overview](/plugin-development/core-concepts/ecs-overview/) - Components and systems
