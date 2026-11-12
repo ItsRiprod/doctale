@@ -17,6 +17,7 @@ export default function DefaultSearchDialog(props: SharedProps) {
   const { locale } = useI18n(); // (optional) for i18n
   const search = useStaticSearch({
     locale,
+    from: '/api/search.json',
   });
 
   return (

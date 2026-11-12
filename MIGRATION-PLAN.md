@@ -1,6 +1,6 @@
 # Doctale → Fumadocs migration: orchestration plan
 
-Status: **Phase 0 done. WS-D done, WS-B mostly done, WS-C partly done (2026-11-11). Remaining: WS-A, WS-E, the rest of WS-B/C (see §9)** · Target branch: `fumadocs` · Written 2026-11-11
+Status: **Phase 0 and WS-A through WS-E done (2026-11-12). Next: Phase 2 QA sign-off, then Phase 3 cutover (user-gated). See §9 and §10.** · Target branch: `fumadocs` · Written 2026-11-11
 
 ## Goal
 
@@ -347,3 +347,44 @@ first search. Options: check that Cloudflare serves it compressed (set `content-
 
 **QA tooling:** headless-Firefox WebDriver BiDi driver (node, no deps) used for the sweeps above. Firefox's `--screenshot` fires before
 client components hydrate, so use BiDi for anything client-rendered. Committed as `scripts/qa/bidi.mjs`. The WS-E link checker goes next to it.
+
+## 10. Progress: WS-A, WS-E, rest of WS-C (2026-11-12, lead, inline)
+
+**WS-E: done.**
+- Search index moved to `/api/search.json`, so it gets a JSON content type and brotli. Orama `sort` is disabled and `_`-prefixed pages are excluded:
+  **8.8 MB raw, 1.2 MB gzip, 0.75 MB brotli** (was 11.7 / 1.8 / 1.0).
+- `app/not-found.tsx` + `wrangler.toml` `not_found_handling = "404-page"`, `html_handling = "auto-trailing-slash"`.
+- `app/sitemap.ts` (static), `robots.txt` points at `/sitemap.xml`, and `_headers` was rewritten for Next (`/_next/static/*` immutable, search, OG).
+- GitHub workflow: Node 24, `npm ci`, type check, build, `npm run check:links` (`scripts/qa/links.mjs`). It **deploys only on push to main**;
+  the old workflow also deployed on PRs.
+- Verified under `wrangler dev`: unknown URL → 404 page, `/foo` → 307 `/foo/`, `/docs/*` → 301, search.json `application/json` + br.
+
+**WS-A: done.**
+- `scripts/themes/pull.mjs` (`npm run theme:list | theme:sync | theme:add -- <name|url|file> | theme:remove -- <id>`): pulls tweakcn registry
+  themes into `app/themes/<id>.css` plus `index.css`, `themes.json` and `generated.ts`. **36 themes**, brand-named ones included. Only colour vars + radius
+  are kept: themes also ship `--spacing`, which would rescale all of Tailwind, plus fonts, shadows and tracking.
+- `app/themes/config.ts`: `DEFAULT_THEME = 'modern-minimal'`. `<html data-theme>` is server-rendered with the default, and an inline pre-paint script applies
+  the saved theme (`localStorage['doctale-theme']`), falls back to the default for unknown ids, and accepts `?theme=` for previews.
+- `components/theme/`: `store.ts` (`useSiteTheme`/`usePaletteKey`, a MutationObserver on `<html>`), `theme-picker.tsx` (Catalyst Dropdown of all themes with
+  swatches + Fumadocs light/dark/system switch, in the layout's `themeSwitch` slot, so it appears in the docs sidebar footer and the home navbar),
+  `theme-sync.tsx` (runtime `theme-color` meta + cross-tab sync).
+- Catalyst Dropdown/Button/Badge restyled onto `fd-*` theme tokens (new `primary`/`neutral`/`destructive`/`chart-2` colours). `@theme inline` exposes `chart-*`
+  and the fonts. Inter + JetBrains Mono come via `next/font`. Theme-coloured scrollbars.
+- Home page (`app/(home)/page.tsx`): hero, the two tracks, side-by-side "quick taste" snippets (server-highlighted with the same code theme), quick links, disclaimer.
+- Root metadata: title template, description, OpenGraph site name.
+
+**WS-C: done.**
+- **Code colours per site theme without HTML bloat:** code is highlighted once with Shiki's **CSS-variables theme** (one inline `color: var(--shiki-token-*)` per token).
+  `scripts/themes/code-css.mjs` (runs as `predev`/`prebuild`) derives those variables from real Shiki themes per site theme + scheme by highlighting
+  samples in both and matching per character. The config is `app/themes/code-themes.json` (default github light/dark + 13 overrides).
+  Side effect: pages got smaller (largest 1.2 MB → 725 KB; `out/` 142 MB → 114 MB).
+  Gotcha: Fumadocs' `rehypeCode` re-adds its default `themes`, so pass the variables theme as `themes: { light }` + `defaultColor: 'light'`, not `theme`.
+- Mermaid uses the `base` theme with `themeVariables` built from the active theme's CSS vars (resolved to sRGB through a canvas, since Mermaid can't parse oklch),
+  re-renders on theme/scheme change, and renders are serialised.
+
+**QA (headless Firefox, `scripts/qa/bidi.mjs`; now supports `--dark`, `--click` (real pointer), `--eval`, and deletes its profile after each run):**
+home in light and Catppuccin dark; docs in Doom 64 and Cosmic Night dark; the picker opens above the sidebar, switching updates `data-theme`, storage,
+label and theme-color; search returns results; all 43 Mermaid diagrams render in Cyberpunk dark with no errors. Type check and link check clean.
+
+**Open for Phase 3:** README/CONTRIBUTING rewrite, removing `legacy/astro/` (keep it until the content rewrite no longer needs the codemod),
+the Tailwind Plus licence check before pushing Catalyst-derived files publicly, and whether the kitchen sink stays in `llms.txt`.

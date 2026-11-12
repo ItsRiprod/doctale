@@ -7,6 +7,11 @@ import { TouchTarget } from './button'
 import { Link } from './link'
 
 const colors = {
+  // Theme-token colours (doctale): follow the active site theme.
+  primary: 'bg-fd-primary/15 text-fd-primary group-data-hover:bg-fd-primary/25',
+  neutral: 'bg-fd-secondary text-fd-secondary-foreground group-data-hover:bg-fd-accent',
+  destructive: 'bg-fd-error/15 text-fd-error group-data-hover:bg-fd-error/25',
+  'chart-2': 'bg-chart-2/15 text-chart-2 group-data-hover:bg-chart-2/25',
   red: 'bg-red-500/15 text-red-700 group-data-hover:bg-red-500/25 dark:bg-red-500/10 dark:text-red-400 dark:group-data-hover:bg-red-500/20',
   orange:
     'bg-orange-500/15 text-orange-700 group-data-hover:bg-orange-500/25 dark:bg-orange-500/10 dark:text-orange-400 dark:group-data-hover:bg-orange-500/20',

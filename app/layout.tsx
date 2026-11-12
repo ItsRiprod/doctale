@@ -1,27 +1,43 @@
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import type { Metadata, Viewport } from 'next';
+import { Inter, JetBrains_Mono } from 'next/font/google';
 import { Provider } from '@/components/provider';
+import { DEFAULT_THEME, THEME_IDS, THEME_STORAGE_KEY } from '@/app/themes/config';
+import { appName } from '@/lib/shared';
 import './global.css';
 
-const inter = Inter({
-  subsets: ['latin'],
-});
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-jetbrains-mono' });
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://doctale.dev'),
+  title: { default: 'Hytale Modding Docs', template: `%s | ${appName}` },
+  description:
+    'Community-driven documentation for Hytale server modding: plugins, assets, and the systems underneath. Unofficial community resource.',
+  openGraph: { type: 'website', siteName: 'Hytale Server Modding Docs' },
+  icons: { icon: '/favicon.svg' },
 };
 
-// Phase 0 minimal pre-paint theme script. WS-A owns this: registry-validated ids, fallback to DEFAULT_THEME.
-// `?theme=<id>` overrides for QA/screenshots. Must set the attribute on <html> (see app/global.css).
-const themeScript = `(function(){try{var q=new URLSearchParams(location.search).get('theme');var t=q||localStorage.getItem('doctale-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}})()`;
+export const viewport: Viewport = {
+  // Updated at runtime to the active theme's background (components/theme/theme-sync.tsx).
+  themeColor: '#ffffff',
+};
+
+// Runs before first paint: apply the saved site theme to <html> (no flash). Unknown or removed ids fall back to
+// the default. `?theme=<id>` previews a theme without saving it (handy for QA and screenshots).
+const themeScript = `(function(){try{var ids=${JSON.stringify(THEME_IDS)};var q=new URLSearchParams(location.search).get('theme');var t=q||localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)});document.documentElement.setAttribute('data-theme',ids.indexOf(t)>-1?t:${JSON.stringify(DEFAULT_THEME)})}catch(e){}})()`;
 
 export default function Layout({ children }: LayoutProps<'/'>) {
   return (
-    <html lang="en" className={inter.className} suppressHydrationWarning>
+    <html
+      lang="en"
+      data-theme={DEFAULT_THEME}
+      className={`${inter.variable} ${jetbrainsMono.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className="flex flex-col min-h-screen">
+      <body className="flex min-h-screen flex-col">
         <Provider>{children}</Provider>
       </body>
     </html>

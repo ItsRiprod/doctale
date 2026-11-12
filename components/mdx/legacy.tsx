@@ -130,8 +130,9 @@ export function LinkCard({ title, href, description }: { title: string; href: st
 
 // ---------- Badge ----------
 export type BadgeVariant = 'default' | 'note' | 'tip' | 'caution' | 'danger' | 'success';
-const badgeColor = { default: 'zinc', note: 'blue', tip: 'purple', caution: 'amber', danger: 'red', success: 'green' } as const;
+// Theme-following colours for neutral/informational variants; caution/success keep fixed semantic colours.
+const badgeColor = { default: 'neutral', note: 'primary', tip: 'chart-2', caution: 'amber', danger: 'destructive', success: 'green' } as const;
 
 export function Badge({ text, variant = 'default' }: { text: string; variant?: BadgeVariant; size?: 'small' | 'medium' | 'large' }) {
-  return <CatalystBadge color={badgeColor[variant] ?? 'zinc'}>{text}</CatalystBadge>;
+  return <CatalystBadge color={badgeColor[variant] ?? 'neutral'}>{text}</CatalystBadge>;
 }

@@ -3,11 +3,22 @@
 @import 'fumadocs-ui/css/shadcn.css';
 @import 'fumadocs-ui/css/preset.css';
 
-/* Themes. WS-A generates this list (app/themes/index.css) from the registry; Phase 0 imports two by hand.
-   The first/default theme also targets bare :root/.dark. `data-theme` must sit on <html>, because shadcn.css resolves
-   --color-fd-* from --background etc. on :root. */
-@import './themes/modern-minimal.css';
-@import './themes/catppuccin.css';
+/* Site themes: pulled shadcn registry items (npm run theme:sync), scoped by [data-theme] on <html>.
+   `data-theme` must sit on <html>, the same element as `.dark`, because shadcn.css resolves --color-fd-* there. */
+@import './themes/index.css';
+/* Code colours per site theme (generated from app/themes/code-themes.json). */
+@import './themes/code.css';
+
+/* Fonts (next/font variables from app/layout.tsx) and theme tokens Fumadocs doesn't map (chart colours). */
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+}
 
 /* Keep Tailwind's class scanner out of the huge extracted-server dumps and legacy Astro sources. */
 @source not '../hyaleServer-extracted-v1';
@@ -16,11 +27,6 @@
 @source not '../hytaleServer-prerelease-extracted-v4';
 @source not '../legacy';
 @source not '../reports';
-
-/* Phase 0 spike: per-site-theme Shiki theme. WS-C generates these rules from the theme index. */
-:root[data-theme='catppuccin'] .shiki code span {
-  color: var(--shiki-catppuccin-mocha);
-}
 
 /* ---- Legacy Starlight widgets (WS-B) ---- */
 /* <Steps> wraps a markdown <ol>; render it with Fumadocs' step styles. */
@@ -64,6 +70,15 @@
 
 html {
   scrollbar-gutter: stable;
+}
+
+/* Scrollbars follow the active theme (native ones stay light on dark themes otherwise). */
+* {
+  scrollbar-color: color-mix(in oklab, var(--color-fd-muted-foreground) 45%, transparent) transparent;
+}
+pre,
+.fd-scroll-container {
+  scrollbar-width: thin;
 }
 
 html > body[data-scroll-locked] {

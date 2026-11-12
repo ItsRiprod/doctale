@@ -1,0 +1,19 @@
+{
+  "$comment": "Code colours per site theme. Values are bundled Shiki theme names (https://shiki.style/themes). Themes not listed use `default`. Edit freely; `npm run dev`/`build` regenerate app/themes/code.css.",
+  "default": { "light": "github-light", "dark": "github-dark" },
+  "overrides": {
+    "catppuccin": { "light": "catppuccin-latte", "dark": "catppuccin-mocha" },
+    "mono": { "light": "min-light", "dark": "min-dark" },
+    "solar-dusk": { "light": "solarized-light", "dark": "solarized-dark" },
+    "vintage-paper": { "light": "gruvbox-light-soft", "dark": "gruvbox-dark-soft" },
+    "kodama-grove": { "light": "everforest-light", "dark": "everforest-dark" },
+    "nature": { "light": "everforest-light", "dark": "everforest-dark" },
+    "northern-lights": { "light": "github-light", "dark": "nord" },
+    "starry-night": { "light": "night-owl-light", "dark": "night-owl" },
+    "mocha-mousse": { "light": "rose-pine-dawn", "dark": "rose-pine-moon" },
+    "cyberpunk": { "light": "one-light", "dark": "synthwave-84" },
+    "cosmic-night": { "light": "one-light", "dark": "tokyo-night" },
+    "claude": { "light": "kanagawa-lotus", "dark": "kanagawa-wave" },
+    "vercel": { "light": "github-light-default", "dark": "vesper" }
+  }
+}

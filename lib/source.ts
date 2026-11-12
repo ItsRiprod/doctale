@@ -6,10 +6,14 @@ import { metaSchema, pageSchema } from 'fumadocs-core/source/schema';
 import { rehypeCodeDefaultOptions } from 'fumadocs-core/mdx-plugins/rehype-code';
 import { remarkMdxMermaid } from 'fumadocs-core/mdx-plugins/remark-mdx-mermaid';
 import { transformerMetaHighlight } from '@shikijs/transformers';
+import { createCssVariablesTheme } from 'shiki';
 import { z } from 'zod';
 
 // `sidebarTitle`: shorter label for the sidebar when it differs from the page title (ported from Starlight sidebar labels).
 const docSchema = pageSchema.extend({ sidebarTitle: z.string().optional() });
+
+const codeDefaults = rehypeCodeDefaultOptions;
+const varsTheme = createCssVariablesTheme({ name: 'css-variables', variablePrefix: '--shiki-', fontStyle: false });
 
 const docs = defineDocs({
   dir: 'content/docs',
@@ -22,16 +26,15 @@ const docs = defineDocs({
     mdxOptions: applyMdxPreset({
       remarkPlugins: (v) => [remarkMdxMermaid, ...v],
       rehypeCodeOptions: {
-        ...rehypeCodeDefaultOptions,
-        // Phase 0 spike: multi-theme output. WS-C generates this map from app/themes.
-        themes: {
-          light: 'github-light',
-          dark: 'github-dark',
-          'catppuccin-mocha': 'catppuccin-mocha',
-        },
-        defaultColor: false,
+        ...codeDefaults,
+        // One CSS-variables theme: tokens are `color: var(--shiki-token-*)`, and app/themes/code.css sets those variables
+        // per site theme + light/dark (generated from real Shiki themes, see scripts/themes/code-css.mjs).
+        // rehypeCode merges its own light/dark `themes` under these options, so `themes` must be overridden (not `theme`).
+        // A single entry + defaultColor 'light' makes Shiki write one inline `color: var(--shiki-token-*)` per token.
+        themes: { light: varsTheme },
+        defaultColor: 'light',
         transformers: [
-          ...(rehypeCodeDefaultOptions.transformers ?? []),
+          ...(codeDefaults.transformers ?? []),
           // Starlight/Expressive Code style `{19-22,27}` line ranges.
           transformerMetaHighlight(),
           // Expressive Code `wrap` meta: soft-wrap long lines (styled by `.code-wrap` in app/global.css).
